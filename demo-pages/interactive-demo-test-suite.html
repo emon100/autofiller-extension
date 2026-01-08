@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoFiller Test Suite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+    .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+    .animate-pulse { animation: pulse 2s infinite; }
+    .test-badge { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+    .badge-easy { background: #dcfce7; color: #166534; }
+    .badge-medium { background: #fef3c7; color: #92400e; }
+    .badge-hard { background: #fee2e2; color: #991b1b; }
+    .badge-edge { background: #f3e8ff; color: #7c3aed; }
+    
+    .form-cell { vertical-align: top; padding: 8px; border: 1px solid #e5e7eb; }
+    .form-cell input, .form-cell select, .form-cell textarea { 
+      width: 100%; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; 
+    }
+    .form-cell input:focus, .form-cell select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+    
+    .test-section { background: white; border-radius: 12px; border: 1px solid #e5e7eb; margin-bottom: 24px; overflow: hidden; }
+    .section-header { background: #f9fafb; padding: 16px 20px; border-bottom: 1px solid #e5e7eb; }
+    .section-body { padding: 20px; }
+    
+    [contenteditable] { border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px; min-height: 36px; }
+    [contenteditable]:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+    
+    .combobox-wrapper { position: relative; }
+    .combobox-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-radius: 6px; margin-top: 4px; max-height: 200px; overflow-y: auto; z-index: 50; display: none; }
+    .combobox-dropdown.open { display: block; }
+    .combobox-option { padding: 8px 12px; cursor: pointer; }
+    .combobox-option:hover { background: #f3f4f6; }
+    
+    .wizard-step { display: none; }
+    .wizard-step.active { display: block; }
+    .step-indicator { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+    .step-indicator.completed { background: #22c55e; color: white; }
+    .step-indicator.active { background: #3b82f6; color: white; }
+    .step-indicator.pending { background: #e5e7eb; color: #9ca3af; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+          </svg>
+        </span>
+        <div>
+          <h1 class="text-lg font-bold text-gray-800">AutoFiller Test Suite</h1>
+          <p class="text-xs text-gray-500">Comprehensive Form Testing</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <select id="profile-select" class="text-sm border border-gray-300 rounded-lg px-3 py-1.5" onchange="loadProfile(this.value)">
+          <option value="">Load Profile...</option>
+          <option value="us">US Applicant</option>
+          <option value="cn">CN Applicant</option>
+          <option value="intl">International</option>
+        </select>
+        <button onclick="runAllTests()" class="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+          Fill All Forms
+        </button>
+        <button onclick="clearAllForms()" class="px-4 py-1.5 border border-gray-300 text-sm rounded-lg hover:bg-gray-50">
+          Clear All
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-5 gap-4 mb-6">
+      <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+        <p id="stat-total" class="text-2xl font-bold text-gray-800">0</p>
+        <p class="text-xs text-gray-500">Total Fields</p>
+      </div>
+      <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+        <p id="stat-filled" class="text-2xl font-bold text-green-600">0</p>
+        <p class="text-xs text-gray-500">Filled</p>
+      </div>
+      <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+        <p id="stat-transformed" class="text-2xl font-bold text-purple-600">0</p>
+        <p class="text-xs text-gray-500">Transformed</p>
+      </div>
+      <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+        <p id="stat-failed" class="text-2xl font-bold text-red-600">0</p>
+        <p class="text-xs text-gray-500">Failed</p>
+      </div>
+      <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+        <p id="stat-time" class="text-2xl font-bold text-gray-600">0ms</p>
+        <p class="text-xs text-gray-500">Time</p>
+      </div>
+    </div>
+
+    <!-- Test Matrix Section -->
+    <div class="test-section">
+      <div class="section-header flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-gray-800">1. Synonym Form Test Matrix</h2>
+          <p class="text-sm text-gray-500 mt-1">Same semantic data in different form formats - tests value transformation</p>
+        </div>
+        <span class="test-badge badge-medium">MEDIUM</span>
+      </div>
+      <div class="section-body overflow-x-auto">
+        <table class="w-full border-collapse">
+          <thead>
+            <tr class="bg-gray-50">
+              <th class="form-cell text-left text-xs font-semibold text-gray-600 w-32">Field Type</th>
+              <th class="form-cell text-left text-xs font-semibold text-gray-600">Format A</th>
+              <th class="form-cell text-left text-xs font-semibold text-gray-600">Format B</th>
+              <th class="form-cell text-left text-xs font-semibold text-gray-600">Format C</th>
+              <th class="form-cell text-left text-xs font-semibold text-gray-600 w-48">Expected Transform</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Name Row -->
+            <tr>
+              <td class="form-cell bg-blue-50 font-medium text-sm">Name</td>
+              <td class="form-cell">
+                <label class="block text-xs text-gray-500 mb-1">Full Name</label>
+                <input type="text" name="fullName" autocomplete="name" data-taxonomy="FULL_NAME">
+              </td>
+              <td class="form-cell">
+                <label class="block text-xs text-gray-500 mb-1">First Name</label>
+                <input type="text" name="firstName" autocomplete="given-name" data-taxonomy="FIRST_NAME">
+              </td>
+              <td class="form-cell">
+                <label class="block text-xs text-gray-500 mb-1">Last Name</label>
+                <input type="text" name="lastName" autocomplete="family-name" data-taxonomy="LAST_NAME">
+              </td>
+              <td class="form-cell text-xs text-gray-500">
+                "John Doe" → First: "John", Last: "Doe"<br>
+                "张三" → First: "三", Last: "张"
+              </td>
+            </tr>
+            <!-- Date Row -->
+            <tr>
+              <td class="form-cell bg-green-50 font-medium text-sm">Graduation Date</td>
+              <td class="form-cell">
+                <label class="block text-xs text-gray-500 mb-1">Date Picker</label>
+                <input type="date" name="gradDate1" data-taxonomy="GRAD_DATE">
+              </td>
+              <td class="form-cell">
+                <label class="block text-xs text-gray-500 mb-1">Month Picker</label>
+                <input type="month" name="gradDate2" data-taxonomy="GRAD_DATE">
+              </td>
+              <td class="form-cell">
+                <div class="flex gap-2">
+                  <div class="flex-1">
+                    <label class="block text-xs text-gray-500 mb-1">Year</label>
+                    <select name="gradYear" data-taxonomy="GRAD_YEAR">
+                      <option value="">-</option>
+                      <option value="2022">2022</option>
+                      <option value="2023">2023</option>
+                      <option value="2024">2024</option>
+                      <option value="2025">2025</option>
+                    </select>
+                  </div>
+                  <div class="flex-1">
+                    <label class="block text-xs text-gray-500 mb-1">Month</label>
+                    <select name="gradMonth" data-taxonomy="GRAD_MONTH">
+                      <option value="">-</option>
+                      <option value="January">Jan</option>
+                      <option value="February">Feb</option>
+                      <option value="March">Mar</option>
+                      <option value="April">Apr</option>
+                      <option value="May">May</option>
+                      <option value="June">Jun</option>
+                      <option value="July">Jul</option>
+                      <option value="August">Aug</option>
+                      <option value="September">Sep</option>
+                      <option value="October">Oct</option>
+                      <option value="November">Nov</option>
+                      <option value="December">Dec</option>
+                    </select>
+                  </div>
+                </div>
+              </td>
+              <td class="form-cell text-xs text-gray-500">
+                "2024-05-15" → Year: "2024", Month: "May"
+              </td>
+            </tr>
+            <!-- Phone Row -->
+            <tr>
+              <td class="form-cell bg-yellow-50 font-medium text-sm">Phone</td>
+              <td class="form-cell">
+                <label class="block text-xs text-gray-500 mb-1">E.164 Format</label>
+                <input type="tel" name="phoneE164" placeholder="+14155551234" data-taxonomy="PHONE">
+              </td>
+              <td class="form-cell">
+                <label class="block text-xs text-gray-500 mb-1">US Format</label>
+                <input type="tel" name="phoneUS" placeholder="(415) 555-1234" data-taxonomy="PHONE">
+              </td>
+              <td class="form-cell">
+                <div class="flex gap-2">
+                  <div class="w-20">
+                    <label class="block text-xs text-gray-500 mb-1">Code</label>
+                    <select name="countryCode" data-taxonomy="COUNTRY_CODE">
+                      <option value="">-</option>
+                      <option value="+1">+1</option>
+                      <option value="+86">+86</option>
+                      <option value="+91">+91</option>
+                    </select>
+                  </div>
+                  <div class="flex-1">
+                    <label class="block text-xs text-gray-500 mb-1">Number</label>
+                    <input type="tel" name="phoneLocal" maxlength="10" data-taxonomy="PHONE">
+                  </div>
+                </div>
+              </td>
+              <td class="form-cell text-xs text-gray-500">
+                "+14155551234" → Code: "+1", Number: "4155551234"
+              </td>
+            </tr>
+            <!-- Boolean Row -->
+            <tr>
+              <td class="form-cell bg-purple-50 font-medium text-sm">Work Auth</td>
+              <td class="form-cell">
+                <label class="block text-xs text-gray-500 mb-1">Radio</label>
+                <div class="flex gap-4">
+                  <label class="flex items-center gap-1 text-sm">
+                    <input type="radio" name="workAuthRadio" value="yes" data-taxonomy="WORK_AUTH"> Yes
+                  </label>
+                  <label class="flex items-center gap-1 text-sm">
+                    <input type="radio" name="workAuthRadio" value="no" data-taxonomy="WORK_AUTH"> No
+                  </label>
+                </div>
+              </td>
+              <td class="form-cell">
+                <label class="block text-xs text-gray-500 mb-1">Select</label>
+                <select name="workAuthSelect" data-taxonomy="WORK_AUTH">
+                  <option value="">Select...</option>
+                  <option value="yes">Yes, I am authorized</option>
+                  <option value="no">No, I need authorization</option>
+                </select>
+              </td>
+              <td class="form-cell">
+                <label class="flex items-center gap-2 text-sm mt-4">
+                  <input type="checkbox" name="workAuthCheck" data-taxonomy="WORK_AUTH">
+                  I am authorized to work
+                </label>
+              </td>
+              <td class="form-cell text-xs text-gray-500">
+                "yes" → Radio: Yes, Select: "Yes, I am authorized", Checkbox: checked
+              </td>
+            </tr>
+            <!-- Degree Row -->
+            <tr>
+              <td class="form-cell bg-pink-50 font-medium text-sm">Degree</td>
+              <td class="form-cell">
+                <label class="block text-xs text-gray-500 mb-1">Text Input</label>
+                <input type="text" name="degreeText" placeholder="e.g. Master's" data-taxonomy="DEGREE">
+              </td>
+              <td class="form-cell">
+                <label class="block text-xs text-gray-500 mb-1">Select (EN)</label>
+                <select name="degreeSelectEN" data-taxonomy="DEGREE">
+                  <option value="">Select...</option>
+                  <option value="bachelor">Bachelor's</option>
+                  <option value="master">Master's</option>
+                  <option value="phd">Ph.D.</option>
+                </select>
+              </td>
+              <td class="form-cell">
+                <label class="block text-xs text-gray-500 mb-1">Select (CN)</label>
+                <select name="degreeSelectCN" data-taxonomy="DEGREE">
+                  <option value="">选择...</option>
+                  <option value="本科">本科</option>
+                  <option value="硕士">硕士</option>
+                  <option value="博士">博士</option>
+                </select>
+              </td>
+              <td class="form-cell text-xs text-gray-500">
+                "Master's" → EN: "Master's", CN: "硕士"
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Multi-Page Form Section -->
+    <div class="test-section">
+      <div class="section-header flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-gray-800">2. Multi-Page Form (Wizard)</h2>
+          <p class="text-sm text-gray-500 mt-1">Tests filling across multiple form steps - common in ATS systems</p>
+        </div>
+        <span class="test-badge badge-medium">MEDIUM</span>
+      </div>
+      <div class="section-body">
+        <!-- Step Indicators -->
+        <div class="flex items-center justify-center gap-4 mb-6">
+          <div class="flex items-center gap-2">
+            <div id="step1-indicator" class="step-indicator active">1</div>
+            <span class="text-sm font-medium">Personal</span>
+          </div>
+          <div class="w-12 h-0.5 bg-gray-200"></div>
+          <div class="flex items-center gap-2">
+            <div id="step2-indicator" class="step-indicator pending">2</div>
+            <span class="text-sm text-gray-400">Education</span>
+          </div>
+          <div class="w-12 h-0.5 bg-gray-200"></div>
+          <div class="flex items-center gap-2">
+            <div id="step3-indicator" class="step-indicator pending">3</div>
+            <span class="text-sm text-gray-400">Work</span>
+          </div>
+        </div>
+
+        <!-- Wizard Steps -->
+        <form id="wizard-form">
+          <!-- Step 1: Personal -->
+          <div id="wizard-step-1" class="wizard-step active">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                <input type="text" name="wizard_fullName" required autocomplete="name" data-taxonomy="FULL_NAME" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <input type="email" name="wizard_email" required autocomplete="email" data-taxonomy="EMAIL" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input type="tel" name="wizard_phone" autocomplete="tel" data-taxonomy="PHONE" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <input type="text" name="wizard_city" data-taxonomy="CITY" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Education -->
+          <div id="wizard-step-2" class="wizard-step">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">School</label>
+                <input type="text" name="wizard_school" data-taxonomy="SCHOOL" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Degree</label>
+                <select name="wizard_degree" data-taxonomy="DEGREE" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  <option value="">Select...</option>
+                  <option value="bachelor">Bachelor's</option>
+                  <option value="master">Master's</option>
+                  <option value="phd">Ph.D.</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Major</label>
+                <input type="text" name="wizard_major" data-taxonomy="MAJOR" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Graduation Date</label>
+                <input type="month" name="wizard_gradDate" data-taxonomy="GRAD_DATE" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Work -->
+          <div id="wizard-step-3" class="wizard-step">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Are you legally authorized to work?</label>
+                <div class="flex gap-6">
+                  <label class="flex items-center gap-2">
+                    <input type="radio" name="wizard_workAuth" value="yes" data-taxonomy="WORK_AUTH"> Yes
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <input type="radio" name="wizard_workAuth" value="no" data-taxonomy="WORK_AUTH"> No
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Will you require sponsorship?</label>
+                <div class="flex gap-6">
+                  <label class="flex items-center gap-2">
+                    <input type="radio" name="wizard_sponsorship" value="yes" data-taxonomy="NEED_SPONSORSHIP"> Yes
+                  </label>
+                  <label class="flex items-center gap-2">
+                    <input type="radio" name="wizard_sponsorship" value="no" data-taxonomy="NEED_SPONSORSHIP"> No
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">LinkedIn Profile</label>
+                <input type="url" name="wizard_linkedin" data-taxonomy="LINKEDIN" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="https://linkedin.com/in/...">
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <!-- Navigation -->
+        <div class="flex justify-between mt-6 pt-4 border-t border-gray-200">
+          <button id="wizard-prev" onclick="wizardNav(-1)" class="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50" disabled>
+            ← Previous
+          </button>
+          <button id="wizard-next" onclick="wizardNav(1)" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
+            Next →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edge Cases Section -->
+    <div class="test-section">
+      <div class="section-header flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-gray-800">3. Edge Cases & Non-Standard Inputs</h2>
+          <p class="text-sm text-gray-500 mt-1">Difficult form patterns that require special handling</p>
+        </div>
+        <span class="test-badge badge-hard">HARD</span>
+      </div>
+      <div class="section-body">
+        <div class="grid grid-cols-2 gap-6">
+          
+          <!-- 3.1 Shadow DOM -->
+          <div class="border border-purple-200 rounded-lg overflow-hidden">
+            <div class="bg-purple-50 px-4 py-2 border-b border-purple-200">
+              <span class="test-badge badge-edge">SHADOW DOM</span>
+              <span class="text-sm font-medium text-purple-800 ml-2">Custom Web Component</span>
+            </div>
+            <div class="p-4">
+              <p class="text-xs text-gray-500 mb-3">Input inside open shadow DOM - requires shadow root traversal</p>
+              <shadow-form-field id="shadow-field-1" label="Full Name (Shadow)" taxonomy="FULL_NAME"></shadow-form-field>
+              <shadow-form-field id="shadow-field-2" label="Email (Shadow)" type="email" taxonomy="EMAIL" class="mt-3"></shadow-form-field>
+            </div>
+          </div>
+
+          <!-- 3.2 Contenteditable -->
+          <div class="border border-orange-200 rounded-lg overflow-hidden">
+            <div class="bg-orange-50 px-4 py-2 border-b border-orange-200">
+              <span class="test-badge badge-edge">CONTENTEDITABLE</span>
+              <span class="text-sm font-medium text-orange-800 ml-2">Rich Text Inputs</span>
+            </div>
+            <div class="p-4">
+              <p class="text-xs text-gray-500 mb-3">Not actual &lt;input&gt; elements - common in rich text editors</p>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Cover Letter Summary</label>
+              <div contenteditable="true" data-name="coverLetter" data-taxonomy="RESUME_TEXT" class="w-full min-h-[80px] bg-white"></div>
+            </div>
+          </div>
+
+          <!-- 3.3 ARIA Combobox -->
+          <div class="border border-teal-200 rounded-lg overflow-hidden">
+            <div class="bg-teal-50 px-4 py-2 border-b border-teal-200">
+              <span class="test-badge badge-edge">ARIA COMBOBOX</span>
+              <span class="text-sm font-medium text-teal-800 ml-2">Autocomplete/Typeahead</span>
+            </div>
+            <div class="p-4">
+              <p class="text-xs text-gray-500 mb-3">Custom dropdown with ARIA roles - requires click interaction</p>
+              <label class="block text-sm font-medium text-gray-700 mb-1">School (Autocomplete)</label>
+              <div class="combobox-wrapper" role="combobox" aria-expanded="false">
+                <input type="text" name="schoolCombobox" data-taxonomy="SCHOOL" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg" 
+                       role="combobox" aria-autocomplete="list"
+                       onfocus="openCombobox(this)" oninput="filterCombobox(this)">
+                <div class="combobox-dropdown" role="listbox">
+                  <div role="option" data-value="Stanford University" class="combobox-option">Stanford University</div>
+                  <div role="option" data-value="MIT" class="combobox-option">MIT</div>
+                  <div role="option" data-value="Harvard University" class="combobox-option">Harvard University</div>
+                  <div role="option" data-value="UC Berkeley" class="combobox-option">UC Berkeley</div>
+                  <div role="option" data-value="Tsinghua University" class="combobox-option">清华大学 (Tsinghua)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.4 No Label (Placeholder Only) -->
+          <div class="border border-red-200 rounded-lg overflow-hidden">
+            <div class="bg-red-50 px-4 py-2 border-b border-red-200">
+              <span class="test-badge badge-edge">NO LABEL</span>
+              <span class="text-sm font-medium text-red-800 ml-2">Placeholder-Only Inputs</span>
+            </div>
+            <div class="p-4">
+              <p class="text-xs text-gray-500 mb-3">No &lt;label&gt; element - must infer from placeholder/name/id</p>
+              <div class="space-y-3">
+                <input type="text" name="firstName_noLabel" placeholder="First Name" data-taxonomy="FIRST_NAME" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                <input type="text" name="lastName_noLabel" placeholder="Last Name" data-taxonomy="LAST_NAME" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                <input type="email" id="email_noLabel" placeholder="Email Address" data-taxonomy="EMAIL" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.5 Unusual Names/IDs -->
+          <div class="border border-indigo-200 rounded-lg overflow-hidden">
+            <div class="bg-indigo-50 px-4 py-2 border-b border-indigo-200">
+              <span class="test-badge badge-edge">OBSCURE NAMES</span>
+              <span class="text-sm font-medium text-indigo-800 ml-2">Non-Standard Naming</span>
+            </div>
+            <div class="p-4">
+              <p class="text-xs text-gray-500 mb-3">Field names that don't follow conventions</p>
+              <div class="space-y-3">
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">name="q23_field_1" (Full Name)</label>
+                  <input type="text" name="q23_field_1" data-taxonomy="FULL_NAME" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">name="applicantPrimaryEmail" (Email)</label>
+                  <input type="email" name="applicantPrimaryEmail" data-taxonomy="EMAIL" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">id="txtPhoneNum_123" (Phone)</label>
+                  <input type="tel" id="txtPhoneNum_123" data-taxonomy="PHONE" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.6 Hidden Fields with Visible Proxy -->
+          <div class="border border-gray-300 rounded-lg overflow-hidden">
+            <div class="bg-gray-100 px-4 py-2 border-b border-gray-300">
+              <span class="test-badge badge-edge">HIDDEN + PROXY</span>
+              <span class="text-sm font-medium text-gray-800 ml-2">React-Style Controlled</span>
+            </div>
+            <div class="p-4">
+              <p class="text-xs text-gray-500 mb-3">Hidden input with visible display element - common in React/Vue forms</p>
+              <label class="block text-sm font-medium text-gray-700 mb-1">City (Controlled)</label>
+              <div class="relative">
+                <input type="hidden" name="city_hidden" data-taxonomy="CITY">
+                <input type="text" id="city_display" placeholder="Type city name..." class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                       oninput="document.querySelector('[name=city_hidden]').value = this.value">
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.7 Nested in Iframe (simulated) -->
+          <div class="border border-cyan-200 rounded-lg overflow-hidden">
+            <div class="bg-cyan-50 px-4 py-2 border-b border-cyan-200">
+              <span class="test-badge badge-edge">NESTED STRUCTURE</span>
+              <span class="text-sm font-medium text-cyan-800 ml-2">Deeply Nested Elements</span>
+            </div>
+            <div class="p-4">
+              <p class="text-xs text-gray-500 mb-3">Multiple levels of nesting - tests DOM traversal</p>
+              <div class="border border-gray-200 rounded p-3">
+                <div class="border border-gray-200 rounded p-3">
+                  <div class="border border-gray-200 rounded p-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">LinkedIn (Nested)</label>
+                    <input type="url" name="linkedin_nested" data-taxonomy="LINKEDIN" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3.8 Multiple Forms -->
+          <div class="border border-lime-200 rounded-lg overflow-hidden">
+            <div class="bg-lime-50 px-4 py-2 border-b border-lime-200">
+              <span class="test-badge badge-edge">MULTIPLE FORMS</span>
+              <span class="text-sm font-medium text-lime-800 ml-2">Separate Form Elements</span>
+            </div>
+            <div class="p-4">
+              <p class="text-xs text-gray-500 mb-3">Multiple &lt;form&gt; elements on same page</p>
+              <form id="form-a" class="p-2 border border-gray-200 rounded mb-2">
+                <span class="text-xs text-gray-400">Form A</span>
+                <input type="text" name="form_a_name" placeholder="Name (Form A)" data-taxonomy="FULL_NAME" class="w-full px-3 py-2 border border-gray-300 rounded-lg mt-1">
+              </form>
+              <form id="form-b" class="p-2 border border-gray-200 rounded">
+                <span class="text-xs text-gray-400">Form B</span>
+                <input type="email" name="form_b_email" placeholder="Email (Form B)" data-taxonomy="EMAIL" class="w-full px-3 py-2 border border-gray-300 rounded-lg mt-1">
+              </form>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Standard Full Form -->
+    <div class="test-section">
+      <div class="section-header flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-gray-800">4. Standard Full Application</h2>
+          <p class="text-sm text-gray-500 mt-1">Normal job application form - baseline test</p>
+        </div>
+        <span class="test-badge badge-easy">EASY</span>
+      </div>
+      <div class="section-body">
+        <form id="standard-form">
+          <div class="grid grid-cols-2 gap-6">
+            <fieldset class="border border-gray-200 rounded-lg p-4">
+              <legend class="text-sm font-semibold text-gray-600 px-2">Personal Information</legend>
+              <div class="space-y-4 mt-2">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                  <input type="text" name="std_fullName" required autocomplete="name" data-taxonomy="FULL_NAME" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <input type="email" name="std_email" required autocomplete="email" data-taxonomy="EMAIL" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input type="tel" name="std_phone" autocomplete="tel" data-taxonomy="PHONE" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">LinkedIn</label>
+                  <input type="url" name="std_linkedin" data-taxonomy="LINKEDIN" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+              </div>
+            </fieldset>
+            <fieldset class="border border-gray-200 rounded-lg p-4">
+              <legend class="text-sm font-semibold text-gray-600 px-2">Education</legend>
+              <div class="space-y-4 mt-2">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">School/University</label>
+                  <input type="text" name="std_school" data-taxonomy="SCHOOL" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Degree</label>
+                  <select name="std_degree" data-taxonomy="DEGREE" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    <option value="">Select...</option>
+                    <option value="bachelor">Bachelor's</option>
+                    <option value="master">Master's</option>
+                    <option value="phd">Ph.D.</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Major</label>
+                  <input type="text" name="std_major" data-taxonomy="MAJOR" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Graduation Date</label>
+                  <input type="month" name="std_gradDate" data-taxonomy="GRAD_DATE" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+              </div>
+            </fieldset>
+          </div>
+          <fieldset class="border border-gray-200 rounded-lg p-4 mt-4">
+            <legend class="text-sm font-semibold text-gray-600 px-2">Work Authorization</legend>
+            <div class="grid grid-cols-2 gap-6 mt-2">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Authorized to work in this country?</label>
+                <div class="flex gap-6">
+                  <label class="flex items-center gap-2"><input type="radio" name="std_workAuth" value="yes" data-taxonomy="WORK_AUTH"> Yes</label>
+                  <label class="flex items-center gap-2"><input type="radio" name="std_workAuth" value="no" data-taxonomy="WORK_AUTH"> No</label>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Require visa sponsorship?</label>
+                <div class="flex gap-6">
+                  <label class="flex items-center gap-2"><input type="radio" name="std_sponsorship" value="yes" data-taxonomy="NEED_SPONSORSHIP"> Yes</label>
+                  <label class="flex items-center gap-2"><input type="radio" name="std_sponsorship" value="no" data-taxonomy="NEED_SPONSORSHIP"> No</label>
+                </div>
+              </div>
+            </div>
+          </fieldset>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ==================== PROFILES ====================
+    const PROFILES = {
+      us: {
+        FULL_NAME: 'John Michael Doe', FIRST_NAME: 'John', LAST_NAME: 'Doe',
+        EMAIL: 'john.doe@gmail.com', PHONE: '+14155551234', COUNTRY_CODE: '+1',
+        CITY: 'San Francisco', LINKEDIN: 'https://linkedin.com/in/johndoe',
+        SCHOOL: 'Stanford University', DEGREE: "Master's", MAJOR: 'Computer Science',
+        GRAD_DATE: '2024-05', GRAD_YEAR: '2024', GRAD_MONTH: 'May',
+        WORK_AUTH: 'yes', NEED_SPONSORSHIP: 'no'
+      },
+      cn: {
+        FULL_NAME: '张三', FIRST_NAME: '三', LAST_NAME: '张',
+        EMAIL: 'zhangsan@qq.com', PHONE: '+8613812345678', COUNTRY_CODE: '+86',
+        CITY: '北京', SCHOOL: '清华大学', DEGREE: '硕士', MAJOR: '计算机科学',
+        GRAD_DATE: '2024-06', GRAD_YEAR: '2024', GRAD_MONTH: 'June',
+        WORK_AUTH: 'yes', NEED_SPONSORSHIP: 'yes'
+      },
+      intl: {
+        FULL_NAME: 'Amit Patel', FIRST_NAME: 'Amit', LAST_NAME: 'Patel',
+        EMAIL: 'amit@university.edu', PHONE: '+919876543210',
+        SCHOOL: 'IIT Delhi', DEGREE: "Bachelor's", MAJOR: 'Electrical Engineering',
+        GRAD_DATE: '2023-05', WORK_AUTH: 'no', NEED_SPONSORSHIP: 'yes'
+      }
+    };
+
+    let savedData = {};
+
+    function loadProfile(name) {
+      if (!name || !PROFILES[name]) return;
+      savedData = { ...PROFILES[name] };
+      document.getElementById('profile-select').value = '';
+      showToast(`Loaded ${name.toUpperCase()} profile`);
+    }
+
+    // ==================== VALUE TRANSFORMERS ====================
+    const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 
+      'July', 'August', 'September', 'October', 'November', 'December'];
+
+    function transformValue(value, sourceType, element) {
+      if (!value) return value;
+      const taxonomy = element.dataset.taxonomy;
+
+      // Name split
+      if (sourceType === 'FULL_NAME') {
+        const isChinese = /[\u4e00-\u9fa5]/.test(value);
+        if (taxonomy === 'FIRST_NAME') return isChinese ? value.slice(1) : value.split(/\s+/)[0];
+        if (taxonomy === 'LAST_NAME') return isChinese ? value.charAt(0) : value.split(/\s+/).pop();
+      }
+
+      // Date transforms
+      if (sourceType === 'GRAD_DATE' || sourceType === 'GRAD_YEAR' || sourceType === 'GRAD_MONTH') {
+        const match = value.match(/(\d{4})[-\/]?(\d{2})?/);
+        if (match) {
+          const [, year, month] = match;
+          if (taxonomy === 'GRAD_YEAR') return year;
+          if (taxonomy === 'GRAD_MONTH') {
+            if (element.tagName === 'SELECT') return MONTH_NAMES[parseInt(month || '1') - 1];
+            return month;
+          }
+          if (element.type === 'date') return `${year}-${month || '01'}-01`;
+          if (element.type === 'month') return `${year}-${month || '01'}`;
+        }
+      }
+
+      // Phone transforms
+      if (sourceType === 'PHONE') {
+        const cleaned = value.replace(/[\s\-\(\)\.]/g, '');
+        const match = cleaned.match(/^\+?(\d{1,3})?(\d{10,11})$/);
+        if (match) {
+          const [, code, number] = match;
+          if (taxonomy === 'COUNTRY_CODE') return code ? `+${code}` : '+1';
+          if (element.maxLength === 10) return number.slice(-10);
+          if (element.placeholder?.includes('(')) {
+            const n = number.slice(-10);
+            return `(${n.slice(0,3)}) ${n.slice(3,6)}-${n.slice(6)}`;
+          }
+        }
+      }
+
+      // Boolean transforms
+      if (['WORK_AUTH', 'NEED_SPONSORSHIP'].includes(sourceType)) {
+        const isTrue = ['yes', 'true', '1'].includes(value.toLowerCase());
+        if (element.type === 'checkbox') return isTrue ? 'yes' : '';
+        if (element.tagName === 'SELECT') {
+          for (const opt of element.options) {
+            if (isTrue && /yes|authorized/i.test(opt.text)) return opt.value;
+            if (!isTrue && /no|not/i.test(opt.text)) return opt.value;
+          }
+        }
+        return isTrue ? 'yes' : 'no';
+      }
+
+      // Degree transforms
+      if (sourceType === 'DEGREE' && element.tagName === 'SELECT') {
+        const map = { "master's": ['master', '硕士'], "bachelor's": ['bachelor', '本科'], 'ph.d.': ['phd', '博士'] };
+        for (const [key, aliases] of Object.entries(map)) {
+          if (value.toLowerCase().includes(key) || aliases.some(a => value.toLowerCase().includes(a))) {
+            for (const opt of element.options) {
+              if (opt.value && (opt.text.toLowerCase().includes(key) || aliases.some(a => opt.text.toLowerCase().includes(a) || opt.value.toLowerCase().includes(a)))) {
+                return opt.value;
+              }
+            }
+          }
+        }
+      }
+
+      return value;
+    }
+
+    // ==================== FILL LOGIC ====================
+    async function runAllTests() {
+      if (Object.keys(savedData).length === 0) {
+        showToast('Please load a profile first', 'warning');
+        return;
+      }
+
+      const startTime = performance.now();
+      let total = 0, filled = 0, transformed = 0, failed = 0;
+
+      // Get all fillable elements
+      const elements = document.querySelectorAll('input, select, textarea, [contenteditable="true"]');
+      
+      for (const el of elements) {
+        if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button') continue;
+        
+        const taxonomy = el.dataset?.taxonomy || inferTaxonomy(el);
+        if (!taxonomy || taxonomy === 'UNKNOWN') continue;
+        
+        total++;
+        
+        // Find matching data
+        let value = savedData[taxonomy];
+        let sourceType = taxonomy;
+        
+        if (!value) {
+          // Try related types
+          const related = getRelatedTypes(taxonomy);
+          for (const r of related) {
+            if (savedData[r]) { value = savedData[r]; sourceType = r; break; }
+          }
+        }
+        
+        if (!value) { failed++; continue; }
+        
+        // Transform if needed
+        const originalValue = value;
+        value = transformValue(value, sourceType, el);
+        const wasTransformed = value !== originalValue;
+        
+        // Fill the element
+        const success = fillElement(el, value);
+        
+        if (success) {
+          filled++;
+          if (wasTransformed) transformed++;
+          highlightField(el, wasTransformed ? 'transformed' : 'filled');
+        } else {
+          failed++;
+          highlightField(el, 'failed');
+        }
+        
+        await new Promise(r => setTimeout(r, 5));
+      }
+
+      const elapsed = Math.round(performance.now() - startTime);
+      
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-filled').textContent = filled;
+      document.getElementById('stat-transformed').textContent = transformed;
+      document.getElementById('stat-failed').textContent = failed;
+      document.getElementById('stat-time').textContent = elapsed + 'ms';
+      
+      showToast(`Filled ${filled}/${total} fields (${transformed} transformed)`);
+    }
+
+    function inferTaxonomy(el) {
+      const name = (el.name || el.id || '').toLowerCase();
+      const label = el.closest('label')?.textContent?.toLowerCase() || '';
+      const placeholder = (el.placeholder || '').toLowerCase();
+      const combined = `${name} ${label} ${placeholder}`;
+      
+      const rules = [
+        [/full.?name|^name$/i, 'FULL_NAME'], [/first.?name|given/i, 'FIRST_NAME'], [/last.?name|family|surname/i, 'LAST_NAME'],
+        [/email/i, 'EMAIL'], [/phone|tel|mobile/i, 'PHONE'], [/country.?code/i, 'COUNTRY_CODE'],
+        [/city/i, 'CITY'], [/linkedin/i, 'LINKEDIN'], [/github/i, 'GITHUB'],
+        [/school|university|college/i, 'SCHOOL'], [/degree/i, 'DEGREE'], [/major|field/i, 'MAJOR'],
+        [/grad.*year/i, 'GRAD_YEAR'], [/grad.*month/i, 'GRAD_MONTH'], [/grad|graduation/i, 'GRAD_DATE'],
+        [/authorized|work.?auth/i, 'WORK_AUTH'], [/sponsor|visa/i, 'NEED_SPONSORSHIP'],
+      ];
+      
+      for (const [pattern, type] of rules) {
+        if (pattern.test(combined)) return type;
+      }
+      return 'UNKNOWN';
+    }
+
+    function getRelatedTypes(type) {
+      const map = {
+        'FULL_NAME': ['FIRST_NAME', 'LAST_NAME'], 'FIRST_NAME': ['FULL_NAME'], 'LAST_NAME': ['FULL_NAME'],
+        'GRAD_DATE': ['GRAD_YEAR', 'GRAD_MONTH'], 'GRAD_YEAR': ['GRAD_DATE'], 'GRAD_MONTH': ['GRAD_DATE'],
+        'PHONE': ['COUNTRY_CODE'], 'COUNTRY_CODE': ['PHONE'],
+      };
+      return map[type] || [];
+    }
+
+    function fillElement(el, value) {
+      try {
+        if (el.hasAttribute('contenteditable')) {
+          el.textContent = value;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          return true;
+        }
+        
+        if (el.tagName === 'SELECT') {
+          for (const opt of el.options) {
+            if (opt.value === value || opt.value.toLowerCase() === value.toLowerCase() || 
+                opt.text.toLowerCase().includes(value.toLowerCase())) {
+              el.value = opt.value;
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+              return true;
+            }
+          }
+          return false;
+        }
+        
+        if (el.type === 'radio') {
+          const radios = document.querySelectorAll(`input[name="${el.name}"]`);
+          for (const r of radios) {
+            if (r.value.toLowerCase() === value.toLowerCase()) {
+              r.checked = true;
+              r.dispatchEvent(new Event('change', { bubbles: true }));
+              return true;
+            }
+          }
+          return false;
+        }
+        
+        if (el.type === 'checkbox') {
+          const shouldCheck = ['yes', 'true', '1'].includes(value.toLowerCase());
+          if (el.checked !== shouldCheck) el.click();
+          return true;
+        }
+        
+        // Standard input
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        if (setter) setter.call(el, value);
+        else el.value = value;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      } catch (e) {
+        console.error('Fill error:', e);
+        return false;
+      }
+    }
+
+    function highlightField(el, status) {
+      el.style.transition = 'box-shadow 0.3s, border-color 0.3s';
+      if (status === 'filled') {
+        el.style.borderColor = '#22c55e';
+        el.style.boxShadow = '0 0 0 2px rgba(34,197,94,0.2)';
+      } else if (status === 'transformed') {
+        el.style.borderColor = '#a855f7';
+        el.style.boxShadow = '0 0 0 2px rgba(168,85,247,0.2)';
+      } else if (status === 'failed') {
+        el.style.borderColor = '#ef4444';
+        el.style.boxShadow = '0 0 0 2px rgba(239,68,68,0.2)';
+      }
+    }
+
+    function clearAllForms() {
+      document.querySelectorAll('input, select, textarea, [contenteditable]').forEach(el => {
+        if (el.type === 'radio' || el.type === 'checkbox') el.checked = false;
+        else if (el.hasAttribute('contenteditable')) el.textContent = '';
+        else el.value = '';
+        el.style.borderColor = '';
+        el.style.boxShadow = '';
+      });
+      document.getElementById('stat-total').textContent = '0';
+      document.getElementById('stat-filled').textContent = '0';
+      document.getElementById('stat-transformed').textContent = '0';
+      document.getElementById('stat-failed').textContent = '0';
+      document.getElementById('stat-time').textContent = '0ms';
+    }
+
+    // ==================== WIZARD NAV ====================
+    let currentStep = 1;
+    function wizardNav(dir) {
+      const newStep = currentStep + dir;
+      if (newStep < 1 || newStep > 3) return;
+      
+      document.getElementById(`wizard-step-${currentStep}`).classList.remove('active');
+      document.getElementById(`wizard-step-${newStep}`).classList.add('active');
+      
+      document.getElementById(`step${currentStep}-indicator`).classList.remove('active');
+      document.getElementById(`step${currentStep}-indicator`).classList.add(dir > 0 ? 'completed' : 'pending');
+      document.getElementById(`step${newStep}-indicator`).classList.remove('pending', 'completed');
+      document.getElementById(`step${newStep}-indicator`).classList.add('active');
+      
+      currentStep = newStep;
+      document.getElementById('wizard-prev').disabled = currentStep === 1;
+      document.getElementById('wizard-next').textContent = currentStep === 3 ? 'Submit' : 'Next →';
+    }
+
+    // ==================== COMBOBOX ====================
+    function openCombobox(input) {
+      const dropdown = input.parentElement.querySelector('.combobox-dropdown');
+      dropdown.classList.add('open');
+      input.parentElement.setAttribute('aria-expanded', 'true');
+    }
+    
+    function filterCombobox(input) {
+      const dropdown = input.parentElement.querySelector('.combobox-dropdown');
+      const options = dropdown.querySelectorAll('[role="option"]');
+      const value = input.value.toLowerCase();
+      options.forEach(opt => {
+        opt.style.display = opt.textContent.toLowerCase().includes(value) ? '' : 'none';
+      });
+    }
+    
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.combobox-wrapper')) {
+        document.querySelectorAll('.combobox-dropdown').forEach(d => d.classList.remove('open'));
+      }
+      if (e.target.matches('[role="option"]')) {
+        const input = e.target.closest('.combobox-wrapper').querySelector('input');
+        input.value = e.target.dataset.value;
+        e.target.closest('.combobox-dropdown').classList.remove('open');
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+
+    // ==================== SHADOW DOM ====================
+    class ShadowFormField extends HTMLElement {
+      connectedCallback() {
+        const shadow = this.attachShadow({ mode: 'open' });
+        const label = this.getAttribute('label') || 'Field';
+        const type = this.getAttribute('type') || 'text';
+        const taxonomy = this.getAttribute('taxonomy') || '';
+        
+        shadow.innerHTML = `
+          <style>
+            :host { display: block; }
+            label { display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px; }
+            input { width: 100%; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+            input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+          </style>
+          <label>${label}</label>
+          <input type="${type}" data-taxonomy="${taxonomy}">
+        `;
+      }
+    }
+    customElements.define('shadow-form-field', ShadowFormField);
+
+    // ==================== TOAST ====================
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg text-white text-sm shadow-lg animate-fadeIn z-50 ${
+        type === 'warning' ? 'bg-amber-500' : 'bg-blue-600'
+      }`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+  </script>
+</body>
+</html>

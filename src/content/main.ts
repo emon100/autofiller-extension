@@ -1,6 +1,6 @@
 import { initAutoFiller, getAutoFiller } from './index'
 
-const autoFiller = initAutoFiller()
+initAutoFiller()
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const filler = getAutoFiller()

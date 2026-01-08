@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { scanFields, extractFieldContext, extractLabelText } from '@/scanner'
-import { FieldContext, WidgetKind } from '@/types'
 
 describe('DOM Scanner', () => {
   beforeEach(() => {

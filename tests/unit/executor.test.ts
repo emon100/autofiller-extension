@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { fillField, fillText, fillSelect, fillRadio, fillCheckbox, fillCombobox, createFillSnapshot, restoreSnapshot } from '@/executor'
-import { FieldContext, WidgetSignature, FillResult } from '@/types'
+import { FieldContext } from '@/types'
 
 function createMockFieldContext(element: HTMLElement, kind: string = 'text'): FieldContext {
   return {

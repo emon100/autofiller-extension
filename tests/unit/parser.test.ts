@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import { 
   parseField, 
   getParsers, 
-  registerParser,
   AutocompleteParser,
   TypeAttributeParser,
   NameIdParser,

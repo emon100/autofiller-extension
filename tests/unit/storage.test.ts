@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { Storage, AnswerStorage, ObservationStorage, SiteSettingsStorage } from '@/storage'
+import { AnswerStorage, ObservationStorage, SiteSettingsStorage } from '@/storage'
 import { AnswerValue, Observation, SiteSettings, Taxonomy, SENSITIVE_TYPES } from '@/types'
 
 const mockChromeStorage = {

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { Recorder, createQuestionKey, createObservation } from '@/recorder'
-import { Taxonomy, QuestionKey, Observation, FieldContext } from '@/types'
+import { Taxonomy, QuestionKey, FieldContext } from '@/types'
+import { storage } from '@/storage'
 
 function createMockFieldContext(overrides: Partial<FieldContext> = {}): FieldContext {
   return {
@@ -145,12 +146,14 @@ describe('Recorder', () => {
     let recorder: Recorder
 
     beforeEach(() => {
+      storage.pendingObservations.discardAll()
       document.body.innerHTML = `
-        <form>
+        <form id="test-form">
           <label for="name">Full Name</label>
           <input type="text" id="name" name="fullName" autocomplete="name" />
           <label for="email">Email</label>
           <input type="email" id="email" name="email" autocomplete="email" />
+          <button type="submit">Submit</button>
         </form>
       `
       recorder = new Recorder()
@@ -170,9 +173,9 @@ describe('Recorder', () => {
       expect(recorder.isRecording).toBe(false)
     })
 
-    it('captures input on blur event', async () => {
-      const onObservation = vi.fn()
-      recorder.onObservation(onObservation)
+    it('creates pending observation on blur event (phase 1)', async () => {
+      const onPending = vi.fn()
+      recorder.onPending(onPending)
       recorder.start()
 
       const input = document.getElementById('name') as HTMLInputElement
@@ -182,14 +185,15 @@ describe('Recorder', () => {
 
       await new Promise(resolve => setTimeout(resolve, 50))
 
-      expect(onObservation).toHaveBeenCalled()
-      const observation = onObservation.mock.calls[0][0]
-      expect(observation.answerId).toBeDefined()
+      expect(onPending).toHaveBeenCalled()
+      const pending = onPending.mock.calls[0][0]
+      expect(pending.rawValue).toBe('John Doe')
+      expect(pending.status).toBe('pending')
     })
 
     it('does not capture empty values', async () => {
-      const onObservation = vi.fn()
-      recorder.onObservation(onObservation)
+      const onPending = vi.fn()
+      recorder.onPending(onPending)
       recorder.start()
 
       const input = document.getElementById('name') as HTMLInputElement
@@ -198,12 +202,12 @@ describe('Recorder', () => {
 
       await new Promise(resolve => setTimeout(resolve, 50))
 
-      expect(onObservation).not.toHaveBeenCalled()
+      expect(onPending).not.toHaveBeenCalled()
     })
 
     it('does not capture unchanged values', async () => {
-      const onObservation = vi.fn()
-      recorder.onObservation(onObservation)
+      const onPending = vi.fn()
+      recorder.onPending(onPending)
       recorder.start()
 
       const input = document.getElementById('name') as HTMLInputElement
@@ -214,27 +218,29 @@ describe('Recorder', () => {
       
       await new Promise(resolve => setTimeout(resolve, 50))
       
-      const firstCallCount = onObservation.mock.calls.length
+      const firstCallCount = onPending.mock.calls.length
       
       input.dispatchEvent(new Event('focus', { bubbles: true }))
       input.dispatchEvent(new Event('blur', { bubbles: true }))
 
       await new Promise(resolve => setTimeout(resolve, 50))
 
-      expect(onObservation.mock.calls.length).toBe(firstCallCount)
+      expect(onPending.mock.calls.length).toBe(firstCallCount)
     })
 
-    it('captures select changes', async () => {
+    it('creates pending observation on select change', async () => {
       document.body.innerHTML = `
-        <select id="country" name="country">
-          <option value="">Select...</option>
-          <option value="US">United States</option>
-        </select>
+        <form>
+          <select id="country" name="country">
+            <option value="">Select...</option>
+            <option value="US">United States</option>
+          </select>
+        </form>
       `
       
-      const onObservation = vi.fn()
+      const onPending = vi.fn()
       recorder = new Recorder()
-      recorder.onObservation(onObservation)
+      recorder.onPending(onPending)
       recorder.start()
 
       const select = document.getElementById('country') as HTMLSelectElement
@@ -243,20 +249,22 @@ describe('Recorder', () => {
 
       await new Promise(resolve => setTimeout(resolve, 50))
 
-      expect(onObservation).toHaveBeenCalled()
+      expect(onPending).toHaveBeenCalled()
     })
 
-    it('captures checkbox changes', async () => {
+    it('creates pending observation on checkbox change', async () => {
       document.body.innerHTML = `
-        <label>
-          <input type="checkbox" id="terms" name="terms" />
-          I agree to terms
-        </label>
+        <form>
+          <label>
+            <input type="checkbox" id="terms" name="terms" value="accepted" />
+            I agree to terms
+          </label>
+        </form>
       `
       
-      const onObservation = vi.fn()
+      const onPending = vi.fn()
       recorder = new Recorder()
-      recorder.onObservation(onObservation)
+      recorder.onPending(onPending)
       recorder.start()
 
       const checkbox = document.getElementById('terms') as HTMLInputElement
@@ -265,12 +273,12 @@ describe('Recorder', () => {
 
       await new Promise(resolve => setTimeout(resolve, 50))
 
-      expect(onObservation).toHaveBeenCalled()
+      expect(onPending).toHaveBeenCalled()
     })
 
     it('classifies field type automatically', async () => {
-      const onObservation = vi.fn()
-      recorder.onObservation(onObservation)
+      const onPending = vi.fn()
+      recorder.onPending(onPending)
       recorder.start()
 
       const emailInput = document.getElementById('email') as HTMLInputElement
@@ -280,7 +288,75 @@ describe('Recorder', () => {
 
       await new Promise(resolve => setTimeout(resolve, 50))
 
+      expect(onPending).toHaveBeenCalled()
+      const pending = onPending.mock.calls[0][0]
+      expect(pending.classifiedType).toBe(Taxonomy.EMAIL)
+    })
+
+    it('commits pending observations on form submit (phase 2)', async () => {
+      const onPending = vi.fn()
+      const onObservation = vi.fn()
+      const onCommit = vi.fn()
+      
+      recorder.onPending(onPending)
+      recorder.onObservation(onObservation)
+      recorder.onCommit(onCommit)
+      recorder.start()
+
+      const input = document.getElementById('name') as HTMLInputElement
+      input.value = 'John Doe'
+      input.dispatchEvent(new Event('blur', { bubbles: true }))
+
+      await new Promise(resolve => setTimeout(resolve, 50))
+      expect(onPending).toHaveBeenCalled()
+      expect(onObservation).not.toHaveBeenCalled()
+
+      const form = document.getElementById('test-form') as HTMLFormElement
+      form.dispatchEvent(new Event('submit', { bubbles: true }))
+
+      await new Promise(resolve => setTimeout(resolve, 50))
+
       expect(onObservation).toHaveBeenCalled()
+      expect(onCommit).toHaveBeenCalledWith(1)
+    })
+
+    it('tracks pending count correctly', async () => {
+      recorder.start()
+
+      expect(recorder.getPendingCount()).toBe(0)
+
+      const nameInput = document.getElementById('name') as HTMLInputElement
+      nameInput.value = 'John Doe'
+      nameInput.dispatchEvent(new Event('blur', { bubbles: true }))
+
+      await new Promise(resolve => setTimeout(resolve, 50))
+
+      expect(recorder.getPendingCount()).toBe(1)
+
+      const emailInput = document.getElementById('email') as HTMLInputElement
+      emailInput.value = 'john@example.com'
+      emailInput.dispatchEvent(new Event('blur', { bubbles: true }))
+
+      await new Promise(resolve => setTimeout(resolve, 50))
+
+      expect(recorder.getPendingCount()).toBe(2)
+    })
+
+    it('commits all pending via commitAllPending', async () => {
+      const onCommit = vi.fn()
+      recorder.onCommit(onCommit)
+      recorder.start()
+
+      const input = document.getElementById('name') as HTMLInputElement
+      input.value = 'John Doe'
+      input.dispatchEvent(new Event('blur', { bubbles: true }))
+
+      await new Promise(resolve => setTimeout(resolve, 50))
+
+      const committed = await recorder.commitAllPending()
+
+      expect(committed).toBe(1)
+      expect(recorder.getPendingCount()).toBe(0)
     })
   })
 })

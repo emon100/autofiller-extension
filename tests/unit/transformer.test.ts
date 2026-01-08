@@ -141,6 +141,50 @@ describe('Value Transformers', () => {
       const result = transformer.transform('invalid-date', context)
       expect(result).toBe('invalid-date')
     })
+
+    it('converts ISO date to short month name for select', () => {
+      const context = createFieldContext({ 
+        labelText: 'Month',
+        attributes: { name: 'month' },
+        optionsText: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        widgetSignature: { kind: 'select', attributes: {}, interactionPlan: 'directSet' }
+      })
+      const result = transformer.transform('2024-05-15', context)
+      expect(result).toBe('May')
+    })
+
+    it('converts ISO date to numeric month for select with numbers', () => {
+      const context = createFieldContext({ 
+        labelText: 'Month',
+        attributes: { name: 'month' },
+        optionsText: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
+        widgetSignature: { kind: 'select', attributes: {}, interactionPlan: 'directSet' }
+      })
+      const result = transformer.transform('2024-05-15', context)
+      expect(result).toBe('5')
+    })
+
+    it('converts ISO date to padded numeric month for select', () => {
+      const context = createFieldContext({ 
+        labelText: 'Month',
+        attributes: { name: 'month' },
+        optionsText: ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'],
+        widgetSignature: { kind: 'select', attributes: {}, interactionPlan: 'directSet' }
+      })
+      const result = transformer.transform('2024-05-15', context)
+      expect(result).toBe('05')
+    })
+
+    it('falls back to full month name when no exact option match', () => {
+      const context = createFieldContext({ 
+        labelText: 'Month',
+        attributes: { name: 'month' },
+        optionsText: ['January', 'February', 'March', 'April', 'May'],
+        widgetSignature: { kind: 'select', attributes: {}, interactionPlan: 'directSet' }
+      })
+      const result = transformer.transform('2024-05-15', context)
+      expect(result).toBe('May')
+    })
   })
 
   describe('PhoneTransformer', () => {

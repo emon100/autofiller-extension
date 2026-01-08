@@ -10,7 +10,7 @@ export class NameTransformer implements IValueTransformer {
   sourceType = Taxonomy.FULL_NAME
   targetTypes = [Taxonomy.FULL_NAME, Taxonomy.FIRST_NAME, Taxonomy.LAST_NAME]
 
-  canTransform(sourceValue: string, targetContext: FieldContext): boolean {
+  canTransform(sourceValue: string, _targetContext: FieldContext): boolean {
     return sourceValue.length > 0
   }
 
@@ -61,11 +61,11 @@ export class NameMergeTransformer implements IValueTransformer {
   sourceType = Taxonomy.FIRST_NAME
   targetTypes = [Taxonomy.FULL_NAME]
 
-  canTransform(sourceValue: string, targetContext: FieldContext): boolean {
+  canTransform(sourceValue: string, _targetContext: FieldContext): boolean {
     return sourceValue.length > 0
   }
 
-  transform(sourceValue: string, targetContext: FieldContext, lastName?: string): string {
+  transform(sourceValue: string, _targetContext: FieldContext, lastName?: string): string {
     if (lastName) {
       const isChinese = /[\u4e00-\u9fa5]/.test(sourceValue) || /[\u4e00-\u9fa5]/.test(lastName)
       if (isChinese) {
@@ -82,8 +82,8 @@ export class DateTransformer implements IValueTransformer {
   sourceType = Taxonomy.GRAD_DATE
   targetTypes = [Taxonomy.GRAD_DATE, Taxonomy.GRAD_YEAR, Taxonomy.GRAD_MONTH]
 
-  canTransform(sourceValue: string, targetContext: FieldContext): boolean {
-    return this.parseDate(sourceValue) !== null
+  canTransform(sourceValue: string, _targetContext: FieldContext): boolean {
+    return sourceValue.length > 0
   }
 
   transform(sourceValue: string, targetContext: FieldContext): string {
@@ -91,7 +91,7 @@ export class DateTransformer implements IValueTransformer {
     if (!parsed) return sourceValue
 
     const targetFormat = this.detectTargetFormat(targetContext)
-    return this.formatDate(parsed, targetFormat)
+    return this.formatDate(parsed, targetFormat, targetContext)
   }
 
   private parseDate(value: string): { year: number; month?: number; day?: number } | null {
@@ -131,8 +131,13 @@ export class DateTransformer implements IValueTransformer {
     
     if (context.widgetSignature.kind === 'select') {
       const options = context.optionsText.join(' ').toLowerCase()
-      if (MONTH_NAMES.some(m => options.includes(m.toLowerCase()))) {
+      const allMonthPatterns = [...MONTH_NAMES, ...MONTH_SHORT]
+      
+      if (allMonthPatterns.some(m => options.includes(m.toLowerCase()))) {
         return 'month-name'
+      }
+      if (context.optionsText.some(opt => /^(0?[1-9]|1[0-2])$/.test(opt.trim()))) {
+        return 'month-number'
       }
       if (/^\d{4}$/.test(context.optionsText[0] || '')) {
         return 'year-only'
@@ -145,7 +150,11 @@ export class DateTransformer implements IValueTransformer {
     return 'iso'
   }
 
-  private formatDate(date: { year: number; month?: number; day?: number }, format: string): string {
+  private formatDate(
+    date: { year: number; month?: number; day?: number }, 
+    format: string,
+    context?: FieldContext
+  ): string {
     const { year, month, day } = date
     const m = month || 1
     const d = day || 1
@@ -163,12 +172,49 @@ export class DateTransformer implements IValueTransformer {
       case 'month-only':
         return String(m)
       case 'month-name':
-        return MONTH_NAMES[m - 1] || String(m)
+        return this.matchMonthOption(m, context)
+      case 'month-number':
+        return this.matchMonthNumber(m, context)
       case 'month-year':
         return `${MONTH_NAMES[m - 1]} ${year}`
       default:
         return `${year}-${String(m).padStart(2, '0')}`
     }
+  }
+
+  private matchMonthOption(month: number, context?: FieldContext): string {
+    if (!context?.optionsText?.length) {
+      return MONTH_NAMES[month - 1] || String(month)
+    }
+
+    const opts = context.optionsText
+    const optsLower = opts.map(o => o.toLowerCase())
+    const fullName = MONTH_NAMES[month - 1]
+    const shortName = MONTH_SHORT[month - 1]
+    
+    const fullMatch = optsLower.findIndex(o => o === fullName.toLowerCase())
+    if (fullMatch !== -1) return opts[fullMatch]
+    
+    const shortMatch = optsLower.findIndex(o => o === shortName.toLowerCase())
+    if (shortMatch !== -1) return opts[shortMatch]
+    
+    const numMatch = opts.findIndex(o => o === String(month) || o === String(month).padStart(2, '0'))
+    if (numMatch !== -1) return opts[numMatch]
+    
+    return fullName
+  }
+
+  private matchMonthNumber(month: number, context?: FieldContext): string {
+    if (!context?.optionsText?.length) {
+      return String(month)
+    }
+
+    const opts = context.optionsText
+    
+    if (opts.includes(String(month))) return String(month)
+    if (opts.includes(String(month).padStart(2, '0'))) return String(month).padStart(2, '0')
+    
+    return String(month)
   }
 }
 
@@ -177,7 +223,7 @@ export class PhoneTransformer implements IValueTransformer {
   sourceType = Taxonomy.PHONE
   targetTypes = [Taxonomy.PHONE, Taxonomy.COUNTRY_CODE]
 
-  canTransform(sourceValue: string, targetContext: FieldContext): boolean {
+  canTransform(sourceValue: string, _targetContext: FieldContext): boolean {
     return this.parsePhone(sourceValue) !== null
   }
 
@@ -267,7 +313,7 @@ export class BooleanTransformer implements IValueTransformer {
   private readonly trueValues = ['yes', 'true', '1', 'on', '是', 'authorized', 'i agree', 'i confirm']
   private readonly falseValues = ['no', 'false', '0', 'off', '否', 'not authorized', 'i decline']
 
-  canTransform(sourceValue: string, targetContext: FieldContext): boolean {
+  canTransform(sourceValue: string, _targetContext: FieldContext): boolean {
     const normalized = sourceValue.toLowerCase().trim()
     return this.trueValues.includes(normalized) || this.falseValues.includes(normalized)
   }
@@ -311,7 +357,7 @@ export class DegreeTransformer implements IValueTransformer {
     "high school": ['high school', 'hs', '高中'],
   }
 
-  canTransform(sourceValue: string, targetContext: FieldContext): boolean {
+  canTransform(sourceValue: string, _targetContext: FieldContext): boolean {
     return sourceValue.length > 0
   }
 

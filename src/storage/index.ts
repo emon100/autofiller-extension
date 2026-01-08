@@ -1,4 +1,4 @@
-import { AnswerValue, Observation, SiteSettings, Taxonomy } from '@/types'
+import { AnswerValue, Observation, SiteSettings, Taxonomy, PendingObservation } from '@/types'
 
 const STORAGE_KEYS = {
   ANSWERS: 'answers',
@@ -179,10 +179,97 @@ export class SiteSettingsStorage {
   }
 }
 
+export class PendingObservationStorage {
+  private pendingByForm = new Map<string, PendingObservation[]>()
+  private onPendingAddedCallbacks: Array<(pending: PendingObservation) => void> = []
+  private onCommitCallbacks: Array<(observations: Observation[]) => void> = []
+
+  add(formId: string, pending: PendingObservation): void {
+    const existing = this.pendingByForm.get(formId) || []
+    const existingIndex = existing.findIndex(
+      p => p.fieldLocator === pending.fieldLocator
+    )
+    
+    if (existingIndex >= 0) {
+      existing[existingIndex] = pending
+    } else {
+      existing.push(pending)
+    }
+    
+    this.pendingByForm.set(formId, existing)
+    
+    for (const callback of this.onPendingAddedCallbacks) {
+      callback(pending)
+    }
+  }
+
+  getByForm(formId: string): PendingObservation[] {
+    return this.pendingByForm.get(formId) || []
+  }
+
+  getAllPending(): PendingObservation[] {
+    const all: PendingObservation[] = []
+    for (const observations of this.pendingByForm.values()) {
+      all.push(...observations)
+    }
+    return all
+  }
+
+  getFormIds(): string[] {
+    return Array.from(this.pendingByForm.keys())
+  }
+
+  updateStatus(formId: string, status: PendingObservation['status']): void {
+    const pending = this.pendingByForm.get(formId)
+    if (pending) {
+      for (const p of pending) {
+        p.status = status
+      }
+    }
+  }
+
+  commit(formId: string): PendingObservation[] {
+    const pending = this.pendingByForm.get(formId) || []
+    const committed = pending.map(p => ({ ...p, status: 'committed' as const }))
+    this.pendingByForm.delete(formId)
+    return committed
+  }
+
+  discard(formId: string): void {
+    this.pendingByForm.delete(formId)
+  }
+
+  discardAll(): void {
+    this.pendingByForm.clear()
+  }
+
+  hasPending(formId: string): boolean {
+    const pending = this.pendingByForm.get(formId)
+    return pending !== undefined && pending.length > 0
+  }
+
+  getPendingCount(): number {
+    let count = 0
+    for (const observations of this.pendingByForm.values()) {
+      count += observations.length
+    }
+    return count
+  }
+
+  onPendingAdded(callback: (pending: PendingObservation) => void): void {
+    this.onPendingAddedCallbacks.push(callback)
+  }
+
+  onCommit(callback: (observations: Observation[]) => void): void {
+    this.onCommitCallbacks.push(callback)
+  }
+}
+
 export class Storage {
   answers = new AnswerStorage()
   observations = new ObservationStorage()
   siteSettings = new SiteSettingsStorage()
+  pendingObservations = new PendingObservationStorage()
 
   async clearAll(): Promise<void> {
     await chrome.storage.local.remove([
@@ -191,6 +278,7 @@ export class Storage {
       STORAGE_KEYS.SITE_SETTINGS,
       STORAGE_KEYS.QUESTION_KEYS,
     ])
+    this.pendingObservations.discardAll()
   }
 
   async exportData(): Promise<{

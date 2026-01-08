@@ -1,4 +1,5 @@
 import { FieldContext, CandidateType, Taxonomy, IFieldParser } from '@/types'
+import { LLMParser } from './LLMParser'
 
 class AutocompleteParser implements IFieldParser {
   name = 'AutocompleteParser'
@@ -101,7 +102,7 @@ class NameIdParser implements IFieldParser {
     { pattern: /resume|cv/i, type: Taxonomy.RESUME_TEXT, score: 0.85 },
   ]
 
-  canParse(context: FieldContext): boolean {
+  canParse(_context: FieldContext): boolean {
     return true
   }
 
@@ -176,19 +177,6 @@ class LabelParser implements IFieldParser {
   }
 }
 
-class LLMParser implements IFieldParser {
-  name = 'LLMParser'
-  priority = 50
-
-  canParse(context: FieldContext): boolean {
-    return false
-  }
-
-  async parse(context: FieldContext): Promise<CandidateType[]> {
-    return []
-  }
-}
-
 const parsers: IFieldParser[] = [
   new AutocompleteParser(),
   new TypeAttributeParser(),
@@ -238,4 +226,5 @@ export async function parseField(context: FieldContext): Promise<CandidateType[]
   return allResults.sort((a, b) => b.score - a.score)
 }
 
-export { AutocompleteParser, TypeAttributeParser, NameIdParser, LabelParser, LLMParser }
+export { AutocompleteParser, TypeAttributeParser, NameIdParser, LabelParser }
+export { LLMParser, configureLLM, getLLMConfig } from './LLMParser'

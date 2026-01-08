@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Guidelines
+
+### Code Cleanup Rule
+**Delete unused code during implementation.** No backward compatibility needed - only passing tests matter. Remove:
+- Unused imports
+- Unused variables/functions
+- Legacy modules replaced by new implementations
+- Dead code paths
+
 ## Project Overview
 
 **autofiller-claude** is a Chrome browser extension for auto-filling job application forms. Users fill forms once manually, and the extension learns "question semantic → answer semantic" mappings to auto-fill similar questions on any job site.
@@ -69,8 +78,6 @@ WidgetSignature     - Form control capability profile
 5. **Recorder** (`recorder/`) - Two-phase save
    - Phase 1: Track PendingObservation on blur/change
    - Phase 2: Commit to storage on form submit
-
-6. **Classifier** (`classifier/`) - Legacy classification (being migrated to Parser)
 
 ### Taxonomy (MVP)
 
