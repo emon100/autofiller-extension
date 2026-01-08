@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Iframe Form Test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 16px; margin: 0; background: #fafafa; }
+    .field { margin-bottom: 12px; }
+    label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+    input, select { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <p><strong>Same-Origin Iframe Form</strong></p>
+  <form id="iframe-form">
+    <div class="field">
+      <label for="iframe-name">Full Name</label>
+      <input type="text" id="iframe-name" name="iframeName" autocomplete="name" data-testid="field-iframe-name">
+    </div>
+    <div class="field">
+      <label for="iframe-email">Email</label>
+      <input type="email" id="iframe-email" name="iframeEmail" autocomplete="email" data-testid="field-iframe-email">
+    </div>
+    <div class="field">
+      <label for="iframe-phone">Phone</label>
+      <input type="tel" id="iframe-phone" name="iframePhone" autocomplete="tel" data-testid="field-iframe-phone">
+    </div>
+  </form>
+</body>
+</html>

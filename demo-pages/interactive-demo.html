@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoFiller Interactive Demo v2</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(100px); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+    
+    .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+    .animate-slideIn { animation: slideIn 0.3s ease-out; }
+    .animate-toastIn { animation: toastIn 0.3s ease-out; }
+    .animate-toastOut { animation: toastOut 0.3s ease-out forwards; }
+    .animate-pulse { animation: pulse 2s infinite; }
+    
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
+    
+    .field-wrapper { position: relative; }
+    .field-wrapper:hover .clear-btn { opacity: 1; }
+    .clear-btn { opacity: 0; transition: opacity 0.2s; }
+    
+    .field-badge { position: absolute; right: -8px; top: 50%; transform: translateY(-50%) translateX(100%); z-index: 10; white-space: nowrap; }
+    .badge-filled { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .badge-suggest { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+    .badge-sensitive { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .badge-pending { background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="flex h-screen">
+    <!-- Left Panel -->
+    <div class="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div class="p-4 border-b border-gray-100">
+        <h1 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+          <span class="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+            </svg>
+          </span>
+          AutoFiller Demo v2
+        </h1>
+        <p class="text-xs text-gray-500 mt-1">Two-Phase Save + Synonym Tests</p>
+      </div>
+
+      <!-- Test Profiles -->
+      <div class="p-4 border-b border-gray-100">
+        <h2 class="text-sm font-semibold text-gray-700 mb-2">Quick Initialize</h2>
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="loadProfile('us')" class="px-3 py-1.5 text-xs rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50">US Applicant</button>
+          <button onclick="loadProfile('cn')" class="px-3 py-1.5 text-xs rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50">CN Applicant</button>
+          <button onclick="loadProfile('intl')" class="px-3 py-1.5 text-xs rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50">International</button>
+        </div>
+        <div class="flex gap-2 mt-2">
+          <button onclick="exportAnswers()" class="text-xs text-gray-500 hover:text-blue-600">Export</button>
+          <button onclick="importAnswers()" class="text-xs text-gray-500 hover:text-blue-600">Import</button>
+          <button onclick="clearAllAnswers()" class="text-xs text-red-400 hover:text-red-600">Clear All</button>
+        </div>
+      </div>
+
+      <!-- Form Templates -->
+      <div class="p-4 border-b border-gray-100">
+        <h2 class="text-sm font-semibold text-gray-700 mb-2">Form Templates</h2>
+        <div class="space-y-1.5">
+          <button onclick="loadTemplate('synonym-name')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50" data-template="synonym-name">
+            <span class="font-medium">Synonym: Name Split</span>
+            <span class="text-gray-400 block">Full name vs First+Last</span>
+          </button>
+          <button onclick="loadTemplate('synonym-date')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50" data-template="synonym-date">
+            <span class="font-medium">Synonym: Date Format</span>
+            <span class="text-gray-400 block">Date picker vs Select vs Text</span>
+          </button>
+          <button onclick="loadTemplate('synonym-phone')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50" data-template="synonym-phone">
+            <span class="font-medium">Synonym: Phone Format</span>
+            <span class="text-gray-400 block">E.164 vs Local vs Split</span>
+          </button>
+          <button onclick="loadTemplate('synonym-bool')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50" data-template="synonym-bool">
+            <span class="font-medium">Synonym: Yes/No</span>
+            <span class="text-gray-400 block">Radio vs Checkbox vs Select</span>
+          </button>
+          <button onclick="loadTemplate('full')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-blue-500 bg-blue-50 text-blue-700" data-template="full">
+            <span class="font-medium">Full Application</span>
+            <span class="text-blue-400 block">Complete job form</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Saved Answers -->
+      <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-sm font-semibold text-gray-700">Saved Answers</h2>
+          <span id="answer-count" class="text-xs text-gray-400">0 items</span>
+        </div>
+        <div id="answers-editor" class="space-y-2"></div>
+      </div>
+
+      <!-- Controls -->
+      <div class="p-4 border-t border-gray-100 space-y-2">
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-gray-600">Two-Phase Save</span>
+          <span class="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded">Active</span>
+        </div>
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-gray-600">Pending Fields</span>
+          <span id="pending-count" class="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Form Area -->
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-gray-50">
+      <div class="max-w-2xl mx-auto">
+        <!-- Pending Notice -->
+        <div id="pending-notice" class="hidden mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+          <strong>Pending:</strong> <span id="pending-fields-text">0 fields</span> detected. Click <strong>Submit</strong> to save permanently.
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 id="form-title" class="text-lg font-bold text-gray-800">Job Application</h2>
+              <p id="form-subtitle" class="text-sm text-gray-500">Test Form</p>
+            </div>
+            <div class="text-sm text-gray-400"><span id="field-count">0</span> fields</div>
+          </div>
+          <form id="demo-form" class="space-y-5" onsubmit="handleFormSubmit(event)"></form>
+          
+          <div class="mt-6 pt-4 border-t border-gray-100 flex justify-between">
+            <button type="button" onclick="clearForm()" class="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+              Clear Form
+            </button>
+            <button type="submit" form="demo-form" class="px-6 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+              Submit (Save Answers)
+            </button>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div class="grid grid-cols-4 gap-4 text-center">
+            <div>
+              <p id="stat-scanned" class="text-xl font-bold text-blue-600">0</p>
+              <p class="text-xs text-gray-500">Scanned</p>
+            </div>
+            <div>
+              <p id="stat-filled" class="text-xl font-bold text-green-600">0</p>
+              <p class="text-xs text-gray-500">Filled</p>
+            </div>
+            <div>
+              <p id="stat-transformed" class="text-xl font-bold text-purple-600">0</p>
+              <p class="text-xs text-gray-500">Transformed</p>
+            </div>
+            <div>
+              <p id="stat-time" class="text-xl font-bold text-gray-600">0ms</p>
+              <p class="text-xs text-gray-500">Time</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Activity Log -->
+    <div class="w-72 bg-white border-l border-gray-200 flex flex-col">
+      <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-gray-700">Activity Log</h2>
+        <button onclick="clearLogs()" class="text-xs text-gray-400 hover:text-gray-600">Clear</button>
+      </div>
+      <div id="activity-log" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- Floating Widget -->
+  <div id="floating-widget" class="fixed bottom-6 right-80 z-50">
+    <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+      <div class="flex items-center">
+        <button onclick="handleSaveNow()" class="px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-r border-gray-100">
+          <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+          Save Now
+        </button>
+        <button onclick="handleFill()" class="px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          Fill
+        </button>
+      </div>
+    </div>
+    <div class="flex justify-end mt-2">
+      <button onclick="handleUndo()" id="btn-undo" class="text-xs text-gray-400 hover:text-blue-600 hidden">Undo</button>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-[100] space-y-2" style="width: 300px;"></div>
+
+  <script>
+    // ==================== CONSTANTS ====================
+    const Taxonomy = {
+      FULL_NAME: 'FULL_NAME', FIRST_NAME: 'FIRST_NAME', LAST_NAME: 'LAST_NAME',
+      EMAIL: 'EMAIL', PHONE: 'PHONE', COUNTRY_CODE: 'COUNTRY_CODE',
+      CITY: 'CITY', LINKEDIN: 'LINKEDIN', GITHUB: 'GITHUB',
+      SCHOOL: 'SCHOOL', DEGREE: 'DEGREE', MAJOR: 'MAJOR',
+      GRAD_DATE: 'GRAD_DATE', GRAD_YEAR: 'GRAD_YEAR', GRAD_MONTH: 'GRAD_MONTH',
+      WORK_AUTH: 'WORK_AUTH', NEED_SPONSORSHIP: 'NEED_SPONSORSHIP',
+      EEO_GENDER: 'EEO_GENDER', EEO_ETHNICITY: 'EEO_ETHNICITY',
+      UNKNOWN: 'UNKNOWN'
+    };
+
+    const SENSITIVE_TYPES = new Set([Taxonomy.EEO_GENDER, Taxonomy.EEO_ETHNICITY]);
+    const CONFIDENCE_THRESHOLD = 0.75;
+
+    // ==================== TEST PROFILES ====================
+    const PROFILES = {
+      us: {
+        [Taxonomy.FULL_NAME]: { value: 'John Michael Doe', display: 'John Michael Doe' },
+        [Taxonomy.FIRST_NAME]: { value: 'John', display: 'John' },
+        [Taxonomy.LAST_NAME]: { value: 'Doe', display: 'Doe' },
+        [Taxonomy.EMAIL]: { value: 'john.doe@gmail.com', display: 'john.doe@gmail.com' },
+        [Taxonomy.PHONE]: { value: '+14155551234', display: '+1 (415) 555-1234' },
+        [Taxonomy.COUNTRY_CODE]: { value: '+1', display: '+1' },
+        [Taxonomy.CITY]: { value: 'San Francisco', display: 'San Francisco' },
+        [Taxonomy.LINKEDIN]: { value: 'https://linkedin.com/in/johndoe', display: 'linkedin.com/in/johndoe' },
+        [Taxonomy.SCHOOL]: { value: 'Stanford University', display: 'Stanford University' },
+        [Taxonomy.DEGREE]: { value: "Master's", display: "Master's Degree" },
+        [Taxonomy.MAJOR]: { value: 'Computer Science', display: 'Computer Science' },
+        [Taxonomy.GRAD_DATE]: { value: '2024-05-15', display: 'May 2024' },
+        [Taxonomy.GRAD_YEAR]: { value: '2024', display: '2024' },
+        [Taxonomy.GRAD_MONTH]: { value: '05', display: 'May' },
+        [Taxonomy.WORK_AUTH]: { value: 'yes', display: 'Yes' },
+        [Taxonomy.NEED_SPONSORSHIP]: { value: 'no', display: 'No' },
+      },
+      cn: {
+        [Taxonomy.FULL_NAME]: { value: '张三', display: '张三' },
+        [Taxonomy.FIRST_NAME]: { value: '三', display: '三' },
+        [Taxonomy.LAST_NAME]: { value: '张', display: '张' },
+        [Taxonomy.EMAIL]: { value: 'zhangsan@qq.com', display: 'zhangsan@qq.com' },
+        [Taxonomy.PHONE]: { value: '+8613812345678', display: '+86 138 1234 5678' },
+        [Taxonomy.COUNTRY_CODE]: { value: '+86', display: '+86' },
+        [Taxonomy.CITY]: { value: '北京', display: '北京' },
+        [Taxonomy.SCHOOL]: { value: '清华大学', display: '清华大学' },
+        [Taxonomy.DEGREE]: { value: '硕士', display: '硕士' },
+        [Taxonomy.MAJOR]: { value: '计算机科学', display: '计算机科学' },
+        [Taxonomy.GRAD_DATE]: { value: '2024-06-30', display: '2024年6月' },
+        [Taxonomy.GRAD_YEAR]: { value: '2024', display: '2024' },
+        [Taxonomy.GRAD_MONTH]: { value: '06', display: '6月' },
+        [Taxonomy.WORK_AUTH]: { value: 'yes', display: '是' },
+        [Taxonomy.NEED_SPONSORSHIP]: { value: 'yes', display: '是' },
+      },
+      intl: {
+        [Taxonomy.FULL_NAME]: { value: 'Amit Patel', display: 'Amit Patel' },
+        [Taxonomy.FIRST_NAME]: { value: 'Amit', display: 'Amit' },
+        [Taxonomy.LAST_NAME]: { value: 'Patel', display: 'Patel' },
+        [Taxonomy.EMAIL]: { value: 'amit@university.edu', display: 'amit@university.edu' },
+        [Taxonomy.PHONE]: { value: '+919876543210', display: '+91 98765 43210' },
+        [Taxonomy.SCHOOL]: { value: 'IIT Delhi', display: 'IIT Delhi' },
+        [Taxonomy.DEGREE]: { value: "Bachelor's", display: "Bachelor's" },
+        [Taxonomy.MAJOR]: { value: 'Electrical Engineering', display: 'Electrical Engineering' },
+        [Taxonomy.GRAD_DATE]: { value: '2023-05-01', display: 'May 2023' },
+        [Taxonomy.WORK_AUTH]: { value: 'no', display: 'No' },
+        [Taxonomy.NEED_SPONSORSHIP]: { value: 'yes', display: 'Yes' },
+      }
+    };
+
+    // ==================== TEMPLATES ====================
+    const TEMPLATES = {
+      'synonym-name': {
+        title: 'Name Format Test',
+        subtitle: 'Full name vs First+Last split',
+        fields: [
+          { name: 'fullName', label: 'Full Name', type: 'text', taxonomy: Taxonomy.FULL_NAME },
+          { name: 'firstName', label: 'First Name', type: 'text', taxonomy: Taxonomy.FIRST_NAME },
+          { name: 'lastName', label: 'Last Name', type: 'text', taxonomy: Taxonomy.LAST_NAME },
+          { name: 'givenName', label: 'Given Name (Same as First)', type: 'text', taxonomy: Taxonomy.FIRST_NAME },
+          { name: 'familyName', label: 'Family Name (Same as Last)', type: 'text', taxonomy: Taxonomy.LAST_NAME },
+        ]
+      },
+      'synonym-date': {
+        title: 'Date Format Test',
+        subtitle: 'Different date input methods',
+        fields: [
+          { name: 'gradDate', label: 'Graduation Date (Date Picker)', type: 'date', taxonomy: Taxonomy.GRAD_DATE },
+          { name: 'gradMonth', label: 'Graduation Month (Month Picker)', type: 'month', taxonomy: Taxonomy.GRAD_DATE },
+          { name: 'gradYearSelect', label: 'Graduation Year', type: 'select', options: ['', '2022', '2023', '2024', '2025', '2026'], taxonomy: Taxonomy.GRAD_YEAR },
+          { name: 'gradMonthSelect', label: 'Graduation Month', type: 'select', options: ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'], taxonomy: Taxonomy.GRAD_MONTH },
+          { name: 'gradText', label: 'Graduation (Text: MM/YYYY)', type: 'text', placeholder: '05/2024', taxonomy: Taxonomy.GRAD_DATE },
+        ]
+      },
+      'synonym-phone': {
+        title: 'Phone Format Test',
+        subtitle: 'Different phone input methods',
+        fields: [
+          { name: 'phoneE164', label: 'Phone (E.164: +14155551234)', type: 'tel', taxonomy: Taxonomy.PHONE },
+          { name: 'phoneLocal', label: 'Phone (Local: 4155551234)', type: 'tel', maxlength: '10', taxonomy: Taxonomy.PHONE },
+          { name: 'phoneFormatted', label: 'Phone (Formatted)', type: 'tel', placeholder: '(415) 555-1234', taxonomy: Taxonomy.PHONE },
+          { name: 'countryCode', label: 'Country Code', type: 'select', options: ['', '+1 (US)', '+86 (CN)', '+91 (IN)', '+44 (UK)'], taxonomy: Taxonomy.COUNTRY_CODE },
+          { name: 'phoneNumber', label: 'Phone Number (without country)', type: 'tel', taxonomy: Taxonomy.PHONE },
+        ]
+      },
+      'synonym-bool': {
+        title: 'Boolean/Choice Test',
+        subtitle: 'Yes/No in different formats',
+        fields: [
+          { name: 'workAuthRadio', label: 'Authorized to work? (Radio)', type: 'radio', options: ['Yes', 'No'], taxonomy: Taxonomy.WORK_AUTH },
+          { name: 'workAuthSelect', label: 'Work Authorization (Select)', type: 'select', options: ['', 'Yes', 'No'], taxonomy: Taxonomy.WORK_AUTH },
+          { name: 'workAuthCheck', label: 'I am authorized to work in this country', type: 'checkbox', taxonomy: Taxonomy.WORK_AUTH },
+          { name: 'sponsorRadio', label: 'Need visa sponsorship?', type: 'radio', options: ['Yes', 'No'], taxonomy: Taxonomy.NEED_SPONSORSHIP },
+          { name: 'sponsorSelect', label: 'Sponsorship Required', type: 'select', options: ['', 'Yes, I need sponsorship', 'No, I do not need sponsorship'], taxonomy: Taxonomy.NEED_SPONSORSHIP },
+        ]
+      },
+      'full': {
+        title: 'Full Job Application',
+        subtitle: 'Complete application form',
+        sections: [
+          { title: 'Personal Information', fields: [
+            { name: 'fullName', label: 'Full Name', type: 'text', required: true, taxonomy: Taxonomy.FULL_NAME },
+            { name: 'email', label: 'Email', type: 'email', required: true, taxonomy: Taxonomy.EMAIL },
+            { name: 'phone', label: 'Phone', type: 'tel', taxonomy: Taxonomy.PHONE },
+            { name: 'city', label: 'City', type: 'text', taxonomy: Taxonomy.CITY },
+            { name: 'linkedin', label: 'LinkedIn URL', type: 'url', taxonomy: Taxonomy.LINKEDIN },
+          ]},
+          { title: 'Education', fields: [
+            { name: 'school', label: 'School/University', type: 'text', taxonomy: Taxonomy.SCHOOL },
+            { name: 'degree', label: 'Degree', type: 'select', options: ['', "Bachelor's", "Master's", 'Ph.D.'], taxonomy: Taxonomy.DEGREE },
+            { name: 'major', label: 'Major', type: 'text', taxonomy: Taxonomy.MAJOR },
+            { name: 'gradDate', label: 'Graduation Date', type: 'month', taxonomy: Taxonomy.GRAD_DATE },
+          ]},
+          { title: 'Work Authorization', fields: [
+            { name: 'workAuth', label: 'Legally authorized to work?', type: 'radio', options: ['Yes', 'No'], taxonomy: Taxonomy.WORK_AUTH },
+            { name: 'sponsorship', label: 'Require sponsorship?', type: 'radio', options: ['Yes', 'No'], taxonomy: Taxonomy.NEED_SPONSORSHIP },
+          ]},
+        ]
+      }
+    };
+
+    // ==================== STATE ====================
+    let savedAnswers = {};
+    let pendingObservations = [];
+    let fillHistory = [];
+
+    // ==================== STORAGE ====================
+    function loadAnswers() {
+      try {
+        savedAnswers = JSON.parse(localStorage.getItem('autofiller_v2_answers') || '{}');
+      } catch { savedAnswers = {}; }
+      renderAnswersEditor();
+    }
+
+    function saveAnswers() {
+      localStorage.setItem('autofiller_v2_answers', JSON.stringify(savedAnswers));
+      renderAnswersEditor();
+    }
+
+    function loadProfile(profileName) {
+      const profile = PROFILES[profileName];
+      if (!profile) return;
+      
+      for (const [type, data] of Object.entries(profile)) {
+        savedAnswers[type] = {
+          id: Date.now().toString() + Math.random().toString(36).slice(2),
+          type,
+          ...data,
+          aliases: [],
+          sensitivity: SENSITIVE_TYPES.has(type) ? 'sensitive' : 'normal',
+          autofillAllowed: !SENSITIVE_TYPES.has(type),
+        };
+      }
+      saveAnswers();
+      showToast(`Loaded ${profileName.toUpperCase()} profile`, 'success');
+      logActivity('profile', { name: profileName, count: Object.keys(profile).length });
+    }
+
+    function exportAnswers() {
+      const data = JSON.stringify(savedAnswers, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'autofiller-answers.json';
+      a.click();
+      showToast('Exported answers', 'info');
+    }
+
+    function importAnswers() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              savedAnswers = JSON.parse(e.target.result);
+              saveAnswers();
+              showToast('Imported answers', 'success');
+            } catch {
+              showToast('Invalid JSON file', 'error');
+            }
+          };
+          reader.readAsText(file);
+        }
+      };
+      input.click();
+    }
+
+    function clearAllAnswers() {
+      if (confirm('Clear all saved answers?')) {
+        savedAnswers = {};
+        saveAnswers();
+        showToast('Cleared all answers', 'info');
+      }
+    }
+
+    // ==================== VALUE TRANSFORMERS ====================
+    const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 
+      'July', 'August', 'September', 'October', 'November', 'December'];
+
+    function transformValue(sourceValue, sourceType, targetField) {
+      if (!sourceValue) return sourceValue;
+
+      // Name transformations
+      if (sourceType === Taxonomy.FULL_NAME) {
+        const isChinese = /[\u4e00-\u9fa5]/.test(sourceValue);
+        if (targetField.taxonomy === Taxonomy.FIRST_NAME) {
+          return isChinese ? sourceValue.slice(1) : sourceValue.split(/\s+/)[0];
+        }
+        if (targetField.taxonomy === Taxonomy.LAST_NAME) {
+          return isChinese ? sourceValue.charAt(0) : sourceValue.split(/\s+/).pop();
+        }
+      }
+
+      // Merge first+last to full name
+      if ((sourceType === Taxonomy.FIRST_NAME || sourceType === Taxonomy.LAST_NAME) && 
+          targetField.taxonomy === Taxonomy.FULL_NAME) {
+        const first = savedAnswers[Taxonomy.FIRST_NAME]?.value || '';
+        const last = savedAnswers[Taxonomy.LAST_NAME]?.value || '';
+        const isChinese = /[\u4e00-\u9fa5]/.test(first) || /[\u4e00-\u9fa5]/.test(last);
+        return isChinese ? `${last}${first}` : `${first} ${last}`.trim();
+      }
+
+      // Date transformations
+      if ([Taxonomy.GRAD_DATE, Taxonomy.GRAD_YEAR, Taxonomy.GRAD_MONTH].includes(sourceType)) {
+        const dateMatch = sourceValue.match(/(\d{4})[-\/]?(\d{2})?[-\/]?(\d{2})?/);
+        if (dateMatch) {
+          const [, year, month, day] = dateMatch;
+          
+          if (targetField.taxonomy === Taxonomy.GRAD_YEAR || targetField.type === 'select' && /year/i.test(targetField.label)) {
+            return year;
+          }
+          if (targetField.taxonomy === Taxonomy.GRAD_MONTH) {
+            if (targetField.type === 'select') {
+              const monthNum = parseInt(month || '1');
+              return MONTH_NAMES[monthNum - 1] || month;
+            }
+            return month || '01';
+          }
+          if (targetField.type === 'date') {
+            return `${year}-${month || '01'}-${day || '01'}`;
+          }
+          if (targetField.type === 'month') {
+            return `${year}-${month || '01'}`;
+          }
+        }
+      }
+
+      // Phone transformations
+      if (sourceType === Taxonomy.PHONE || sourceType === Taxonomy.COUNTRY_CODE) {
+        const cleaned = sourceValue.replace(/[\s\-\(\)\.]/g, '');
+        const match = cleaned.match(/^\+?(\d{1,3})?(\d{10,11})$/);
+        
+        if (match) {
+          const [, countryCode, number] = match;
+          
+          if (targetField.taxonomy === Taxonomy.COUNTRY_CODE) {
+            return countryCode ? `+${countryCode}` : '+1';
+          }
+          
+          if (targetField.maxlength === '10') {
+            return number.slice(-10);
+          }
+          
+          if (targetField.placeholder?.includes('(')) {
+            const n = number.slice(-10);
+            return `(${n.slice(0,3)}) ${n.slice(3,6)}-${n.slice(6)}`;
+          }
+        }
+      }
+
+      // Boolean transformations
+      if ([Taxonomy.WORK_AUTH, Taxonomy.NEED_SPONSORSHIP].includes(sourceType)) {
+        const normalized = sourceValue.toLowerCase();
+        const isTrue = ['yes', 'true', '1', '是'].includes(normalized);
+        
+        if (targetField.type === 'checkbox') {
+          return isTrue ? 'true' : 'false';
+        }
+        
+        if (targetField.options) {
+          for (const opt of targetField.options) {
+            const optLower = opt.toLowerCase();
+            if (isTrue && (optLower.includes('yes') || optLower.includes('authorized') || optLower === '是')) {
+              return opt;
+            }
+            if (!isTrue && (optLower.includes('no') || optLower.includes('not') || optLower === '否')) {
+              return opt;
+            }
+          }
+        }
+        
+        return isTrue ? 'Yes' : 'No';
+      }
+
+      // Degree transformations
+      if (sourceType === Taxonomy.DEGREE && targetField.options) {
+        const degreeMap = {
+          "bachelor's": ["bachelor", "bs", "ba", "本科"],
+          "master's": ["master", "ms", "ma", "硕士"],
+          "ph.d.": ["phd", "doctorate", "博士"],
+        };
+        
+        const normalized = sourceValue.toLowerCase();
+        for (const [key, aliases] of Object.entries(degreeMap)) {
+          if (key === normalized || aliases.some(a => normalized.includes(a))) {
+            for (const opt of targetField.options) {
+              const optLower = opt.toLowerCase();
+              if (optLower.includes(key) || aliases.some(a => optLower.includes(a))) {
+                return opt;
+              }
+            }
+          }
+        }
+      }
+
+      return sourceValue;
+    }
+
+    // ==================== CLASSIFIER ====================
+    const CLASSIFY_RULES = [
+      { patterns: [/full.?name/i, /^name$/i], type: Taxonomy.FULL_NAME, score: 0.9 },
+      { patterns: [/first.?name|given.?name/i], type: Taxonomy.FIRST_NAME, score: 0.9 },
+      { patterns: [/last.?name|family.?name|surname/i], type: Taxonomy.LAST_NAME, score: 0.9 },
+      { patterns: [/e.?mail/i], type: Taxonomy.EMAIL, score: 0.9 },
+      { patterns: [/phone|mobile|tel/i], type: Taxonomy.PHONE, score: 0.9 },
+      { patterns: [/country.?code/i], type: Taxonomy.COUNTRY_CODE, score: 0.85 },
+      { patterns: [/city/i], type: Taxonomy.CITY, score: 0.85 },
+      { patterns: [/linkedin/i], type: Taxonomy.LINKEDIN, score: 0.95 },
+      { patterns: [/github/i], type: Taxonomy.GITHUB, score: 0.95 },
+      { patterns: [/school|university/i], type: Taxonomy.SCHOOL, score: 0.9 },
+      { patterns: [/degree/i], type: Taxonomy.DEGREE, score: 0.85 },
+      { patterns: [/major|field/i], type: Taxonomy.MAJOR, score: 0.85 },
+      { patterns: [/grad.*year/i], type: Taxonomy.GRAD_YEAR, score: 0.85 },
+      { patterns: [/grad.*month/i], type: Taxonomy.GRAD_MONTH, score: 0.85 },
+      { patterns: [/grad|graduation/i], type: Taxonomy.GRAD_DATE, score: 0.8 },
+      { patterns: [/authorized|work.?auth/i], type: Taxonomy.WORK_AUTH, score: 0.9 },
+      { patterns: [/sponsor|visa/i], type: Taxonomy.NEED_SPONSORSHIP, score: 0.9 },
+    ];
+
+    function classifyField(element, fieldDef) {
+      if (fieldDef?.taxonomy) {
+        return { type: fieldDef.taxonomy, score: 1.0, reason: 'explicit taxonomy' };
+      }
+      
+      const name = element.name || '';
+      const label = element.closest('.field-wrapper')?.querySelector('label')?.textContent || '';
+      const combined = `${name} ${label}`.toLowerCase();
+      
+      for (const rule of CLASSIFY_RULES) {
+        for (const pattern of rule.patterns) {
+          if (pattern.test(combined)) {
+            return { type: rule.type, score: rule.score, reason: `matches "${pattern.source}"` };
+          }
+        }
+      }
+      
+      return { type: Taxonomy.UNKNOWN, score: 0, reason: 'no match' };
+    }
+
+    // ==================== TWO-PHASE SAVE ====================
+    function trackPendingObservation(element, value, fieldDef) {
+      const classification = classifyField(element, fieldDef);
+      if (classification.type === Taxonomy.UNKNOWN) return;
+      
+      const existing = pendingObservations.findIndex(p => p.fieldName === element.name);
+      if (existing >= 0) {
+        pendingObservations[existing].value = value;
+        pendingObservations[existing].timestamp = Date.now();
+      } else {
+        pendingObservations.push({
+          id: Date.now().toString(),
+          fieldName: element.name,
+          type: classification.type,
+          value,
+          timestamp: Date.now(),
+        });
+      }
+      
+      updatePendingUI();
+      showBadge(element, 'pending');
+    }
+
+    function commitPendingObservations() {
+      let committed = 0;
+      
+      for (const obs of pendingObservations) {
+        if (!obs.value) continue;
+        
+        savedAnswers[obs.type] = {
+          id: obs.id,
+          type: obs.type,
+          value: obs.value,
+          display: obs.value,
+          aliases: [],
+          sensitivity: SENSITIVE_TYPES.has(obs.type) ? 'sensitive' : 'normal',
+          autofillAllowed: !SENSITIVE_TYPES.has(obs.type),
+        };
+        committed++;
+      }
+      
+      if (committed > 0) {
+        saveAnswers();
+        showToast(`Saved ${committed} answers`, 'success');
+        logActivity('commit', { count: committed });
+      }
+      
+      pendingObservations = [];
+      updatePendingUI();
+      removeBadges('pending');
+    }
+
+    function updatePendingUI() {
+      const count = pendingObservations.length;
+      document.getElementById('pending-count').textContent = count;
+      
+      const notice = document.getElementById('pending-notice');
+      if (count > 0) {
+        notice.classList.remove('hidden');
+        document.getElementById('pending-fields-text').textContent = `${count} field${count > 1 ? 's' : ''}`;
+      } else {
+        notice.classList.add('hidden');
+      }
+    }
+
+    function handleFormSubmit(event) {
+      event.preventDefault();
+      commitPendingObservations();
+    }
+
+    function handleSaveNow() {
+      commitPendingObservations();
+    }
+
+    // ==================== FILL LOGIC ====================
+    async function handleFill() {
+      const startTime = performance.now();
+      const form = document.getElementById('demo-form');
+      const elements = form.querySelectorAll('input, select, textarea');
+      
+      let filledCount = 0;
+      let transformedCount = 0;
+      fillHistory = [];
+      
+      removeBadges();
+      
+      for (const element of elements) {
+        const fieldDef = element._fieldDef;
+        const classification = classifyField(element, fieldDef);
+        
+        if (classification.type === Taxonomy.UNKNOWN) continue;
+        
+        // Find matching answer (try exact match first, then related types)
+        let answer = savedAnswers[classification.type];
+        let sourceType = classification.type;
+        let transformed = false;
+        
+        if (!answer) {
+          // Try to find related answer for transformation
+          const relatedTypes = getRelatedTypes(classification.type);
+          for (const relatedType of relatedTypes) {
+            if (savedAnswers[relatedType]) {
+              answer = savedAnswers[relatedType];
+              sourceType = relatedType;
+              break;
+            }
+          }
+        }
+        
+        if (!answer) continue;
+        
+        if (SENSITIVE_TYPES.has(classification.type) && !answer.autofillAllowed) {
+          showBadge(element, 'sensitive', [answer]);
+          continue;
+        }
+        
+        if (classification.score < CONFIDENCE_THRESHOLD) {
+          showBadge(element, 'suggest', [answer]);
+          continue;
+        }
+        
+        // Transform value if needed
+        let valueToFill = answer.value;
+        if (sourceType !== classification.type || fieldDef) {
+          const transformedValue = transformValue(answer.value, sourceType, fieldDef || { taxonomy: classification.type, type: element.type });
+          if (transformedValue !== answer.value) {
+            valueToFill = transformedValue;
+            transformed = true;
+            transformedCount++;
+          }
+        }
+        
+        const snapshot = { element, previousValue: element.value || element.checked };
+        const success = fillField(element, valueToFill);
+        
+        if (success) {
+          fillHistory.push(snapshot);
+          filledCount++;
+          showBadge(element, transformed ? 'transformed' : 'filled');
+        }
+        
+        await new Promise(r => setTimeout(r, 10));
+      }
+      
+      const elapsed = Math.round(performance.now() - startTime);
+      
+      document.getElementById('stat-scanned').textContent = elements.length;
+      document.getElementById('stat-filled').textContent = filledCount;
+      document.getElementById('stat-transformed').textContent = transformedCount;
+      document.getElementById('stat-time').textContent = elapsed + 'ms';
+      
+      if (filledCount > 0) {
+        document.getElementById('btn-undo').classList.remove('hidden');
+      }
+      
+      showToast(`Filled ${filledCount} fields (${transformedCount} transformed)`, 'success');
+      logActivity('fill', { filled: filledCount, transformed: transformedCount, time: elapsed });
+    }
+
+    function getRelatedTypes(type) {
+      const relations = {
+        [Taxonomy.FULL_NAME]: [Taxonomy.FIRST_NAME, Taxonomy.LAST_NAME],
+        [Taxonomy.FIRST_NAME]: [Taxonomy.FULL_NAME],
+        [Taxonomy.LAST_NAME]: [Taxonomy.FULL_NAME],
+        [Taxonomy.GRAD_DATE]: [Taxonomy.GRAD_YEAR, Taxonomy.GRAD_MONTH],
+        [Taxonomy.GRAD_YEAR]: [Taxonomy.GRAD_DATE],
+        [Taxonomy.GRAD_MONTH]: [Taxonomy.GRAD_DATE],
+        [Taxonomy.PHONE]: [Taxonomy.COUNTRY_CODE],
+        [Taxonomy.COUNTRY_CODE]: [Taxonomy.PHONE],
+      };
+      return relations[type] || [];
+    }
+
+    function fillField(element, value) {
+      try {
+        if (element.tagName === 'SELECT') {
+          for (const opt of element.options) {
+            if (opt.value.toLowerCase() === value.toLowerCase() || 
+                opt.textContent.toLowerCase().includes(value.toLowerCase())) {
+              element.value = opt.value;
+              element.dispatchEvent(new Event('change', { bubbles: true }));
+              return true;
+            }
+          }
+          return false;
+        }
+        
+        if (element.type === 'radio') {
+          const radios = document.querySelectorAll(`input[name="${element.name}"]`);
+          for (const radio of radios) {
+            const radioLabel = radio.closest('label')?.textContent?.toLowerCase() || radio.value.toLowerCase();
+            if (radioLabel.includes(value.toLowerCase()) || value.toLowerCase().includes(radioLabel)) {
+              radio.checked = true;
+              radio.dispatchEvent(new Event('change', { bubbles: true }));
+              return true;
+            }
+          }
+          return false;
+        }
+        
+        if (element.type === 'checkbox') {
+          const shouldCheck = ['yes', 'true', '1'].includes(value.toLowerCase());
+          if (element.checked !== shouldCheck) {
+            element.click();
+          }
+          return true;
+        }
+        
+        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        if (nativeSetter) {
+          nativeSetter.call(element, value);
+        } else {
+          element.value = value;
+        }
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      } catch (e) {
+        console.error('Fill error:', e);
+        return false;
+      }
+    }
+
+    function handleUndo() {
+      for (const { element, previousValue } of fillHistory) {
+        if (element.type === 'checkbox') {
+          element.checked = previousValue;
+        } else {
+          element.value = previousValue || '';
+        }
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      removeBadges();
+      document.getElementById('btn-undo').classList.add('hidden');
+      showToast(`Undone ${fillHistory.length} fields`, 'info');
+      fillHistory = [];
+    }
+
+    function clearForm() {
+      document.getElementById('demo-form').querySelectorAll('input, select').forEach(el => {
+        if (el.type === 'checkbox' || el.type === 'radio') {
+          el.checked = false;
+        } else {
+          el.value = '';
+        }
+      });
+      pendingObservations = [];
+      updatePendingUI();
+      removeBadges();
+    }
+
+    // ==================== BADGES ====================
+    function showBadge(element, type, suggestions = []) {
+      const wrapper = element.closest('.field-wrapper');
+      if (!wrapper) return;
+      
+      const existing = wrapper.querySelector('.field-badge');
+      if (existing) existing.remove();
+      
+      const badge = document.createElement('div');
+      badge.className = 'field-badge px-2 py-1 rounded-full text-xs flex items-center gap-1 animate-fadeIn';
+      
+      if (type === 'filled' || type === 'transformed') {
+        badge.classList.add('badge-filled');
+        badge.innerHTML = type === 'transformed' 
+          ? '<span>Transformed</span>' 
+          : '<span>Filled</span>';
+      } else if (type === 'suggest') {
+        badge.classList.add('badge-suggest');
+        badge.innerHTML = '<span>Suggest</span>';
+        for (const s of suggestions.slice(0, 1)) {
+          const btn = document.createElement('button');
+          btn.className = 'ml-1 px-1.5 py-0.5 bg-blue-200 hover:bg-blue-300 rounded';
+          btn.textContent = s.display?.slice(0, 15) || s.value?.slice(0, 15);
+          btn.onclick = () => {
+            fillField(element, s.value);
+            showBadge(element, 'filled');
+          };
+          badge.appendChild(btn);
+        }
+      } else if (type === 'sensitive') {
+        badge.classList.add('badge-sensitive');
+        badge.innerHTML = '<span>Sensitive</span>';
+      } else if (type === 'pending') {
+        badge.classList.add('badge-pending');
+        badge.innerHTML = '<span>Pending</span>';
+      }
+      
+      wrapper.appendChild(badge);
+    }
+
+    function removeBadges(type = null) {
+      const selector = type ? `.field-badge.badge-${type}` : '.field-badge';
+      document.querySelectorAll(selector).forEach(b => b.remove());
+    }
+
+    // ==================== TOAST ====================
+    let toastId = 0;
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const id = ++toastId;
+      const colors = { success: 'bg-green-600', info: 'bg-blue-600', warning: 'bg-amber-500', error: 'bg-red-600' };
+      
+      const toast = document.createElement('div');
+      toast.id = `toast-${id}`;
+      toast.className = `px-4 py-3 rounded-xl shadow-lg ${colors[type]} text-white text-sm animate-toastIn flex items-center justify-between`;
+      toast.innerHTML = `<span>${message}</span><button onclick="removeToast(${id})" class="ml-3 opacity-70 hover:opacity-100">×</button>`;
+      
+      container.appendChild(toast);
+      setTimeout(() => removeToast(id), 4000);
+    }
+
+    function removeToast(id) {
+      const toast = document.getElementById(`toast-${id}`);
+      if (toast) {
+        toast.classList.add('animate-toastOut');
+        setTimeout(() => toast.remove(), 300);
+      }
+    }
+
+    // ==================== ACTIVITY LOG ====================
+    function logActivity(type, data = {}) {
+      const log = document.getElementById('activity-log');
+      const entry = document.createElement('div');
+      entry.className = 'p-2 rounded-lg border text-xs animate-slideIn';
+      
+      const icons = { profile: '📥', commit: '💾', fill: '✅', track: '📝' };
+      const colors = { profile: 'border-purple-200 bg-purple-50', commit: 'border-green-200 bg-green-50', fill: 'border-blue-200 bg-blue-50', track: 'border-gray-200 bg-gray-50' };
+      
+      entry.classList.add(...(colors[type] || 'border-gray-200').split(' '));
+      
+      const time = new Date().toLocaleTimeString();
+      let content = `<div class="flex items-center gap-1 text-gray-600"><span>${icons[type] || '•'}</span><span class="font-medium">${type}</span><span class="ml-auto text-gray-400">${time}</span></div>`;
+      
+      for (const [key, value] of Object.entries(data)) {
+        content += `<div class="text-gray-500 mt-1">${key}: ${value}</div>`;
+      }
+      
+      entry.innerHTML = content;
+      log.insertBefore(entry, log.firstChild);
+      
+      while (log.children.length > 30) log.removeChild(log.lastChild);
+    }
+
+    function clearLogs() {
+      document.getElementById('activity-log').innerHTML = '';
+    }
+
+    // ==================== FORM RENDERING ====================
+    function renderField(field) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'field-wrapper relative';
+      
+      // Clear button (shown on hover)
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'clear-btn absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-200 hover:bg-red-200 text-gray-500 hover:text-red-600 text-xs flex items-center justify-center z-20';
+      clearBtn.innerHTML = '×';
+      clearBtn.onclick = (e) => {
+        e.preventDefault();
+        const input = wrapper.querySelector('input, select, textarea');
+        if (input) {
+          if (input.type === 'checkbox' || input.type === 'radio') {
+            input.checked = false;
+          } else {
+            input.value = '';
+          }
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          const badge = wrapper.querySelector('.field-badge');
+          if (badge) badge.remove();
+        }
+      };
+      
+      let html = '';
+      
+      if (field.type === 'radio') {
+        html = `
+          <label class="block text-sm font-medium text-gray-700 mb-2">${field.label}${field.required ? ' *' : ''}</label>
+          <div class="space-y-1.5">
+            ${field.options.map(opt => `
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="${field.name}" value="${opt.toLowerCase()}" class="form-radio" data-taxonomy="${field.taxonomy || ''}">
+                <span class="text-sm">${opt}</span>
+              </label>
+            `).join('')}
+          </div>
+        `;
+      } else if (field.type === 'checkbox') {
+        html = `
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" name="${field.name}" class="form-checkbox" data-taxonomy="${field.taxonomy || ''}">
+            <span class="text-sm">${field.label}</span>
+          </label>
+        `;
+      } else if (field.type === 'select') {
+        html = `
+          <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}${field.required ? ' *' : ''}</label>
+          <select name="${field.name}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 pr-8" data-taxonomy="${field.taxonomy || ''}">
+            ${field.options.map(opt => `<option value="${opt.toLowerCase()}">${opt || 'Select...'}</option>`).join('')}
+          </select>
+        `;
+      } else {
+        html = `
+          <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}${field.required ? ' *' : ''}</label>
+          <input type="${field.type}" name="${field.name}" 
+            ${field.placeholder ? `placeholder="${field.placeholder}"` : ''}
+            ${field.maxlength ? `maxlength="${field.maxlength}"` : ''}
+            ${field.required ? 'required' : ''}
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 pr-8"
+            data-taxonomy="${field.taxonomy || ''}">
+        `;
+      }
+      
+      wrapper.innerHTML = html;
+      
+      // Add clear button for non-radio fields
+      if (field.type !== 'radio') {
+        wrapper.appendChild(clearBtn);
+      }
+      
+      // Store field definition on element
+      const input = wrapper.querySelector('input, select, textarea');
+      if (input) {
+        input._fieldDef = field;
+        
+        // Track on blur/change for two-phase save
+        input.addEventListener('blur', () => {
+          if (input.value || input.checked) {
+            trackPendingObservation(input, input.type === 'checkbox' ? (input.checked ? 'yes' : 'no') : input.value, field);
+          }
+        });
+        input.addEventListener('change', () => {
+          if (input.type === 'radio' || input.type === 'checkbox' || input.tagName === 'SELECT') {
+            if (input.value || input.checked) {
+              trackPendingObservation(input, input.type === 'checkbox' ? (input.checked ? 'yes' : 'no') : input.value, field);
+            }
+          }
+        });
+      }
+      
+      return wrapper;
+    }
+
+    function loadTemplate(name) {
+      const template = TEMPLATES[name];
+      if (!template) return;
+      
+      document.querySelectorAll('.template-btn').forEach(btn => {
+        btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-700');
+        btn.classList.add('border-gray-200');
+      });
+      document.querySelector(`[data-template="${name}"]`)?.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-700');
+      
+      document.getElementById('form-title').textContent = template.title;
+      document.getElementById('form-subtitle').textContent = template.subtitle;
+      
+      const form = document.getElementById('demo-form');
+      form.innerHTML = '';
+      
+      let fieldCount = 0;
+      pendingObservations = [];
+      updatePendingUI();
+      
+      if (template.sections) {
+        for (const section of template.sections) {
+          const fieldset = document.createElement('fieldset');
+          fieldset.className = 'border border-gray-200 rounded-lg p-4 mb-4';
+          fieldset.innerHTML = `<legend class="text-sm font-semibold text-gray-600 px-2">${section.title}</legend>`;
+          
+          const container = document.createElement('div');
+          container.className = 'space-y-4 mt-2';
+          
+          for (const field of section.fields) {
+            container.appendChild(renderField(field));
+            fieldCount++;
+          }
+          
+          fieldset.appendChild(container);
+          form.appendChild(fieldset);
+        }
+      } else if (template.fields) {
+        const container = document.createElement('div');
+        container.className = 'space-y-4';
+        for (const field of template.fields) {
+          container.appendChild(renderField(field));
+          fieldCount++;
+        }
+        form.appendChild(container);
+      }
+      
+      document.getElementById('field-count').textContent = fieldCount;
+      removeBadges();
+      logActivity('template', { name, fields: fieldCount });
+    }
+
+    // ==================== ANSWERS EDITOR ====================
+    function renderAnswersEditor() {
+      const container = document.getElementById('answers-editor');
+      const answers = Object.values(savedAnswers);
+      
+      document.getElementById('answer-count').textContent = `${answers.length} items`;
+      
+      if (answers.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No saved answers.<br>Load a profile or fill forms.</p>';
+        return;
+      }
+      
+      container.innerHTML = '';
+      
+      for (const answer of answers) {
+        const item = document.createElement('div');
+        item.className = 'p-2 bg-gray-50 rounded-lg';
+        item.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-gray-400">${answer.type}</span>
+            <button onclick="deleteAnswer('${answer.type}')" class="text-gray-400 hover:text-red-500 text-xs">×</button>
+          </div>
+          <input type="text" value="${answer.value}" 
+            onchange="updateAnswer('${answer.type}', this.value)"
+            class="w-full text-sm bg-transparent border-0 p-0 mt-1 focus:ring-0">
+        `;
+        container.appendChild(item);
+      }
+    }
+
+    function updateAnswer(type, value) {
+      if (savedAnswers[type]) {
+        savedAnswers[type].value = value;
+        savedAnswers[type].display = value;
+        saveAnswers();
+      }
+    }
+
+    function deleteAnswer(type) {
+      delete savedAnswers[type];
+      saveAnswers();
+    }
+
+    // ==================== INIT ====================
+    loadAnswers();
+    loadTemplate('full');
+  </script>
+</body>
+</html>

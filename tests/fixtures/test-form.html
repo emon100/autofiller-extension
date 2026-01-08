@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoFiller Test Form - Comprehensive</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    form { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    h1 { color: #333; margin-bottom: 8px; }
+    h2 { color: #666; font-size: 14px; font-weight: normal; margin-bottom: 24px; }
+    fieldset { border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px; margin-bottom: 20px; }
+    legend { font-weight: 600; color: #333; padding: 0 8px; }
+    .field { margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
+    label { display: block; font-size: 14px; font-weight: 500; color: #444; margin-bottom: 4px; }
+    label .required { color: #dc2626; }
+    input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input[type="date"], input[type="number"], select, textarea {
+      width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .row { display: flex; gap: 16px; }
+    .row > .field { flex: 1; }
+    .radio-group, .checkbox-group { display: flex; flex-direction: column; gap: 8px; }
+    .radio-group label, .checkbox-group label { display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; }
+    .radio-group input, .checkbox-group input { margin: 0; }
+    textarea { min-height: 80px; resize: vertical; }
+    button[type="submit"] { background: #3b82f6; color: white; padding: 12px 24px; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+    button[type="submit"]:hover { background: #2563eb; }
+    .hint { font-size: 12px; color: #6b7280; margin-top: 4px; }
+    
+    .custom-combobox { position: relative; }
+    .custom-combobox input { padding-right: 32px; }
+    .custom-combobox .dropdown-arrow { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+    .custom-combobox .options { display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #d1d5db; border-radius: 6px; max-height: 200px; overflow-y: auto; z-index: 10; }
+    .custom-combobox.open .options { display: block; }
+    .custom-combobox .option { padding: 8px 12px; cursor: pointer; }
+    .custom-combobox .option:hover { background: #f3f4f6; }
+    .custom-combobox .option[aria-selected="true"] { background: #eff6ff; color: #1d4ed8; }
+
+    #shadow-host { border: 1px dashed #ccc; padding: 16px; margin-top: 20px; border-radius: 6px; }
+    iframe { border: 1px solid #e0e0e0; border-radius: 6px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Job Application - Test Form</h1>
+  <h2>This form tests all field types for AutoFiller extension</h2>
+
+  <form id="test-form" data-testid="test-form">
+    <fieldset>
+      <legend>Personal Information</legend>
+      
+      <div class="row">
+        <div class="field">
+          <label for="fullName">Full Name <span class="required">*</span></label>
+          <input type="text" id="fullName" name="fullName" autocomplete="name" required data-testid="field-fullname">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="email">Email Address <span class="required">*</span></label>
+          <input type="email" id="email" name="email" autocomplete="email" required data-testid="field-email">
+        </div>
+        <div class="field">
+          <label for="phone">Phone Number</label>
+          <input type="tel" id="phone" name="phone" autocomplete="tel" data-testid="field-phone">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="city">City</label>
+          <input type="text" id="city" name="city" autocomplete="address-level2" data-testid="field-city">
+        </div>
+        <div class="field">
+          <label for="country">Country</label>
+          <select id="country" name="country" autocomplete="country-name" data-testid="field-country">
+            <option value="">Select country...</option>
+            <option value="US">United States</option>
+            <option value="CN">China</option>
+            <option value="GB">United Kingdom</option>
+            <option value="CA">Canada</option>
+            <option value="AU">Australia</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="linkedin">LinkedIn Profile</label>
+        <input type="url" id="linkedin" name="linkedin" placeholder="https://linkedin.com/in/..." data-testid="field-linkedin">
+      </div>
+
+      <div class="field">
+        <label for="github">GitHub Profile</label>
+        <input type="url" id="github" name="github" placeholder="https://github.com/..." data-testid="field-github">
+      </div>
+
+      <div class="field">
+        <label for="portfolio">Portfolio Website</label>
+        <input type="url" id="portfolio" name="portfolio" data-testid="field-portfolio">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Education</legend>
+
+      <div class="field">
+        <label for="school">School / University <span class="required">*</span></label>
+        <div class="custom-combobox" role="combobox" aria-expanded="false" aria-haspopup="listbox" data-testid="field-school-combobox">
+          <input type="text" id="school" name="school" aria-autocomplete="list" aria-controls="school-options" data-testid="field-school">
+          <span class="dropdown-arrow">▼</span>
+          <div class="options" id="school-options" role="listbox">
+            <div class="option" role="option" data-value="MIT">Massachusetts Institute of Technology</div>
+            <div class="option" role="option" data-value="Stanford">Stanford University</div>
+            <div class="option" role="option" data-value="Harvard">Harvard University</div>
+            <div class="option" role="option" data-value="Tsinghua">Tsinghua University</div>
+            <div class="option" role="option" data-value="PKU">Peking University</div>
+            <div class="option" role="option" data-value="Other">Other</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="degree">Degree</label>
+          <select id="degree" name="degree" data-testid="field-degree">
+            <option value="">Select degree...</option>
+            <option value="bachelor">Bachelor's Degree</option>
+            <option value="master">Master's Degree</option>
+            <option value="phd">Ph.D.</option>
+            <option value="associate">Associate's Degree</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="major">Major / Field of Study</label>
+          <input type="text" id="major" name="major" data-testid="field-major">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="gradDate">Graduation Date</label>
+          <input type="date" id="gradDate" name="gradDate" data-testid="field-graddate">
+        </div>
+        <div class="field">
+          <label for="startDate">Start Date</label>
+          <input type="date" id="startDate" name="startDate" data-testid="field-startdate">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Work Authorization</legend>
+
+      <div class="field">
+        <label>Are you authorized to work in this country? <span class="required">*</span></label>
+        <div class="radio-group" data-testid="field-workauth">
+          <label><input type="radio" name="workAuth" value="yes" required> Yes</label>
+          <label><input type="radio" name="workAuth" value="no"> No</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Will you now or in the future require sponsorship?</label>
+        <div class="radio-group" data-testid="field-sponsorship">
+          <label><input type="radio" name="sponsorship" value="yes"> Yes</label>
+          <label><input type="radio" name="sponsorship" value="no"> No</label>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Additional Information</legend>
+
+      <div class="field">
+        <label for="resume">Resume / Cover Letter</label>
+        <textarea id="resume" name="resume" placeholder="Paste your resume or cover letter here..." data-testid="field-resume"></textarea>
+        <div class="hint">You can also upload a file below</div>
+      </div>
+
+      <div class="field">
+        <label for="salary">Expected Salary (USD)</label>
+        <input type="number" id="salary" name="salary" placeholder="e.g., 100000" data-testid="field-salary">
+        <div class="hint">This field is optional</div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Equal Employment Opportunity (Voluntary)</legend>
+      <p class="hint" style="margin-top:0">This information is voluntary and will not affect your application.</p>
+
+      <div class="field">
+        <label for="gender">Gender</label>
+        <select id="gender" name="gender" data-testid="field-gender">
+          <option value="">Prefer not to say</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="nonbinary">Non-binary</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="ethnicity">Ethnicity</label>
+        <select id="ethnicity" name="ethnicity" data-testid="field-ethnicity">
+          <option value="">Prefer not to say</option>
+          <option value="asian">Asian</option>
+          <option value="black">Black or African American</option>
+          <option value="hispanic">Hispanic or Latino</option>
+          <option value="white">White</option>
+          <option value="native">Native American</option>
+          <option value="pacific">Pacific Islander</option>
+          <option value="two_or_more">Two or More Races</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Veteran Status</label>
+        <div class="radio-group" data-testid="field-veteran">
+          <label><input type="radio" name="veteran" value="yes"> I am a veteran</label>
+          <label><input type="radio" name="veteran" value="no"> I am not a veteran</label>
+          <label><input type="radio" name="veteran" value="decline"> I decline to answer</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Disability Status</label>
+        <div class="checkbox-group" data-testid="field-disability">
+          <label><input type="checkbox" name="disability" value="yes"> I have a disability</label>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Agreements</legend>
+      
+      <div class="field">
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="terms" required data-testid="field-terms"> I agree to the Terms of Service <span class="required">*</span></label>
+          <label><input type="checkbox" name="privacy" data-testid="field-privacy"> I agree to the Privacy Policy</label>
+        </div>
+      </div>
+    </fieldset>
+
+    <button type="submit">Submit Application</button>
+  </form>
+
+  <div id="shadow-host">
+    <p><strong>Shadow DOM Test Section</strong> (fields inside open shadow root)</p>
+  </div>
+
+  <iframe id="iframe-form" src="test-form-iframe.html" width="100%" height="300" title="Iframe Form Test"></iframe>
+
+  <script>
+    const combobox = document.querySelector('.custom-combobox');
+    const input = combobox.querySelector('input');
+    const options = combobox.querySelector('.options');
+    
+    input.addEventListener('focus', () => {
+      combobox.classList.add('open');
+      combobox.setAttribute('aria-expanded', 'true');
+    });
+    
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        combobox.classList.remove('open');
+        combobox.setAttribute('aria-expanded', 'false');
+      }, 200);
+    });
+    
+    options.querySelectorAll('.option').forEach(option => {
+      option.addEventListener('click', () => {
+        input.value = option.textContent;
+        option.setAttribute('aria-selected', 'true');
+        options.querySelectorAll('.option').forEach(o => {
+          if (o !== option) o.removeAttribute('aria-selected');
+        });
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+
+    const shadowHost = document.getElementById('shadow-host');
+    const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+    shadowRoot.innerHTML = `
+      <style>
+        .field { margin-bottom: 12px; }
+        label { display: block; font-size: 14px; margin-bottom: 4px; }
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; }
+      </style>
+      <div class="field">
+        <label for="shadow-name">Name (in Shadow DOM)</label>
+        <input type="text" id="shadow-name" name="shadowName" data-testid="field-shadow-name">
+      </div>
+      <div class="field">
+        <label for="shadow-email">Email (in Shadow DOM)</label>
+        <input type="email" id="shadow-email" name="shadowEmail" data-testid="field-shadow-email">
+      </div>
+    `;
+
+    document.getElementById('test-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData.entries());
+      console.log('Form submitted:', data);
+      alert('Form submitted! Check console for data.');
+    });
+  </script>
+</body>
+</html>
