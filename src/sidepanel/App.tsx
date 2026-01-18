@@ -1,21 +1,50 @@
+import { useState, useEffect } from 'react'
 import { Tab } from '@headlessui/react'
-import { Database, Globe, Activity, Settings as SettingsIcon, Sparkles } from 'lucide-react'
+import { Database, Globe, Activity, Settings as SettingsIcon, Sparkles, Code2 } from 'lucide-react'
 import SavedAnswers from './tabs/SavedAnswers'
 import ThisSite from './tabs/ThisSite'
 import ActivityLog from './tabs/ActivityLog'
 import Settings from './tabs/Settings'
+import Developer from './tabs/Developer'
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ')
 }
 
 export default function App() {
-  const tabs = [
+  const [devModeEnabled, setDevModeEnabled] = useState(false)
+
+  useEffect(() => {
+    loadDevSettings()
+
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      if (changes.devSettings) {
+        setDevModeEnabled(changes.devSettings.newValue?.devModeEnabled ?? false)
+      }
+    }
+
+    chrome.storage.onChanged.addListener(handleStorageChange)
+    return () => chrome.storage.onChanged.removeListener(handleStorageChange)
+  }, [])
+
+  async function loadDevSettings() {
+    try {
+      const result = await chrome.storage.local.get('devSettings')
+      setDevModeEnabled(result.devSettings?.devModeEnabled ?? false)
+    } catch {
+      setDevModeEnabled(false)
+    }
+  }
+
+  const baseTabs = [
     { name: 'Saved Answers', icon: Database, component: SavedAnswers },
     { name: 'This Site', icon: Globe, component: ThisSite },
     { name: 'Activity', icon: Activity, component: ActivityLog },
     { name: 'Settings', icon: SettingsIcon, component: Settings },
   ]
+
+  const devTab = { name: 'Developer', icon: Code2, component: Developer }
+  const tabs = devModeEnabled ? [...baseTabs, devTab] : baseTabs
 
   return (
     <div className="min-h-screen bg-white">

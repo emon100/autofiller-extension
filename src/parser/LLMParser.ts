@@ -1,14 +1,16 @@
 import { FieldContext, CandidateType, Taxonomy, IFieldParser } from '@/types'
+import { collectAncestorContext } from '@/scanner'
 
 interface LLMConfig {
   enabled: boolean
-  provider: 'openai' | 'anthropic' | 'custom'
+  provider: 'openai' | 'anthropic' | 'dashscope' | 'deepseek' | 'zhipu' | 'custom'
   apiKey: string
   endpoint?: string
   model?: string
 }
 
 interface FieldMetadata {
+  index: number
   tagName: string
   type: string
   name: string
@@ -18,6 +20,14 @@ interface FieldMetadata {
   sectionTitle: string
   options: string[]
   ariaLabel: string
+  surroundingText: string
+  ancestorCandidates: Array<{ text: string; depth: number; type: string }>
+}
+
+interface BatchClassificationResult {
+  index: number
+  type: string
+  confidence: number
 }
 
 const TAXONOMY_DESCRIPTIONS: Record<Taxonomy, string> = {
@@ -52,6 +62,22 @@ const TAXONOMY_DESCRIPTIONS: Record<Taxonomy, string> = {
   [Taxonomy.UNKNOWN]: 'Unknown/unrecognized field',
 }
 
+const PROVIDER_ENDPOINTS: Record<string, string> = {
+  openai: 'https://api.openai.com/v1/chat/completions',
+  anthropic: 'https://api.anthropic.com/v1/messages',
+  dashscope: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+  deepseek: 'https://api.deepseek.com/v1/chat/completions',
+  zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+}
+
+const DEFAULT_MODELS: Record<string, string> = {
+  openai: 'gpt-4o-mini',
+  anthropic: 'claude-3-haiku-20240307',
+  dashscope: 'qwen-plus',
+  deepseek: 'deepseek-chat',
+  zhipu: 'glm-4-flash',
+}
+
 const DEFAULT_CONFIG: LLMConfig = {
   enabled: false,
   provider: 'openai',
@@ -59,54 +85,189 @@ const DEFAULT_CONFIG: LLMConfig = {
   model: 'gpt-4o-mini',
 }
 
+// Batch size for LLM requests
+const BATCH_SIZE = 10
+
 export class LLMParser implements IFieldParser {
   name = 'LLMParser'
   priority = 50
-  
+
   private cache = new Map<string, { result: CandidateType[]; timestamp: number }>()
-  private config: LLMConfig = DEFAULT_CONFIG
+  private config: LLMConfig | null = null
+  private configLoaded = false
   private cacheTimeout = 300000
 
-  async loadConfig(): Promise<void> {
-    try {
-      const result = await chrome.storage.local.get('llmConfig')
-      if (result.llmConfig) {
-        this.config = { ...DEFAULT_CONFIG, ...result.llmConfig }
+  async ensureConfigLoaded(): Promise<LLMConfig> {
+    if (!this.configLoaded) {
+      try {
+        const result = await chrome.storage.local.get('llmConfig')
+        this.config = result.llmConfig ? { ...DEFAULT_CONFIG, ...result.llmConfig } : DEFAULT_CONFIG
+      } catch {
+        this.config = DEFAULT_CONFIG
       }
-    } catch {
-      this.config = DEFAULT_CONFIG
+      this.configLoaded = true
     }
+    return this.config!
   }
 
   canParse(_context: FieldContext): boolean {
-    return this.config.enabled && !!this.config.apiKey
+    // Always return true, actual check is in parse()
+    return true
   }
 
   async parse(context: FieldContext): Promise<CandidateType[]> {
-    await this.loadConfig()
-    
-    if (!this.canParse(context)) {
+    const config = await this.ensureConfigLoaded()
+
+    if (!config.enabled || !config.apiKey) {
       return []
     }
 
     const cacheKey = this.getCacheKey(context)
     const cached = this.cache.get(cacheKey)
-    
+
     if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
       return cached.result
     }
 
     try {
-      const metadata = this.extractMetadata(context)
+      const metadata = this.extractMetadata(context, 0)
       const scrubbed = this.scrubPII(metadata)
-      const result = await this.callLLM(scrubbed)
-      
+      console.log('[LLMParser] Calling LLM for single field:', scrubbed.labelText || scrubbed.surroundingText.slice(0, 50))
+      const result = await this.callLLMSingle(scrubbed)
+      console.log('[LLMParser] Result:', result)
+
       this.cache.set(cacheKey, { result, timestamp: Date.now() })
       return result
     } catch (error) {
-      console.error('LLMParser error:', error)
+      console.error('[LLMParser] Error:', error)
       return []
     }
+  }
+
+  /**
+   * Batch parse multiple fields - sends fields in batches of BATCH_SIZE
+   * Returns a Map from field index to candidates
+   */
+  async parseBatch(contexts: FieldContext[]): Promise<Map<number, CandidateType[]>> {
+    const config = await this.ensureConfigLoaded()
+    const results = new Map<number, CandidateType[]>()
+
+    if (!config.enabled || !config.apiKey) {
+      console.log('[LLMParser] Batch parse skipped - not enabled or no API key')
+      return results
+    }
+
+    // Check cache first and collect uncached fields
+    const uncachedFields: Array<{ index: number; context: FieldContext }> = []
+
+    for (let i = 0; i < contexts.length; i++) {
+      const cacheKey = this.getCacheKey(contexts[i])
+      const cached = this.cache.get(cacheKey)
+
+      if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+        results.set(i, cached.result)
+      } else {
+        uncachedFields.push({ index: i, context: contexts[i] })
+      }
+    }
+
+    console.log(`[LLMParser] Batch parse: ${contexts.length} total, ${results.size} cached, ${uncachedFields.length} to process`)
+
+    if (uncachedFields.length === 0) {
+      return results
+    }
+
+    // Process uncached fields in batches
+    const batches: Array<Array<{ index: number; context: FieldContext }>> = []
+    for (let i = 0; i < uncachedFields.length; i += BATCH_SIZE) {
+      batches.push(uncachedFields.slice(i, i + BATCH_SIZE))
+    }
+
+    console.log(`[LLMParser] Processing ${batches.length} batches of up to ${BATCH_SIZE} fields each`)
+
+    // Process batches sequentially
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+      const batch = batches[batchIndex]
+      console.log(`[LLMParser] Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} fields)`)
+
+      try {
+        const batchResults = await this.processSingleBatch(batch)
+
+        // Store results and update cache
+        for (const [fieldIndex, candidates] of batchResults) {
+          results.set(fieldIndex, candidates)
+          const cacheKey = this.getCacheKey(contexts[fieldIndex])
+          this.cache.set(cacheKey, { result: candidates, timestamp: Date.now() })
+        }
+      } catch (error) {
+        console.error(`[LLMParser] Batch ${batchIndex + 1} failed:`, error)
+        // On error, set empty results for this batch
+        for (const { index } of batch) {
+          results.set(index, [])
+        }
+      }
+
+      // Small delay between batches to avoid rate limiting
+      if (batchIndex < batches.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+    }
+
+    return results
+  }
+
+  private async processSingleBatch(
+    batch: Array<{ index: number; context: FieldContext }>
+  ): Promise<Map<number, CandidateType[]>> {
+    const results = new Map<number, CandidateType[]>()
+
+    // Extract and scrub metadata for all fields
+    const metadataList = batch.map(({ index, context }) => {
+      const metadata = this.extractMetadata(context, index)
+      return this.scrubPII(metadata)
+    })
+
+    // Build batch prompt
+    const prompt = this.buildBatchPrompt(metadataList)
+
+    // Call LLM
+    const config = this.config!
+    let response: BatchClassificationResult[]
+
+    if (config.provider === 'anthropic') {
+      response = await this.callAnthropicBatch(prompt)
+    } else {
+      response = await this.callOpenAICompatibleBatch(prompt)
+    }
+
+    // Map results back to field indices
+    for (const item of response) {
+      const batchItem = batch.find(b => b.index === item.index)
+      if (!batchItem) continue
+
+      const type = item.type as Taxonomy
+      const confidence = Math.min(Math.max(item.confidence || 0.5, 0), 1)
+
+      if (!Object.values(Taxonomy).includes(type) || type === Taxonomy.UNKNOWN) {
+        results.set(item.index, [])
+        continue
+      }
+
+      results.set(item.index, [{
+        type,
+        score: confidence * 0.85,
+        reasons: [`LLM batch classification (${confidence.toFixed(2)} confidence)`],
+      }])
+    }
+
+    // Ensure all batch items have results (even if empty)
+    for (const { index } of batch) {
+      if (!results.has(index)) {
+        results.set(index, [])
+      }
+    }
+
+    return results
   }
 
   private getCacheKey(context: FieldContext): string {
@@ -118,12 +279,15 @@ export class LLMParser implements IFieldParser {
       context.attributes.placeholder || '',
       context.optionsText.slice(0, 5).join(','),
     ].join('|')
-    
-    return btoa(key).slice(0, 64)
+
+    return btoa(encodeURIComponent(key)).slice(0, 64)
   }
 
-  private extractMetadata(context: FieldContext): FieldMetadata {
+  private extractMetadata(context: FieldContext, index: number): FieldMetadata {
+    const { ancestorCandidates, surroundingText } = this.extractAncestorInfo(context.element)
+
     return {
+      index,
       tagName: context.element.tagName.toLowerCase(),
       type: context.attributes.type || '',
       name: context.attributes.name || '',
@@ -133,7 +297,56 @@ export class LLMParser implements IFieldParser {
       sectionTitle: context.sectionTitle,
       options: context.optionsText.slice(0, 10),
       ariaLabel: context.attributes['aria-label'] || '',
+      surroundingText,
+      ancestorCandidates,
     }
+  }
+
+  private extractAncestorInfo(element: HTMLElement): {
+    ancestorCandidates: Array<{ text: string; depth: number; type: string }>
+    surroundingText: string
+  } {
+    try {
+      const candidates = collectAncestorContext(element)
+      const ancestorCandidates = candidates.map(c => ({
+        text: c.text.slice(0, 200),
+        depth: c.depth,
+        type: c.type
+      }))
+
+      const surroundingText = this.selectBestCandidateText(candidates)
+      return { ancestorCandidates, surroundingText }
+    } catch {
+      return {
+        ancestorCandidates: [],
+        surroundingText: this.extractFallbackSurroundingText(element)
+      }
+    }
+  }
+
+  private selectBestCandidateText(candidates: Array<{ text: string; depth: number; type: string }>): string {
+    if (candidates.length === 0) return ''
+
+    const sorted = [...candidates].sort((a, b) => {
+      if (a.type === 'label' && b.type !== 'label') return -1
+      if (b.type === 'label' && a.type !== 'label') return 1
+      return a.depth - b.depth
+    })
+    return sorted[0].text.slice(0, 200)
+  }
+
+  private extractFallbackSurroundingText(element: HTMLElement): string {
+    const parent = element.closest('.form-group, .field, .input-group, [class*="form"], [class*="field"]')
+    if (parent?.textContent) {
+      return parent.textContent.trim().slice(0, 200)
+    }
+
+    const prevSibling = element.previousElementSibling
+    if (prevSibling?.textContent) {
+      return prevSibling.textContent.trim().slice(0, 200)
+    }
+
+    return element.parentElement?.textContent?.trim().slice(0, 200) || ''
   }
 
   private scrubPII(metadata: FieldMetadata): FieldMetadata {
@@ -154,58 +367,107 @@ export class LLMParser implements IFieldParser {
       placeholder: scrub(metadata.placeholder),
       options: metadata.options.map(scrub),
       ariaLabel: scrub(metadata.ariaLabel),
+      surroundingText: scrub(metadata.surroundingText),
+      ancestorCandidates: metadata.ancestorCandidates.map(c => ({
+        ...c,
+        text: scrub(c.text)
+      })),
     }
   }
 
-  private async callLLM(metadata: FieldMetadata): Promise<CandidateType[]> {
-    const prompt = this.buildPrompt(metadata)
-    
-    switch (this.config.provider) {
-      case 'openai':
-        return this.callOpenAI(prompt)
-      case 'anthropic':
-        return this.callAnthropic(prompt)
-      case 'custom':
-        return this.callCustom(prompt)
-      default:
-        return []
-    }
-  }
+  private buildBatchPrompt(metadataList: FieldMetadata[]): string {
+    const taxonomyList = this.buildTaxonomyList()
+    const fieldsDescription = metadataList
+      .map(metadata => `[Field ${metadata.index}]\n${this.formatMetadataContext(metadata)}`)
+      .join('\n\n')
 
-  private buildPrompt(metadata: FieldMetadata): string {
-    const taxonomyList = Object.entries(TAXONOMY_DESCRIPTIONS)
-      .filter(([key]) => key !== 'UNKNOWN')
-      .map(([key, desc]) => `- ${key}: ${desc}`)
-      .join('\n')
-
-    return `Classify this form field into one of these types:
+    return `Classify these ${metadataList.length} form fields. Available types:
 
 ${taxonomyList}
 
-Form Field Information:
-- Element: <${metadata.tagName}>
-- Type: ${metadata.type || 'text'}
-- Name attribute: ${metadata.name || 'none'}
-- ID attribute: ${metadata.id || 'none'}
-- Label text: ${metadata.labelText || 'none'}
-- Placeholder: ${metadata.placeholder || 'none'}
-- Section/heading: ${metadata.sectionTitle || 'none'}
-- ARIA label: ${metadata.ariaLabel || 'none'}
-${metadata.options.length > 0 ? `- Options: ${metadata.options.join(', ')}` : ''}
+Fields to classify:
 
-Respond with JSON only: {"type": "TAXONOMY_TYPE", "confidence": 0.0-1.0}
-If unsure, respond: {"type": "UNKNOWN", "confidence": 0}`
+${fieldsDescription}
+
+Return a JSON array with classification for each field:
+[{"index": 0, "type": "TYPE_NAME", "confidence": 0.0-1.0}, ...]
+
+Rules:
+- Use UNKNOWN with confidence 0 if uncertain
+- Each field must have an entry in the response
+- Confidence should reflect how certain you are about the classification
+- Pay attention to the "Ancestor text" - it often contains the question being asked`
   }
 
-  private async callOpenAI(prompt: string): Promise<CandidateType[]> {
-    const endpoint = this.config.endpoint || 'https://api.openai.com/v1/chat/completions'
-    const model = this.config.model || 'gpt-4o-mini'
+  private buildSinglePrompt(metadata: FieldMetadata): string {
+    const taxonomyList = this.buildTaxonomyList()
+    const contextParts = this.formatMetadataContext(metadata)
+
+    return `Classify this form field. Available types:
+
+${taxonomyList}
+
+Field context:
+${contextParts}
+
+Return JSON only: {"type": "TYPE_NAME", "confidence": 0.0-1.0}
+If uncertain: {"type": "UNKNOWN", "confidence": 0}
+Note: "Ancestor text candidates" shows text found in parent elements - this often contains the actual question.`
+  }
+
+  private buildTaxonomyList(): string {
+    return Object.entries(TAXONOMY_DESCRIPTIONS)
+      .filter(([key]) => key !== 'UNKNOWN')
+      .map(([key, desc]) => `- ${key}: ${desc}`)
+      .join('\n')
+  }
+
+  private formatMetadataContext(metadata: FieldMetadata): string {
+    const parts: string[] = []
+
+    if (metadata.tagName) parts.push(`Element: <${metadata.tagName}>`)
+    if (metadata.type) parts.push(`Type: ${metadata.type}`)
+    if (metadata.name) parts.push(`Name: ${metadata.name}`)
+    if (metadata.id) parts.push(`ID: ${metadata.id}`)
+    if (metadata.labelText) parts.push(`Label: ${metadata.labelText}`)
+    if (metadata.placeholder) parts.push(`Placeholder: ${metadata.placeholder}`)
+    if (metadata.sectionTitle) parts.push(`Section: ${metadata.sectionTitle}`)
+    if (metadata.ariaLabel) parts.push(`ARIA: ${metadata.ariaLabel}`)
+    if (metadata.options.length > 0) parts.push(`Options: ${metadata.options.join(', ')}`)
+
+    if (metadata.ancestorCandidates.length > 0) {
+      const candidatesStr = metadata.ancestorCandidates
+        .slice(0, 3)
+        .map(c => `[${c.type}@depth${c.depth}] ${c.text.slice(0, 100)}`)
+        .join('; ')
+      parts.push(`Ancestor text: ${candidatesStr}`)
+    } else if (metadata.surroundingText) {
+      parts.push(`Context: ${metadata.surroundingText.slice(0, 100)}`)
+    }
+
+    return parts.join('\n')
+  }
+
+  private async callLLMSingle(metadata: FieldMetadata): Promise<CandidateType[]> {
+    const config = this.config!
+    const prompt = this.buildSinglePrompt(metadata)
+
+    if (config.provider === 'anthropic') {
+      return this.callAnthropicSingle(prompt)
+    }
+    return this.callOpenAICompatibleSingle(prompt)
+  }
+
+  private async callOpenAICompatibleSingle(prompt: string): Promise<CandidateType[]> {
+    const config = this.config!
+    const endpoint = config.endpoint || PROVIDER_ENDPOINTS[config.provider] || PROVIDER_ENDPOINTS.openai
+    const model = config.model || DEFAULT_MODELS[config.provider] || 'gpt-4o-mini'
 
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.apiKey}`,
+        'Authorization': `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
         model,
@@ -214,97 +476,177 @@ If unsure, respond: {"type": "UNKNOWN", "confidence": 0}`
           { role: 'user', content: prompt },
         ],
         temperature: 0,
-        max_tokens: 50,
+        max_tokens: 100,
       }),
     })
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`)
+      const errorText = await response.text()
+      throw new Error(`API error ${response.status}: ${errorText}`)
     }
 
     const data = await response.json()
-    return this.parseResponse(data.choices?.[0]?.message?.content || '')
+    const content = data.choices?.[0]?.message?.content || ''
+    return this.parseSingleResponse(content)
   }
 
-  private async callAnthropic(prompt: string): Promise<CandidateType[]> {
-    const endpoint = this.config.endpoint || 'https://api.anthropic.com/v1/messages'
-    const model = this.config.model || 'claude-3-haiku-20240307'
+  private async callAnthropicSingle(prompt: string): Promise<CandidateType[]> {
+    const config = this.config!
+    const endpoint = config.endpoint || PROVIDER_ENDPOINTS.anthropic
+    const model = config.model || DEFAULT_MODELS.anthropic
 
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': this.config.apiKey,
+        'x-api-key': config.apiKey,
         'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
         model,
-        max_tokens: 50,
-        messages: [
-          { role: 'user', content: prompt },
-        ],
+        max_tokens: 100,
+        messages: [{ role: 'user', content: prompt }],
       }),
     })
 
     if (!response.ok) {
-      throw new Error(`Anthropic API error: ${response.status}`)
+      const errorText = await response.text()
+      throw new Error(`Anthropic API error ${response.status}: ${errorText}`)
     }
 
     const data = await response.json()
-    return this.parseResponse(data.content?.[0]?.text || '')
+    const content = data.content?.[0]?.text || ''
+    return this.parseSingleResponse(content)
   }
 
-  private async callCustom(prompt: string): Promise<CandidateType[]> {
-    if (!this.config.endpoint) {
-      throw new Error('Custom endpoint not configured')
-    }
+  private async callOpenAICompatibleBatch(prompt: string): Promise<BatchClassificationResult[]> {
+    const config = this.config!
+    const endpoint = config.endpoint || PROVIDER_ENDPOINTS[config.provider] || PROVIDER_ENDPOINTS.openai
+    const model = config.model || DEFAULT_MODELS[config.provider] || 'gpt-4o-mini'
 
-    const response = await fetch(this.config.endpoint, {
+    console.log(`[LLMParser] Calling ${config.provider} batch at ${endpoint} with model ${model}`)
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.apiKey}`,
+        'Authorization': `Bearer ${config.apiKey}`,
       },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: 'You are a form field classifier. Respond only with valid JSON array.' },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0,
+        max_tokens: 1000, // More tokens for batch response
+      }),
     })
 
     if (!response.ok) {
-      throw new Error(`Custom API error: ${response.status}`)
+      const errorText = await response.text()
+      throw new Error(`API error ${response.status}: ${errorText}`)
     }
 
     const data = await response.json()
-    return this.parseResponse(data.response || data.content || '')
+    const content = data.choices?.[0]?.message?.content || ''
+    return this.parseBatchResponse(content)
   }
 
-  private parseResponse(content: string): CandidateType[] {
+  private async callAnthropicBatch(prompt: string): Promise<BatchClassificationResult[]> {
+    const config = this.config!
+    const endpoint = config.endpoint || PROVIDER_ENDPOINTS.anthropic
+    const model = config.model || DEFAULT_MODELS.anthropic
+
+    console.log(`[LLMParser] Calling Anthropic batch at ${endpoint} with model ${model}`)
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': config.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Anthropic API error ${response.status}: ${errorText}`)
+    }
+
+    const data = await response.json()
+    const content = data.content?.[0]?.text || ''
+    return this.parseBatchResponse(content)
+  }
+
+  private parseSingleResponse(content: string): CandidateType[] {
     try {
+      console.log('[LLMParser] Raw single response:', content)
       const jsonMatch = content.match(/\{[^}]+\}/)
-      if (!jsonMatch) return []
+      if (!jsonMatch) {
+        console.log('[LLMParser] No JSON found in response')
+        return []
+      }
 
       const parsed = JSON.parse(jsonMatch[0])
       const type = parsed.type as Taxonomy
       const confidence = Math.min(Math.max(parsed.confidence || 0.5, 0), 1)
 
-      if (!Object.values(Taxonomy).includes(type)) {
-        return []
-      }
-
-      if (type === Taxonomy.UNKNOWN) {
+      if (!Object.values(Taxonomy).includes(type) || type === Taxonomy.UNKNOWN) {
         return []
       }
 
       return [{
         type,
-        score: confidence * 0.8,
-        reasons: ['LLM classification'],
+        score: confidence * 0.85,
+        reasons: [`LLM classification (${confidence.toFixed(2)} confidence)`],
       }]
-    } catch {
+    } catch (error) {
+      console.error('[LLMParser] Parse error:', error)
+      return []
+    }
+  }
+
+  private parseBatchResponse(content: string): BatchClassificationResult[] {
+    try {
+      console.log('[LLMParser] Raw batch response:', content)
+
+      // Try to find JSON array in response
+      const arrayMatch = content.match(/\[[\s\S]*\]/)
+      if (!arrayMatch) {
+        console.log('[LLMParser] No JSON array found in response')
+        return []
+      }
+
+      const parsed = JSON.parse(arrayMatch[0]) as BatchClassificationResult[]
+
+      if (!Array.isArray(parsed)) {
+        console.log('[LLMParser] Parsed result is not an array')
+        return []
+      }
+
+      console.log(`[LLMParser] Parsed ${parsed.length} classifications`)
+      return parsed
+    } catch (error) {
+      console.error('[LLMParser] Batch parse error:', error)
       return []
     }
   }
 
   clearCache(): void {
     this.cache.clear()
+  }
+
+  resetConfig(): void {
+    this.configLoaded = false
+    this.config = null
   }
 }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronDown, User, GraduationCap, AlertTriangle, Search, Plus, Pencil } from 'lucide-react'
+import { ChevronDown, User, GraduationCap, AlertTriangle, Search, Plus, Pencil, Trash2, X, Check } from 'lucide-react'
 import type { AnswerValue, Taxonomy } from '@/types'
 
 interface CategoryConfig {
@@ -37,6 +37,7 @@ export default function SavedAnswers() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['Personal']))
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [editingAnswer, setEditingAnswer] = useState<AnswerValue | null>(null)
 
   useEffect(() => {
     loadAnswers()
@@ -88,6 +89,28 @@ export default function SavedAnswers() {
       await chrome.storage.local.set({ answers: storedAnswers })
       loadAnswers()
     }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this answer?')) return
+    const result = await chrome.storage.local.get('answers')
+    const storedAnswers = result.answers || {}
+    delete storedAnswers[id]
+    await chrome.storage.local.set({ answers: storedAnswers })
+    loadAnswers()
+  }
+
+  async function handleSaveEdit(id: string, newValue: string) {
+    const result = await chrome.storage.local.get('answers')
+    const storedAnswers = result.answers || {}
+    if (storedAnswers[id]) {
+      storedAnswers[id].value = newValue
+      storedAnswers[id].display = newValue
+      storedAnswers[id].updatedAt = Date.now()
+      await chrome.storage.local.set({ answers: storedAnswers })
+      loadAnswers()
+    }
+    setEditingAnswer(null)
   }
 
   if (loading) {
@@ -172,7 +195,12 @@ export default function SavedAnswers() {
                       key={answer.id}
                       answer={answer}
                       isSensitive={category.isSensitive}
+                      isEditing={editingAnswer?.id === answer.id}
                       onToggleAutofill={(allowed) => handleToggleAutofill(answer.id, allowed)}
+                      onEdit={() => setEditingAnswer(answer)}
+                      onDelete={() => handleDelete(answer.id)}
+                      onSaveEdit={(newValue) => handleSaveEdit(answer.id, newValue)}
+                      onCancelEdit={() => setEditingAnswer(null)}
                     />
                   ))}
                 </div>
@@ -194,35 +222,96 @@ export default function SavedAnswers() {
 interface AnswerItemProps {
   answer: AnswerValue
   isSensitive?: boolean
+  isEditing: boolean
   onToggleAutofill: (allowed: boolean) => void
+  onEdit: () => void
+  onDelete: () => void
+  onSaveEdit: (newValue: string) => void
+  onCancelEdit: () => void
 }
 
-function AnswerItem({ answer, isSensitive, onToggleAutofill }: AnswerItemProps) {
+function AnswerItem({ answer, isSensitive, isEditing, onToggleAutofill, onEdit, onDelete, onSaveEdit, onCancelEdit }: AnswerItemProps) {
+  const [editValue, setEditValue] = useState(answer.value)
+
+  useEffect(() => {
+    setEditValue(answer.value)
+  }, [answer.value, isEditing])
+
+  if (isEditing) {
+    return (
+      <div className="px-3 py-2 bg-blue-50">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="flex-1 px-2 py-1 text-sm border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSaveEdit(editValue)
+              if (e.key === 'Escape') onCancelEdit()
+            }}
+          />
+          <button
+            onClick={() => onSaveEdit(editValue)}
+            className="p-1 text-green-600 hover:bg-green-100 rounded"
+            title="Save"
+          >
+            <Check className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onCancelEdit}
+            className="p-1 text-gray-500 hover:bg-gray-100 rounded"
+            title="Cancel"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <span className="text-xs text-gray-400 mt-1 block">{answer.type}</span>
+      </div>
+    )
+  }
+
   return (
     <div className="px-3 py-2 hover:bg-gray-50 flex items-center justify-between group">
       <div className="min-w-0 flex-1">
         <span className="text-xs text-gray-400">{answer.type}</span>
         <p className="text-sm text-gray-800 truncate">{answer.value}</p>
       </div>
-      {isSensitive ? (
-        <label className="flex items-center gap-1 cursor-pointer flex-shrink-0">
-          <span className="text-xs text-gray-400">Auto</span>
-          <div className="relative">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={answer.autofillAllowed !== false}
-              onChange={(e) => onToggleAutofill(e.target.checked)}
-            />
-            <div className="w-8 h-5 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 transition-colors"></div>
-            <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-3 transition-transform"></div>
-          </div>
-        </label>
-      ) : (
-        <button className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-600 transition-all flex-shrink-0">
-          <Pencil className="w-4 h-4" />
-        </button>
-      )}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {isSensitive ? (
+          <label className="flex items-center gap-1 cursor-pointer">
+            <span className="text-xs text-gray-400">Auto</span>
+            <div className="relative">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={answer.autofillAllowed !== false}
+                onChange={(e) => onToggleAutofill(e.target.checked)}
+              />
+              <div className="w-8 h-5 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 transition-colors"></div>
+              <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-3 transition-transform"></div>
+            </div>
+          </label>
+        ) : (
+          <>
+            <button 
+              onClick={onEdit}
+              className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-600 transition-all"
+              title="Edit"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={onDelete}
+              className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 transition-all"
+              title="Delete"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </>
+        )}
+      </div>
     </div>
   )
 }

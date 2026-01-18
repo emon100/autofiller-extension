@@ -1,4 +1,5 @@
 import { Taxonomy, FieldContext, IValueTransformer } from '@/types'
+import { TransformAttemptLog, logTransformAttempt } from '@/utils/logger'
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 
   'July', 'August', 'September', 'October', 'November', 'December']
@@ -161,8 +162,7 @@ export class DateTransformer implements IValueTransformer {
     
     switch (format) {
       case 'iso':
-        return day ? `${year}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` 
-                   : `${year}-${String(m).padStart(2, '0')}`
+        return `${year}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
       case 'us':
         return `${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')}/${year}`
       case 'month-input':
@@ -178,7 +178,7 @@ export class DateTransformer implements IValueTransformer {
       case 'month-year':
         return `${MONTH_NAMES[m - 1]} ${year}`
       default:
-        return `${year}-${String(m).padStart(2, '0')}`
+        return `${year}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
     }
   }
 
@@ -398,19 +398,96 @@ const transformers: IValueTransformer[] = [
   new DegreeTransformer(),
 ]
 
+export interface TransformResult {
+  value: string
+  transformed: boolean
+  logs: TransformAttemptLog[]
+}
+
 export function transformValue(
-  sourceValue: string, 
-  sourceType: Taxonomy, 
-  targetContext: FieldContext
+  sourceValue: string,
+  sourceType: Taxonomy,
+  targetContext: FieldContext,
+  enableLogging = false
 ): string {
+  const result = transformValueWithLog(sourceValue, sourceType, targetContext, enableLogging)
+  return result.value
+}
+
+export function transformValueWithLog(
+  sourceValue: string,
+  sourceType: Taxonomy,
+  targetContext: FieldContext,
+  enableLogging = false
+): TransformResult {
+  const logs: TransformAttemptLog[] = []
+  const targetType = detectTargetType(targetContext, sourceType)
+
   for (const transformer of transformers) {
     if (transformer.sourceType === sourceType || transformer.targetTypes.includes(sourceType)) {
-      if (transformer.canTransform(sourceValue, targetContext)) {
-        return transformer.transform(sourceValue, targetContext)
+      const canTransform = transformer.canTransform(sourceValue, targetContext)
+
+      const log: TransformAttemptLog = {
+        transformerName: transformer.name,
+        sourceType: sourceType,
+        targetType: targetType,
+        sourceValue: sourceValue,
+        canTransform,
+      }
+
+      if (canTransform) {
+        const transformedValue = transformer.transform(sourceValue, targetContext)
+        log.transformedValue = transformedValue
+        log.detectedFormat = detectFormat(transformer.name, targetContext)
+        logs.push(log)
+
+        if (enableLogging) {
+          logTransformAttempt(log)
+        }
+
+        return { value: transformedValue, transformed: true, logs }
+      }
+
+      logs.push(log)
+      if (enableLogging) {
+        logTransformAttempt(log)
       }
     }
   }
-  return sourceValue
+
+  return { value: sourceValue, transformed: false, logs }
+}
+
+function detectTargetType(context: FieldContext, fallback: Taxonomy): string {
+  const combined = `${context.labelText} ${context.attributes.name || ''} ${context.attributes.id || ''}`.toLowerCase()
+
+  if (/first.?name|given.?name/.test(combined)) return 'FIRST_NAME'
+  if (/last.?name|family.?name/.test(combined)) return 'LAST_NAME'
+  if (/year|年/.test(combined)) return 'GRAD_YEAR'
+  if (/month|月/.test(combined)) return 'GRAD_MONTH'
+  if (/country.?code|区号/.test(combined)) return 'COUNTRY_CODE'
+
+  return fallback
+}
+
+function detectFormat(transformerName: string, context: FieldContext): string | undefined {
+  if (transformerName === 'DateTransformer') {
+    const type = context.attributes.type?.toLowerCase()
+    if (type === 'date') return 'ISO date'
+    if (type === 'month') return 'month input'
+    if (context.widgetSignature.kind === 'select') return 'select dropdown'
+    return 'text'
+  }
+  if (transformerName === 'PhoneTransformer') {
+    const placeholder = context.attributes.placeholder || ''
+    if (/\(\d{3}\)/.test(placeholder)) return 'US format (xxx) xxx-xxxx'
+    if (/\d{3}-\d{3}-\d{4}/.test(placeholder)) return 'US dashes xxx-xxx-xxxx'
+    return 'digits only'
+  }
+  if (transformerName === 'NameTransformer') {
+    return 'name split'
+  }
+  return undefined
 }
 
 export function registerTransformer(transformer: IValueTransformer): void {

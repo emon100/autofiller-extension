@@ -10,6 +10,8 @@ export interface DetectedField {
   value: string
   type: string
   sensitive?: boolean
+  existingValue?: string
+  existingAnswerId?: string
 }
 
 export interface FillResult {
@@ -98,6 +100,7 @@ export class FloatingWidget {
   private createContainer(): void {
     this.container = document.createElement('div')
     this.container.className = 'af-widget'
+    this.container.setAttribute('data-autofiller-widget', 'true')
     this.updateContainerPosition()
     document.body.appendChild(this.container)
   }
@@ -150,27 +153,34 @@ export class FloatingWidget {
   private render(): void {
     if (!this.container) return
 
+    const widgetBar = this.renderWidgetBar()
+    let popup = ''
+
     switch (this.currentPhase) {
-      case 'widget':
-        this.container.innerHTML = this.renderWidgetPhase()
-        break
       case 'learning':
-        this.container.innerHTML = this.renderLearningPhase()
+        popup = this.renderLearningPopup()
         break
       case 'success':
-        this.container.innerHTML = this.renderSuccessPhase()
+        popup = this.renderSuccessPopup()
         break
       case 'database':
-        this.container.innerHTML = this.renderDatabasePhase()
+        popup = this.renderDatabasePopup()
         break
     }
+
+    this.container.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+        ${popup}
+        ${widgetBar}
+      </div>
+    `
 
     this.attachEventListeners()
   }
 
-  private renderWidgetPhase(): string {
+  private renderWidgetBar(): string {
     return `
-      <div class="af-animate-fadeIn" style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
         <div style="background: white; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; overflow: hidden;">
           <div style="display: flex; align-items: center;">
             <div id="af-drag-handle" style="padding: 12px 8px; cursor: grab; color: #9ca3af; border-right: 1px solid #f3f4f6; user-select: none;">
@@ -196,12 +206,17 @@ export class FloatingWidget {
     `
   }
 
-  private renderLearningPhase(): string {
-    const fieldsList = this.fields.map((field, index) => `
-      <div class="af-animate-slideIn" style="display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-bottom: 1px solid #bfdbfe; animation-delay: ${index * 50}ms; ${field.sensitive ? 'background: rgba(251,191,36,0.1); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px;' : ''}" data-field-id="${field.id}">
+  private renderLearningPopup(): string {
+    const fieldsList = this.fields.map((field, index) => {
+      const hasConflict = field.existingValue && field.existingValue !== field.value
+      const conflictStyle = hasConflict ? 'background: rgba(239,68,68,0.1); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px;' : ''
+      const rowStyle = field.sensitive ? 'background: rgba(251,191,36,0.1); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px;' : conflictStyle
+      
+      return `
+      <div class="af-animate-slideIn" style="display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-bottom: 1px solid #bfdbfe; animation-delay: ${index * 50}ms; ${rowStyle}" data-field-id="${field.id}">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <div style="width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; ${field.type === 'UNKNOWN' ? 'background: #fee2e2;' : field.sensitive ? 'background: #fef3c7;' : 'background: #dcfce7;'}">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${field.type === 'UNKNOWN' ? '#dc2626' : field.sensitive ? '#d97706' : '#16a34a'}" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+          <div style="width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; ${field.type === 'UNKNOWN' ? 'background: #fee2e2;' : hasConflict ? 'background: #fef3c7;' : field.sensitive ? 'background: #fef3c7;' : 'background: #dcfce7;'}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${field.type === 'UNKNOWN' ? '#dc2626' : hasConflict ? '#d97706' : field.sensitive ? '#d97706' : '#16a34a'}" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
           </div>
           <div style="flex: 1; min-width: 0;">
             <div style="font-size: 11px; color: #6b7280; margin-bottom: 2px;">${field.label}</div>
@@ -217,9 +232,10 @@ export class FloatingWidget {
             ${TAXONOMY_OPTIONS.map(t => `<option value="${t}" ${field.type === t ? 'selected' : ''}>${t}</option>`).join('')}
           </select>
           ${field.sensitive ? '<span style="font-size: 10px; color: #d97706; margin-left: 4px;">(sensitive)</span>' : ''}
+          ${hasConflict ? `<span style="font-size: 10px; color: #dc2626; margin-left: 4px;">⚠ Will replace: "${this.escapeHtml(field.existingValue || '')}"</span>` : ''}
         </div>
       </div>
-    `).join('')
+    `}).join('')
 
     return `
       <div class="af-animate-fadeIn" style="position: relative;">
@@ -247,7 +263,7 @@ export class FloatingWidget {
     `
   }
 
-  private renderSuccessPhase(): string {
+  private renderSuccessPopup(): string {
     return `
       <div class="af-animate-fadeIn" style="position: relative;">
         <div style="background: linear-gradient(to bottom right, #f0fdf4, #ecfdf5); border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border: 1px solid #86efac; width: 288px; overflow: hidden;">
@@ -275,7 +291,7 @@ export class FloatingWidget {
     `
   }
 
-  private renderDatabasePhase(): string {
+  private renderDatabasePopup(): string {
     return `
       <div class="af-animate-fadeIn" style="position: relative;">
         <div style="background: white; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; width: 384px; overflow: hidden;">

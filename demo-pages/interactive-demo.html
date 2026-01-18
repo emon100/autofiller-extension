@@ -34,7 +34,6 @@
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-  <!-- Mode Toggle -->
   <div id="mode-toggle" class="fixed top-4 right-4 z-[200]">
     <button onclick="toggleDemoMode()" class="px-3 py-2 text-xs font-medium bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 flex items-center gap-2">
       <svg id="toggle-icon-expand" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
@@ -44,7 +43,6 @@
   </div>
 
   <div id="main-container" class="flex h-screen">
-    <!-- Left Panel -->
     <div id="left-panel" class="w-80 bg-white border-r border-gray-200 flex flex-col">
       <div class="p-4 border-b border-gray-100">
         <h1 class="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -76,7 +74,7 @@
       <!-- Form Templates -->
       <div class="p-4 border-b border-gray-100">
         <h2 class="text-sm font-semibold text-gray-700 mb-2">Form Templates</h2>
-        <div class="space-y-1.5">
+        <div class="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
           <button onclick="loadTemplate('synonym-name')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50" data-template="synonym-name">
             <span class="font-medium">Synonym: Name Split</span>
             <span class="text-gray-400 block">Full name vs First+Last</span>
@@ -92,6 +90,26 @@
           <button onclick="loadTemplate('synonym-bool')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50" data-template="synonym-bool">
             <span class="font-medium">Synonym: Yes/No</span>
             <span class="text-gray-400 block">Radio vs Checkbox vs Select</span>
+          </button>
+          <button onclick="loadTemplate('synonym-email')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50" data-template="synonym-email">
+            <span class="font-medium">Synonym: Email</span>
+            <span class="text-gray-400 block">Email type vs Text</span>
+          </button>
+          <button onclick="loadTemplate('synonym-location')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50" data-template="synonym-location">
+            <span class="font-medium">Synonym: Location</span>
+            <span class="text-gray-400 block">City text vs Select</span>
+          </button>
+          <button onclick="loadTemplate('synonym-links')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50" data-template="synonym-links">
+            <span class="font-medium">Synonym: Links</span>
+            <span class="text-gray-400 block">LinkedIn/GitHub/Portfolio</span>
+          </button>
+          <button onclick="loadTemplate('synonym-education')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50" data-template="synonym-education">
+            <span class="font-medium">Synonym: Education</span>
+            <span class="text-gray-400 block">School/Degree/Major variations</span>
+          </button>
+          <button onclick="loadTemplate('all-fields')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-purple-300 bg-purple-50 text-purple-700" data-template="all-fields">
+            <span class="font-medium">All Field Types</span>
+            <span class="text-purple-400 block">Comprehensive coverage</span>
           </button>
           <button onclick="loadTemplate('full')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-blue-500 bg-blue-50 text-blue-700" data-template="full">
             <span class="font-medium">Full Application</span>
@@ -150,8 +168,7 @@
           </div>
         </div>
 
-        <!-- Stats -->
-        <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div id="stats-panel" class="mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div class="grid grid-cols-4 gap-4 text-center">
             <div>
               <p id="stat-scanned" class="text-xl font-bold text-blue-600">0</p>
@@ -174,8 +191,7 @@
       </div>
     </div>
 
-    <!-- Right Panel: Activity Log -->
-    <div class="w-72 bg-white border-l border-gray-200 flex flex-col">
+    <div id="right-panel" class="w-72 bg-white border-l border-gray-200 flex flex-col">
       <div class="p-4 border-b border-gray-100 flex items-center justify-between">
         <h2 class="text-sm font-semibold text-gray-700">Activity Log</h2>
         <button onclick="clearLogs()" class="text-xs text-gray-400 hover:text-gray-600">Clear</button>
@@ -184,8 +200,7 @@
     </div>
   </div>
 
-  <!-- Floating Widget -->
-  <div id="floating-widget" class="fixed bottom-6 right-80 z-50">
+  <div id="demo-floating-widget" class="fixed bottom-6 right-80 z-50">
     <div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
       <div class="flex items-center">
         <button onclick="handleSaveNow()" class="px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-r border-gray-100">
@@ -211,7 +226,7 @@
     const Taxonomy = {
       FULL_NAME: 'FULL_NAME', FIRST_NAME: 'FIRST_NAME', LAST_NAME: 'LAST_NAME',
       EMAIL: 'EMAIL', PHONE: 'PHONE', COUNTRY_CODE: 'COUNTRY_CODE',
-      CITY: 'CITY', LINKEDIN: 'LINKEDIN', GITHUB: 'GITHUB',
+      CITY: 'CITY', LOCATION: 'LOCATION', LINKEDIN: 'LINKEDIN', GITHUB: 'GITHUB', PORTFOLIO: 'PORTFOLIO',
       SCHOOL: 'SCHOOL', DEGREE: 'DEGREE', MAJOR: 'MAJOR',
       GRAD_DATE: 'GRAD_DATE', GRAD_YEAR: 'GRAD_YEAR', GRAD_MONTH: 'GRAD_MONTH',
       WORK_AUTH: 'WORK_AUTH', NEED_SPONSORSHIP: 'NEED_SPONSORSHIP',
@@ -232,7 +247,10 @@
         [Taxonomy.PHONE]: { value: '+14155551234', display: '+1 (415) 555-1234' },
         [Taxonomy.COUNTRY_CODE]: { value: '+1', display: '+1' },
         [Taxonomy.CITY]: { value: 'San Francisco', display: 'San Francisco' },
+        [Taxonomy.LOCATION]: { value: 'San Francisco, CA', display: 'San Francisco, CA' },
         [Taxonomy.LINKEDIN]: { value: 'https://linkedin.com/in/johndoe', display: 'linkedin.com/in/johndoe' },
+        [Taxonomy.GITHUB]: { value: 'https://github.com/johndoe', display: 'github.com/johndoe' },
+        [Taxonomy.PORTFOLIO]: { value: 'https://johndoe.dev', display: 'johndoe.dev' },
         [Taxonomy.SCHOOL]: { value: 'Stanford University', display: 'Stanford University' },
         [Taxonomy.DEGREE]: { value: "Master's", display: "Master's Degree" },
         [Taxonomy.MAJOR]: { value: 'Computer Science', display: 'Computer Science' },
@@ -250,6 +268,10 @@
         [Taxonomy.PHONE]: { value: '+8613812345678', display: '+86 138 1234 5678' },
         [Taxonomy.COUNTRY_CODE]: { value: '+86', display: '+86' },
         [Taxonomy.CITY]: { value: '北京', display: '北京' },
+        [Taxonomy.LOCATION]: { value: '北京, 中国', display: '北京, 中国' },
+        [Taxonomy.LINKEDIN]: { value: 'https://linkedin.com/in/zhangsan', display: 'linkedin.com/in/zhangsan' },
+        [Taxonomy.GITHUB]: { value: 'https://github.com/zhangsan', display: 'github.com/zhangsan' },
+        [Taxonomy.PORTFOLIO]: { value: 'https://zhangsan.cn', display: 'zhangsan.cn' },
         [Taxonomy.SCHOOL]: { value: '清华大学', display: '清华大学' },
         [Taxonomy.DEGREE]: { value: '硕士', display: '硕士' },
         [Taxonomy.MAJOR]: { value: '计算机科学', display: '计算机科学' },
@@ -265,10 +287,17 @@
         [Taxonomy.LAST_NAME]: { value: 'Patel', display: 'Patel' },
         [Taxonomy.EMAIL]: { value: 'amit@university.edu', display: 'amit@university.edu' },
         [Taxonomy.PHONE]: { value: '+919876543210', display: '+91 98765 43210' },
+        [Taxonomy.CITY]: { value: 'Mumbai', display: 'Mumbai' },
+        [Taxonomy.LOCATION]: { value: 'Mumbai, India', display: 'Mumbai, India' },
+        [Taxonomy.LINKEDIN]: { value: 'https://linkedin.com/in/amitpatel', display: 'linkedin.com/in/amitpatel' },
+        [Taxonomy.GITHUB]: { value: 'https://github.com/amitpatel', display: 'github.com/amitpatel' },
+        [Taxonomy.PORTFOLIO]: { value: 'https://amitpatel.io', display: 'amitpatel.io' },
         [Taxonomy.SCHOOL]: { value: 'IIT Delhi', display: 'IIT Delhi' },
         [Taxonomy.DEGREE]: { value: "Bachelor's", display: "Bachelor's" },
         [Taxonomy.MAJOR]: { value: 'Electrical Engineering', display: 'Electrical Engineering' },
         [Taxonomy.GRAD_DATE]: { value: '2023-05-01', display: 'May 2023' },
+        [Taxonomy.GRAD_YEAR]: { value: '2023', display: '2023' },
+        [Taxonomy.GRAD_MONTH]: { value: '05', display: 'May' },
         [Taxonomy.WORK_AUTH]: { value: 'no', display: 'No' },
         [Taxonomy.NEED_SPONSORSHIP]: { value: 'yes', display: 'Yes' },
       }
@@ -318,6 +347,90 @@
           { name: 'workAuthCheck', label: 'I am authorized to work in this country', type: 'checkbox', taxonomy: Taxonomy.WORK_AUTH },
           { name: 'sponsorRadio', label: 'Need visa sponsorship?', type: 'radio', options: ['Yes', 'No'], taxonomy: Taxonomy.NEED_SPONSORSHIP },
           { name: 'sponsorSelect', label: 'Sponsorship Required', type: 'select', options: ['', 'Yes, I need sponsorship', 'No, I do not need sponsorship'], taxonomy: Taxonomy.NEED_SPONSORSHIP },
+        ]
+      },
+      'synonym-email': {
+        title: 'Email Format Test',
+        subtitle: 'Different email input methods',
+        fields: [
+          { name: 'emailStandard', label: 'Email Address', type: 'email', taxonomy: Taxonomy.EMAIL },
+          { name: 'emailText', label: 'Email (Text Input)', type: 'text', placeholder: 'your@email.com', taxonomy: Taxonomy.EMAIL },
+          { name: 'contactEmail', label: 'Contact Email', type: 'email', taxonomy: Taxonomy.EMAIL },
+          { name: 'workEmail', label: 'Work Email', type: 'email', taxonomy: Taxonomy.EMAIL },
+        ]
+      },
+      'synonym-location': {
+        title: 'Location Format Test',
+        subtitle: 'Different location/address input methods',
+        fields: [
+          { name: 'city', label: 'City', type: 'text', taxonomy: Taxonomy.CITY },
+          { name: 'citySelect', label: 'City (Select)', type: 'select', options: ['', 'San Francisco', 'New York', 'Los Angeles', 'Beijing', 'London'], taxonomy: Taxonomy.CITY },
+          { name: 'location', label: 'Location (City, State/Country)', type: 'text', placeholder: 'San Francisco, CA', taxonomy: Taxonomy.LOCATION },
+          { name: 'currentCity', label: 'Current City', type: 'text', taxonomy: Taxonomy.CITY },
+          { name: 'preferredLocation', label: 'Preferred Work Location', type: 'text', taxonomy: Taxonomy.CITY },
+        ]
+      },
+      'synonym-links': {
+        title: 'Links & URLs Test',
+        subtitle: 'Different social/portfolio link formats',
+        fields: [
+          { name: 'linkedin', label: 'LinkedIn Profile URL', type: 'url', placeholder: 'https://linkedin.com/in/yourname', taxonomy: Taxonomy.LINKEDIN },
+          { name: 'linkedinText', label: 'LinkedIn (Text)', type: 'text', placeholder: 'linkedin.com/in/yourname', taxonomy: Taxonomy.LINKEDIN },
+          { name: 'github', label: 'GitHub URL', type: 'url', placeholder: 'https://github.com/username', taxonomy: Taxonomy.GITHUB },
+          { name: 'githubText', label: 'GitHub Username', type: 'text', placeholder: 'username', taxonomy: Taxonomy.GITHUB },
+          { name: 'portfolio', label: 'Portfolio Website', type: 'url', taxonomy: Taxonomy.PORTFOLIO },
+          { name: 'personalWebsite', label: 'Personal Website', type: 'text', placeholder: 'yoursite.com', taxonomy: Taxonomy.PORTFOLIO },
+        ]
+      },
+      'synonym-education': {
+        title: 'Education Fields Test',
+        subtitle: 'Different education input formats',
+        fields: [
+          { name: 'school', label: 'School/University Name', type: 'text', taxonomy: Taxonomy.SCHOOL },
+          { name: 'university', label: 'University', type: 'text', taxonomy: Taxonomy.SCHOOL },
+          { name: 'collegeName', label: 'College Name', type: 'text', taxonomy: Taxonomy.SCHOOL },
+          { name: 'degree', label: 'Degree', type: 'select', options: ['', "Bachelor's", "Master's", 'Ph.D.', 'Associate', 'High School'], taxonomy: Taxonomy.DEGREE },
+          { name: 'degreeText', label: 'Degree (Text)', type: 'text', placeholder: "Bachelor's, Master's, etc.", taxonomy: Taxonomy.DEGREE },
+          { name: 'educationLevel', label: 'Highest Education Level', type: 'select', options: ['', 'High School', "Bachelor's Degree", "Master's Degree", 'Doctorate'], taxonomy: Taxonomy.DEGREE },
+          { name: 'major', label: 'Major/Field of Study', type: 'text', taxonomy: Taxonomy.MAJOR },
+          { name: 'fieldOfStudy', label: 'Field of Study', type: 'text', taxonomy: Taxonomy.MAJOR },
+          { name: 'concentration', label: 'Concentration', type: 'text', taxonomy: Taxonomy.MAJOR },
+        ]
+      },
+      'all-fields': {
+        title: 'All Field Types Test',
+        subtitle: 'Comprehensive field type coverage',
+        sections: [
+          { title: 'Personal Info', fields: [
+            { name: 'fullName', label: 'Full Name', type: 'text', required: true, taxonomy: Taxonomy.FULL_NAME },
+            { name: 'firstName', label: 'First Name', type: 'text', taxonomy: Taxonomy.FIRST_NAME },
+            { name: 'lastName', label: 'Last Name', type: 'text', taxonomy: Taxonomy.LAST_NAME },
+            { name: 'email', label: 'Email', type: 'email', required: true, taxonomy: Taxonomy.EMAIL },
+            { name: 'phone', label: 'Phone Number', type: 'tel', taxonomy: Taxonomy.PHONE },
+            { name: 'city', label: 'City', type: 'text', taxonomy: Taxonomy.CITY },
+            { name: 'location', label: 'Location', type: 'text', taxonomy: Taxonomy.LOCATION },
+          ]},
+          { title: 'Online Presence', fields: [
+            { name: 'linkedin', label: 'LinkedIn', type: 'url', taxonomy: Taxonomy.LINKEDIN },
+            { name: 'github', label: 'GitHub', type: 'url', taxonomy: Taxonomy.GITHUB },
+            { name: 'portfolio', label: 'Portfolio', type: 'url', taxonomy: Taxonomy.PORTFOLIO },
+          ]},
+          { title: 'Education', fields: [
+            { name: 'school', label: 'School', type: 'text', taxonomy: Taxonomy.SCHOOL },
+            { name: 'degree', label: 'Degree', type: 'select', options: ['', "Bachelor's", "Master's", 'Ph.D.'], taxonomy: Taxonomy.DEGREE },
+            { name: 'major', label: 'Major', type: 'text', taxonomy: Taxonomy.MAJOR },
+            { name: 'gradYear', label: 'Graduation Year', type: 'select', options: ['', '2020', '2021', '2022', '2023', '2024', '2025', '2026'], taxonomy: Taxonomy.GRAD_YEAR },
+            { name: 'gradMonth', label: 'Graduation Month', type: 'select', options: ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'], taxonomy: Taxonomy.GRAD_MONTH },
+            { name: 'gradDate', label: 'Graduation Date', type: 'date', taxonomy: Taxonomy.GRAD_DATE },
+          ]},
+          { title: 'Work Authorization', fields: [
+            { name: 'workAuth', label: 'Authorized to work?', type: 'radio', options: ['Yes', 'No'], taxonomy: Taxonomy.WORK_AUTH },
+            { name: 'sponsorship', label: 'Require sponsorship?', type: 'radio', options: ['Yes', 'No'], taxonomy: Taxonomy.NEED_SPONSORSHIP },
+          ]},
+          { title: 'EEO (Sensitive)', fields: [
+            { name: 'gender', label: 'Gender', type: 'select', options: ['', 'Male', 'Female', 'Non-binary', 'Prefer not to say'], taxonomy: Taxonomy.EEO_GENDER },
+            { name: 'ethnicity', label: 'Ethnicity', type: 'select', options: ['', 'Asian', 'Black', 'Hispanic', 'White', 'Other', 'Prefer not to say'], taxonomy: Taxonomy.EEO_ETHNICITY },
+          ]},
         ]
       },
       'full': {
@@ -556,11 +669,13 @@
       { patterns: [/phone|mobile|tel/i], type: Taxonomy.PHONE, score: 0.9 },
       { patterns: [/country.?code/i], type: Taxonomy.COUNTRY_CODE, score: 0.85 },
       { patterns: [/city/i], type: Taxonomy.CITY, score: 0.85 },
+      { patterns: [/location/i], type: Taxonomy.LOCATION, score: 0.8 },
       { patterns: [/linkedin/i], type: Taxonomy.LINKEDIN, score: 0.95 },
       { patterns: [/github/i], type: Taxonomy.GITHUB, score: 0.95 },
-      { patterns: [/school|university/i], type: Taxonomy.SCHOOL, score: 0.9 },
-      { patterns: [/degree/i], type: Taxonomy.DEGREE, score: 0.85 },
-      { patterns: [/major|field/i], type: Taxonomy.MAJOR, score: 0.85 },
+      { patterns: [/portfolio|personal.?website/i], type: Taxonomy.PORTFOLIO, score: 0.9 },
+      { patterns: [/school|university|college/i], type: Taxonomy.SCHOOL, score: 0.9 },
+      { patterns: [/degree|education.?level/i], type: Taxonomy.DEGREE, score: 0.85 },
+      { patterns: [/major|field.?of.?study|concentration/i], type: Taxonomy.MAJOR, score: 0.85 },
       { patterns: [/grad.*year/i], type: Taxonomy.GRAD_YEAR, score: 0.85 },
       { patterns: [/grad.*month/i], type: Taxonomy.GRAD_MONTH, score: 0.85 },
       { patterns: [/grad|graduation/i], type: Taxonomy.GRAD_DATE, score: 0.8 },
@@ -841,6 +956,8 @@
 
     // ==================== BADGES ====================
     function showBadge(element, type, suggestions = []) {
+      if (formOnlyMode) return;
+      
       const wrapper = element.closest('.field-wrapper');
       if (!wrapper) return;
       
@@ -1126,9 +1243,48 @@
       saveAnswers();
     }
 
-    // ==================== INIT ====================
+    let formOnlyMode = localStorage.getItem('demo_form_only') === 'true';
+    
+    function toggleDemoMode() {
+      formOnlyMode = !formOnlyMode;
+      localStorage.setItem('demo_form_only', formOnlyMode);
+      applyDemoMode();
+    }
+    
+    function applyDemoMode() {
+      const leftPanel = document.getElementById('left-panel');
+      const rightPanel = document.getElementById('right-panel');
+      const demoWidget = document.getElementById('demo-floating-widget');
+      const statsPanel = document.getElementById('stats-panel');
+      const pendingNotice = document.getElementById('pending-notice');
+      const toggleText = document.getElementById('toggle-text');
+      const iconExpand = document.getElementById('toggle-icon-expand');
+      const iconCollapse = document.getElementById('toggle-icon-collapse');
+      
+      if (formOnlyMode) {
+        leftPanel.classList.add('hidden');
+        rightPanel.classList.add('hidden');
+        demoWidget.classList.add('hidden');
+        if (statsPanel) statsPanel.classList.add('hidden');
+        if (pendingNotice) pendingNotice.classList.add('hidden');
+        removeBadges();
+        toggleText.textContent = 'Show Demo UI';
+        iconExpand.classList.remove('hidden');
+        iconCollapse.classList.add('hidden');
+      } else {
+        leftPanel.classList.remove('hidden');
+        rightPanel.classList.remove('hidden');
+        demoWidget.classList.remove('hidden');
+        if (statsPanel) statsPanel.classList.remove('hidden');
+        toggleText.textContent = 'Form Only';
+        iconExpand.classList.add('hidden');
+        iconCollapse.classList.remove('hidden');
+      }
+    }
+
     loadAnswers();
     loadTemplate('full');
+    applyDemoMode();
   </script>
 </body>
 </html>

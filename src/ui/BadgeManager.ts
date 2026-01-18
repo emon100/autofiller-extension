@@ -30,11 +30,8 @@ export class BadgeManager {
     }
 
     const badge = this.createBadge(state, field)
-    this.positionBadge(field.element, badge)
-    document.body.appendChild(badge)
+    this.insertBadgeNextToElement(field.element, badge)
     this.badges.set(field.element, badge)
-
-    this.setupFieldObserver(field.element, badge)
   }
 
   hideBadge(field: FieldContext): void {
@@ -60,7 +57,7 @@ export class BadgeManager {
   }
 
   private createBadge(state: BadgeState, field: FieldContext): HTMLElement {
-    const badge = document.createElement('div')
+    const badge = document.createElement('span')
     badge.className = BADGE_CLASS
     badge.setAttribute('data-state', state.type)
     
@@ -148,31 +145,8 @@ export class BadgeManager {
     setTimeout(() => document.addEventListener('click', closeDropdown), 0)
   }
 
-  private positionBadge(element: HTMLElement, badge: HTMLElement): void {
-    const rect = element.getBoundingClientRect()
-    const scrollX = window.scrollX || document.documentElement.scrollLeft
-    const scrollY = window.scrollY || document.documentElement.scrollTop
-
-    badge.style.position = 'absolute'
-    badge.style.zIndex = String(BADGE_Z_INDEX)
-    badge.style.top = `${rect.top + scrollY + (rect.height - 20) / 2}px`
-    badge.style.left = `${rect.right + scrollX + 4}px`
-  }
-
-  private setupFieldObserver(element: HTMLElement, badge: HTMLElement): void {
-    const reposition = () => this.positionBadge(element, badge)
-    
-    window.addEventListener('scroll', reposition, { passive: true })
-    window.addEventListener('resize', reposition, { passive: true })
-
-    const observer = new MutationObserver(() => {
-      if (!document.contains(element)) {
-        badge.remove()
-        this.badges.delete(element)
-        observer.disconnect()
-      }
-    })
-    observer.observe(document.body, { childList: true, subtree: true })
+  private insertBadgeNextToElement(element: HTMLElement, badge: HTMLElement): void {
+    element.insertAdjacentElement('afterend', badge)
   }
 
   private injectStyles(): void {
@@ -193,6 +167,10 @@ export class BadgeManager {
         transition: all 0.15s ease;
         box-shadow: 0 1px 3px rgba(0,0,0,0.12);
         user-select: none;
+        vertical-align: middle;
+        margin-left: 4px;
+        position: relative;
+        z-index: ${BADGE_Z_INDEX};
       }
       
       .${BADGE_CLASS}[data-color="green"] {

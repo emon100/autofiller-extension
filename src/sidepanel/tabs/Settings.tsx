@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Key, Cloud, Server, CheckCircle } from 'lucide-react'
+import { Key, Cloud, Server, CheckCircle, Code2 } from 'lucide-react'
 
 interface LLMConfig {
   enabled: boolean
-  provider: 'openai' | 'anthropic' | 'custom'
+  provider: 'openai' | 'anthropic' | 'dashscope' | 'deepseek' | 'zhipu' | 'custom'
   apiKey: string
   endpoint?: string
   model?: string
+}
+
+interface DevSettings {
+  devModeEnabled: boolean
 }
 
 const DEFAULT_CONFIG: LLMConfig = {
@@ -16,19 +20,28 @@ const DEFAULT_CONFIG: LLMConfig = {
   model: 'gpt-4o-mini',
 }
 
+const DEFAULT_DEV_SETTINGS: DevSettings = {
+  devModeEnabled: false,
+}
+
 const PROVIDERS = [
-  { id: 'openai', name: 'OpenAI', models: ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'] },
-  { id: 'anthropic', name: 'Anthropic', models: ['claude-3-haiku-20240307', 'claude-3-sonnet-20240229'] },
-  { id: 'custom', name: 'Custom Endpoint', models: [] },
+  { id: 'openai', name: 'OpenAI', models: ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'], endpoint: 'https://api.openai.com/v1/chat/completions' },
+  { id: 'anthropic', name: 'Anthropic', models: ['claude-3-haiku-20240307', 'claude-3-sonnet-20240229'], endpoint: 'https://api.anthropic.com/v1/messages' },
+  { id: 'dashscope', name: 'Aliyun DashScope (通义千问)', models: ['qwen-plus', 'qwen-turbo', 'qwen-max', 'qwen-long'], endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions' },
+  { id: 'deepseek', name: 'DeepSeek', models: ['deepseek-chat', 'deepseek-coder'], endpoint: 'https://api.deepseek.com/v1/chat/completions' },
+  { id: 'zhipu', name: 'Zhipu AI (智谱)', models: ['glm-4-flash', 'glm-4', 'glm-4-plus'], endpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions' },
+  { id: 'custom', name: 'Custom Endpoint', models: [], endpoint: '' },
 ] as const
 
 export default function Settings() {
   const [config, setConfig] = useState<LLMConfig>(DEFAULT_CONFIG)
+  const [devSettings, setDevSettings] = useState<DevSettings>(DEFAULT_DEV_SETTINGS)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     loadConfig()
+    loadDevSettings()
   }, [])
 
   async function loadConfig() {
@@ -40,6 +53,23 @@ export default function Settings() {
     } catch {
       setConfig(DEFAULT_CONFIG)
     }
+  }
+
+  async function loadDevSettings() {
+    try {
+      const result = await chrome.storage.local.get('devSettings')
+      if (result.devSettings) {
+        setDevSettings({ ...DEFAULT_DEV_SETTINGS, ...result.devSettings })
+      }
+    } catch {
+      setDevSettings(DEFAULT_DEV_SETTINGS)
+    }
+  }
+
+  async function toggleDevMode() {
+    const newSettings = { ...devSettings, devModeEnabled: !devSettings.devModeEnabled }
+    setDevSettings(newSettings)
+    await chrome.storage.local.set({ devSettings: newSettings })
   }
 
   async function saveConfig() {
@@ -54,12 +84,12 @@ export default function Settings() {
   }
 
   function handleProviderChange(provider: LLMConfig['provider']) {
-    const providerConfig = PROVIDERS.find(p => p.id === provider)
     setConfig(prev => ({
       ...prev,
       provider,
-      model: providerConfig?.models[0] || '',
-      endpoint: provider === 'custom' ? prev.endpoint : undefined,
+      // 切换 provider 时清空模型，让用户自己选择或输入
+      model: '',
+      endpoint: provider === 'custom' ? (prev.endpoint || '') : undefined,
     }))
   }
 
@@ -124,20 +154,43 @@ export default function Settings() {
               />
             </div>
 
-            {currentProvider && currentProvider.models.length > 0 && (
+            {currentProvider && currentProvider.models.length > 0 ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Model
                 </label>
-                <select
-                  value={config.model}
+                <input
+                  type="text"
+                  list={`models-${config.provider}`}
+                  value={config.model || ''}
                   onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value }))}
+                  placeholder="Select or type model name"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
+                />
+                <datalist id={`models-${config.provider}`}>
                   {currentProvider.models.map(m => (
-                    <option key={m} value={m}>{m}</option>
+                    <option key={m} value={m} />
                   ))}
-                </select>
+                </datalist>
+                <p className="text-xs text-gray-500 mt-1">
+                  Select from list or type custom model name
+                </p>
+              </div>
+            ) : config.provider === 'custom' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Model Name
+                </label>
+                <input
+                  type="text"
+                  value={config.model || ''}
+                  onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value }))}
+                  placeholder="e.g., glm-4-flash, qwen-turbo, deepseek-chat"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter the model name for your API
+                </p>
               </div>
             )}
 
@@ -187,6 +240,30 @@ export default function Settings() {
         <p className="text-xs text-gray-500 mt-1">
           Smart form auto-filler for job applications.
         </p>
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Code2 className="w-5 h-5 text-purple-500" />
+            <div>
+              <h3 className="font-medium text-gray-900">Developer Mode</h3>
+              <p className="text-xs text-gray-500">Enable developer tools tab</p>
+            </div>
+          </div>
+          <button
+            onClick={toggleDevMode}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              devSettings.devModeEnabled ? 'bg-purple-600' : 'bg-gray-200'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                devSettings.devModeEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
       </div>
     </div>
   )

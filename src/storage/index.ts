@@ -146,8 +146,8 @@ export class SiteSettingsStorage {
 
     const newSettings: SiteSettings = {
       siteKey,
-      recordEnabled: false,
-      autofillEnabled: false,
+      recordEnabled: true,
+      autofillEnabled: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }

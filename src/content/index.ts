@@ -1,5 +1,5 @@
 import { scanFields } from '@/scanner'
-import { parseField } from '@/parser'
+import { parseField, parseFieldsBatch } from '@/parser'
 import { transformValue } from '@/transformer'
 import { fillField, createFillSnapshot, restoreSnapshot, FillSnapshot } from '@/executor'
 import { Recorder, generateId } from '@/recorder'
@@ -18,6 +18,10 @@ interface FillHistoryEntry {
   timestamp: number
 }
 
+// 标记属性：区分程序填写和用户修改
+const ATTR_FILLED = 'data-autofiller-filled'
+const ATTR_USER_MODIFIED = 'data-autofiller-user-modified'
+
 export class AutoFiller {
   private recorder: Recorder
   private answerStorage: AnswerStorage
@@ -27,6 +31,9 @@ export class AutoFiller {
   private floatingWidget: FloatingWidget
   private fillHistory: FillHistoryEntry[] = []
   private siteKey: string
+  private pendingFormSubmit: HTMLFormElement | null = null
+  private isSubmittingProgrammatically = false
+  private userInputListeners: WeakMap<HTMLElement, () => void> = new WeakMap()
 
   constructor() {
     this.recorder = new Recorder()
@@ -42,10 +49,11 @@ export class AutoFiller {
     this.floatingWidget = new FloatingWidget({
       onSave: () => this.detectFieldsForWidget(),
       onFill: () => this.fillAndReturnCount(),
-      onConfirm: (fields) => this.confirmWidgetFields(fields),
+      onConfirm: (fields) => this.handleConfirmAndSubmit(fields),
     })
 
     this.setupRecorderCallbacks()
+    this.setupFormSubmitListener()
   }
 
   private extractSiteKey(): string {
@@ -84,6 +92,54 @@ export class AutoFiller {
     })
   }
 
+  private setupFormSubmitListener(): void {
+    document.addEventListener('submit', async (e) => {
+      if (this.isSubmittingProgrammatically) return
+
+      const form = e.target as HTMLFormElement
+      if (!form || form.tagName !== 'FORM') return
+
+      const settings = await this.siteSettingsStorage.get(this.siteKey)
+      if (!settings?.recordEnabled) return
+
+      e.preventDefault()
+      this.pendingFormSubmit = form
+
+      const detectedFields = await this.detectFieldsForWidget()
+      if (detectedFields.length > 0) {
+        this.floatingWidget.setFields(detectedFields)
+        this.floatingWidget.showPhase('learning')
+      } else {
+        this.submitPendingForm()
+      }
+    }, true)
+  }
+
+  private async handleConfirmAndSubmit(fields: DetectedField[]): Promise<void> {
+    await this.confirmWidgetFields(fields)
+    this.submitPendingForm()
+  }
+
+  private submitPendingForm(): void {
+    if (this.pendingFormSubmit) {
+      const form = this.pendingFormSubmit
+      this.pendingFormSubmit = null
+      
+      this.isSubmittingProgrammatically = true
+      
+      const submitBtn = form.querySelector<HTMLButtonElement>('button[type="submit"], input[type="submit"]')
+      if (submitBtn) {
+        submitBtn.click()
+      } else {
+        form.submit()
+      }
+      
+      setTimeout(() => {
+        this.isSubmittingProgrammatically = false
+      }, 100)
+    }
+  }
+
   private createAnswerValue(type: Taxonomy, value: string): AnswerValue {
     const isSensitive = SENSITIVE_TYPES.has(type)
     const now = Date.now()
@@ -115,17 +171,55 @@ export class AutoFiller {
     const fields = scanFields(document.body)
     const detectedFields: DetectedField[] = []
 
+    // Filter fields that have values and should be learned
+    const fieldsWithValues: Array<{ field: FieldContext; value: string }> = []
     for (const field of fields) {
       const value = this.getFieldValue(field.element)
       if (!value) continue
+      if (!this.shouldLearnField(field.element)) continue
+      fieldsWithValues.push({ field, value })
+    }
 
-      const candidates = await parseField(field)
+    if (fieldsWithValues.length === 0) {
+      return []
+    }
+
+    // Use batch parsing for all fields
+    const parseResults = await parseFieldsBatch(fieldsWithValues.map(f => f.field))
+
+    for (let i = 0; i < fieldsWithValues.length; i++) {
+      const { field, value } = fieldsWithValues[i]
+      const candidates = parseResults.get(i) || [{ type: Taxonomy.UNKNOWN, score: 0, reasons: ['no match'] }]
       const bestCandidate = candidates[0]
       const detectedType = bestCandidate?.type || Taxonomy.UNKNOWN
       const isSensitive = SENSITIVE_TYPES.has(detectedType)
 
-      const labelText = field.labelText || field.attributes.placeholder || field.attributes.name || 'Unknown'
-      
+      const labelText = field.labelText || field.attributes.placeholder || field.attributes.name || 'Field'
+
+      if (detectedType !== Taxonomy.UNKNOWN) {
+        const existingAnswers = await this.answerStorage.getByType(detectedType)
+        if (existingAnswers.length > 0) {
+          const existing = existingAnswers[0]
+          if (existing.value === value) {
+            continue
+          }
+          // 防止部分值覆盖完整值（如 2023-09 不覆盖 2023-09-01）
+          if (this.isPartialValue(value, existing.value)) {
+            continue
+          }
+          detectedFields.push({
+            id: generateId(),
+            label: labelText,
+            value: value,
+            type: detectedType,
+            sensitive: isSensitive,
+            existingValue: existing.value,
+            existingAnswerId: existing.id,
+          })
+          continue
+        }
+      }
+
       detectedFields.push({
         id: generateId(),
         label: labelText,
@@ -136,6 +230,24 @@ export class AutoFiller {
     }
 
     return detectedFields
+  }
+
+  /**
+   * 检查新值是否是现有值的部分值（不应覆盖）
+   * 例如：2023-09 是 2023-09-01 的部分值
+   */
+  private isPartialValue(newValue: string, existingValue: string): boolean {
+    // 如果新值更短且是现有值的前缀，视为部分值
+    if (newValue.length < existingValue.length && existingValue.startsWith(newValue)) {
+      return true
+    }
+    // 日期特殊处理：2023-09 vs 2023-09-01
+    const datePartialPattern = /^\d{4}-\d{2}$/
+    const dateFullPattern = /^\d{4}-\d{2}-\d{2}$/
+    if (datePartialPattern.test(newValue) && dateFullPattern.test(existingValue)) {
+      return existingValue.startsWith(newValue)
+    }
+    return false
   }
 
   private getFieldValue(element: HTMLElement): string {
@@ -161,6 +273,7 @@ export class AutoFiller {
 
   private async confirmWidgetFields(fields: DetectedField[]): Promise<void> {
     let savedCount = 0
+    let replacedCount = 0
     let skippedCount = 0
 
     for (const field of fields) {
@@ -170,16 +283,27 @@ export class AutoFiller {
         continue
       }
 
-      const existingAnswer = await this.answerStorage.findByValue(type, field.value)
-      if (!existingAnswer) {
+      if (field.existingAnswerId) {
+        await this.answerStorage.delete(field.existingAnswerId)
         const answer = this.createAnswerValue(type, field.value)
         await this.answerStorage.save(answer)
-        savedCount++
+        replacedCount++
+      } else {
+        const existingAnswer = await this.answerStorage.findByValue(type, field.value)
+        if (!existingAnswer) {
+          const answer = this.createAnswerValue(type, field.value)
+          await this.answerStorage.save(answer)
+          savedCount++
+        }
       }
     }
 
-    if (savedCount > 0) {
-      showToast(`Saved ${savedCount} new field(s) to database`, 'success')
+    const messages: string[] = []
+    if (savedCount > 0) messages.push(`${savedCount} new`)
+    if (replacedCount > 0) messages.push(`${replacedCount} replaced`)
+    
+    if (messages.length > 0) {
+      showToast(`Saved: ${messages.join(', ')}`, 'success')
     } else if (skippedCount > 0) {
       showToast(`No new fields to save (${skippedCount} skipped as UNKNOWN)`, 'info')
     } else {
@@ -246,6 +370,8 @@ export class AutoFiller {
           answerId: plan.answer.id,
           timestamp: Date.now(),
         })
+        // 标记为程序填写，并添加用户修改监听器
+        this.markAsFilledByProgram(plan.field.element)
         this.badgeManager.showBadge(plan.field, {
           type: 'filled',
           answerId: plan.answer.id,
@@ -289,14 +415,12 @@ export class AutoFiller {
     const sensitiveFields: Array<{ field: FieldContext; candidates: AnswerValue[] }> = []
     const fieldDebug: FillDebugInfo['fieldsParsed'] = []
 
-    const parseResults = await Promise.all(
-      fields.map(async (field) => ({
-        field,
-        candidates: await parseField(field),
-      }))
-    )
+    // Use batch parsing for better LLM efficiency
+    const parseResults = await parseFieldsBatch(fields)
 
-    for (const { field, candidates } of parseResults) {
+    for (let i = 0; i < fields.length; i++) {
+      const field = fields[i]
+      const candidates = parseResults.get(i) || [{ type: Taxonomy.UNKNOWN, score: 0, reasons: ['no match'] }]
       const bestCandidate = candidates[0]
       const label = field.labelText || field.attributes.placeholder || field.attributes.name || 'Unknown'
       
@@ -327,8 +451,10 @@ export class AutoFiller {
       const bestAnswer = answers[0]
       const answerValues = answers.map(a => a.answer)
 
-      if (SENSITIVE_TYPES.has(bestCandidate.type)) {
-        debugEntry.reason = 'Sensitive field - requires manual selection'
+      if (SENSITIVE_TYPES.has(bestCandidate.type) || bestAnswer.answer.autofillAllowed === false) {
+        debugEntry.reason = bestAnswer.answer.autofillAllowed === false 
+          ? 'Autofill disabled for this answer' 
+          : 'Sensitive field - requires manual selection'
         fieldDebug.push(debugEntry)
         sensitiveFields.push({ field, candidates: answerValues.slice(0, 3) })
         continue
@@ -365,7 +491,43 @@ export class AutoFiller {
         answerId: answer.id,
         timestamp: Date.now(),
       })
+      // 标记为程序填写
+      this.markAsFilledByProgram(field.element)
     }
+  }
+
+  /**
+   * 标记元素为程序填写，并添加用户修改监听器
+   */
+  private markAsFilledByProgram(element: HTMLElement): void {
+    element.setAttribute(ATTR_FILLED, 'true')
+    element.removeAttribute(ATTR_USER_MODIFIED)
+
+    // 避免重复添加监听器
+    if (this.userInputListeners.has(element)) return
+
+    const handleUserInput = () => {
+      // 用户修改了字段，标记为用户修改
+      element.setAttribute(ATTR_USER_MODIFIED, 'true')
+    }
+
+    element.addEventListener('input', handleUserInput)
+    this.userInputListeners.set(element, handleUserInput)
+  }
+
+  /**
+   * 检查字段是否应该被学习（用户主动填写或修改的）
+   */
+  private shouldLearnField(element: HTMLElement): boolean {
+    const wasFilled = element.hasAttribute(ATTR_FILLED)
+    const wasUserModified = element.hasAttribute(ATTR_USER_MODIFIED)
+
+    // 如果是程序填写的，只有用户修改过才学习
+    if (wasFilled) {
+      return wasUserModified
+    }
+    // 如果不是程序填写的（用户手动填写），则学习
+    return true
   }
 
   private async findMatchingAnswers(

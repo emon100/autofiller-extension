@@ -26,9 +26,12 @@ function generateSidepanelHtml() {
   }
 }
 
+// Content script 需要单独构建为 IIFE 格式（Chrome content scripts 不支持 ES modules）
+const isContentBuild = process.env.BUILD_TARGET === 'content'
+
 export default defineConfig({
-  plugins: [react(), generateSidepanelHtml()],
-  publicDir: 'public',
+  plugins: isContentBuild ? [] : [react(), generateSidepanelHtml()],
+  publicDir: isContentBuild ? false : 'public',
   server: {
     fs: {
       allow: ['..'],
@@ -36,21 +39,31 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    emptyOutDir: true,
+    emptyOutDir: !isContentBuild, // content build 不清空目录
     cssCodeSplit: false,
-    rollupOptions: {
-      input: {
-        content: path.resolve(__dirname, 'src/content/main.ts'),
-        background: path.resolve(__dirname, 'src/background/index.ts'),
-        sidepanel: path.resolve(__dirname, 'src/sidepanel/main.tsx'),
-      },
-      output: {
-        entryFileNames: '[name].js',
-        chunkFileNames: 'chunks/[name]-[hash].js',
-        assetFileNames: 'assets/[name][extname]',
-        format: 'es',
-      },
-    },
+    rollupOptions: isContentBuild
+      ? {
+          input: {
+            content: path.resolve(__dirname, 'src/content/main.ts'),
+          },
+          output: {
+            entryFileNames: '[name].js',
+            format: 'iife', // Content script 必须是 IIFE
+            inlineDynamicImports: true,
+          },
+        }
+      : {
+          input: {
+            background: path.resolve(__dirname, 'src/background/index.ts'),
+            sidepanel: path.resolve(__dirname, 'src/sidepanel/main.tsx'),
+          },
+          output: {
+            entryFileNames: '[name].js',
+            chunkFileNames: 'chunks/[name]-[hash].js',
+            assetFileNames: 'assets/[name][extname]',
+            format: 'es',
+          },
+        },
     target: 'esnext',
     minify: false,
   },

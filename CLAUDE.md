@@ -128,6 +128,42 @@ npm test        # Run unit tests
 npm run build   # Build extension
 ```
 
+## Known Issues & TODOs
+
+### Medium Priority (Enhancements)
+
+1. **Form submit interception edge cases**
+   - May need to handle: buttons without type="submit", JavaScript-triggered submits
+   - Location: `src/content/index.ts` → `setupFormSubmitListener()`
+
+2. **Parser accuracy improvements**
+   - Some field types may still not be recognized correctly
+   - Consider adding more pattern rules or LLM-based parsing
+
+### Session Summary (2025-01-09)
+
+**Completed:**
+- ✅ Duplicate type values: Shows "Will replace: xxx" warning, replaces on confirm
+- ✅ Auto-popup on form submit: Intercepts submit, shows learning phase, then submits
+- ✅ Badge positioning: Simplified to adjacent sibling element (no observers)
+- ✅ Default settings: recordEnabled/autofillEnabled default to true
+- ✅ Delete row flicker: Fixed by direct DOM removal instead of re-render
+- ✅ Fill debug info: Added FillDebugInfo with user-friendly error messages
+- ✅ Date format fix: "2024-06" → "2024-06-01" for date inputs
+- ✅ Form Only toggle in demo page
+- ✅ Database edit UI: Added inline editing and delete buttons in side panel
+- ✅ Label extraction: Improved to find sibling labels and use name attribute as fallback
+- ✅ Learning phase diff: Only shows fields that differ from existing database values
+- ✅ Learning phase position: Bubble now appears higher (bottom: 80px) to avoid being covered
+
+**Key Files Modified:**
+- `src/ui/FloatingWidget.ts` - Learning phase conflict warnings, position adjustment
+- `src/ui/BadgeManager.ts` - Simplified positioning
+- `src/content/index.ts` - Form submit interception, conflict detection, diff-only display
+- `src/storage/index.ts` - Default settings
+- `src/scanner/index.ts` - Improved label extraction with sibling search
+- `src/sidepanel/tabs/SavedAnswers.tsx` - Added edit/delete functionality
+
 ## Not in MVP Scope
 
 - Cross-origin iframes

@@ -1,4 +1,9 @@
 import { FieldContext, FillResult } from '@/types'
+import { ExecutorLog, logExecutor } from '@/utils/logger'
+
+export interface FillResultWithLog extends FillResult {
+  executorLog?: ExecutorLog
+}
 
 export interface FillSnapshot {
   value?: string
@@ -99,42 +104,66 @@ export async function fillText(
 
 export async function fillSelect(
   element: HTMLSelectElement,
-  value: string
-): Promise<FillResult> {
+  value: string,
+  label = ''
+): Promise<FillResultWithLog> {
+  const startTime = performance.now()
   const previousValue = element.value
   const normalizedValue = value.toLowerCase().trim()
+  let strategy = 'none'
+  let matchedOption: string | undefined
 
   try {
     let matched = false
 
+    // Strategy 1: Exact value match
     for (const option of element.options) {
       if (option.value.toLowerCase() === normalizedValue) {
         element.value = option.value
         matched = true
+        strategy = 'exact-value'
+        matchedOption = option.value
         break
       }
     }
 
+    // Strategy 2: Exact text match
     if (!matched) {
       for (const option of element.options) {
         const optionText = option.textContent?.toLowerCase().trim() || ''
         if (optionText === normalizedValue) {
           element.value = option.value
           matched = true
+          strategy = 'exact-text'
+          matchedOption = option.textContent || option.value
           break
         }
       }
     }
 
+    // Strategy 3: Fuzzy match (contains)
     if (!matched) {
       for (const option of element.options) {
         const optionText = option.textContent?.toLowerCase().trim() || ''
         if (optionText.includes(normalizedValue) || normalizedValue.includes(optionText)) {
           element.value = option.value
           matched = true
+          strategy = 'fuzzy-contains'
+          matchedOption = option.textContent || option.value
           break
         }
       }
+    }
+
+    const executorLog: ExecutorLog = {
+      fieldLabel: label,
+      widgetKind: 'select',
+      strategy,
+      targetValue: value,
+      matchedOption,
+      success: matched,
+      error: matched ? undefined : `No matching option found for "${value}"`,
+      timeMs: performance.now() - startTime
     }
 
     if (!matched) {
@@ -144,6 +173,7 @@ export async function fillSelect(
         previousValue,
         newValue: value,
         error: `No matching option found for "${value}"`,
+        executorLog
       }
     }
 
@@ -154,6 +184,7 @@ export async function fillSelect(
       element,
       previousValue,
       newValue: element.value,
+      executorLog
     }
   } catch (error) {
     return {
@@ -311,53 +342,112 @@ export async function fillCombobox(
 
 export async function fillField(
   context: FieldContext,
-  value: string
-): Promise<FillResult> {
-  const { element, widgetSignature } = context
+  value: string,
+  enableLogging = false
+): Promise<FillResultWithLog> {
+  const startTime = performance.now()
+  const { element, widgetSignature, labelText } = context
+  let result: FillResultWithLog
 
   switch (widgetSignature.kind) {
     case 'text':
     case 'textarea':
     case 'date':
-      return fillText(element as HTMLInputElement | HTMLTextAreaElement, value)
-    
+      result = await fillText(element as HTMLInputElement | HTMLTextAreaElement, value)
+      result.executorLog = {
+        fieldLabel: labelText,
+        widgetKind: widgetSignature.kind,
+        strategy: 'direct-set',
+        targetValue: value,
+        success: result.success,
+        error: result.error,
+        timeMs: performance.now() - startTime
+      }
+      break
+
     case 'select':
-      return fillSelect(element as HTMLSelectElement, value)
-    
+      result = await fillSelect(element as HTMLSelectElement, value, labelText)
+      break
+
     case 'radio':
-      return fillRadio(element as HTMLInputElement, value)
-    
+      result = await fillRadio(element as HTMLInputElement, value)
+      result.executorLog = {
+        fieldLabel: labelText,
+        widgetKind: 'radio',
+        strategy: 'value-match',
+        targetValue: value,
+        success: result.success,
+        error: result.error,
+        timeMs: performance.now() - startTime
+      }
+      break
+
     case 'checkbox':
-      return fillCheckbox(element as HTMLInputElement, value)
-    
+      result = await fillCheckbox(element as HTMLInputElement, value)
+      result.executorLog = {
+        fieldLabel: labelText,
+        widgetKind: 'checkbox',
+        strategy: 'boolean-check',
+        targetValue: value,
+        success: result.success,
+        error: result.error,
+        timeMs: performance.now() - startTime
+      }
+      break
+
     case 'combobox':
-      return fillCombobox(element as HTMLInputElement, value)
-    
+      result = await fillCombobox(element as HTMLInputElement, value)
+      result.executorLog = {
+        fieldLabel: labelText,
+        widgetKind: 'combobox',
+        strategy: 'type-and-select',
+        targetValue: value,
+        success: result.success,
+        error: result.error,
+        timeMs: performance.now() - startTime
+      }
+      break
+
     default:
-      return {
+      result = {
         success: false,
         element,
         previousValue: '',
         newValue: value,
         error: `Unsupported widget kind: ${widgetSignature.kind}`,
+        executorLog: {
+          fieldLabel: labelText,
+          widgetKind: widgetSignature.kind,
+          strategy: 'unsupported',
+          targetValue: value,
+          success: false,
+          error: `Unsupported widget kind: ${widgetSignature.kind}`,
+          timeMs: performance.now() - startTime
+        }
       }
   }
+
+  if (enableLogging && result.executorLog) {
+    logExecutor(result.executorLog)
+  }
+
+  return result
 }
 
 export async function executeFillPlan(
   plans: Array<{ context: FieldContext; value: string }>,
-  options: { batchSize?: number; delayBetweenBatches?: number } = {}
-): Promise<FillResult[]> {
-  const { batchSize = 5, delayBetweenBatches = 50 } = options
-  const results: FillResult[] = []
+  options: { batchSize?: number; delayBetweenBatches?: number; enableLogging?: boolean } = {}
+): Promise<FillResultWithLog[]> {
+  const { batchSize = 5, delayBetweenBatches = 50, enableLogging = false } = options
+  const results: FillResultWithLog[] = []
 
   for (let i = 0; i < plans.length; i += batchSize) {
     const batch = plans.slice(i, i + batchSize)
-    
+
     const batchResults = await Promise.all(
-      batch.map(({ context, value }) => fillField(context, value))
+      batch.map(({ context, value }) => fillField(context, value, enableLogging))
     )
-    
+
     results.push(...batchResults)
 
     if (i + batchSize < plans.length) {

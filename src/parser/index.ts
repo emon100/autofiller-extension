@@ -1,5 +1,6 @@
 import { FieldContext, CandidateType, Taxonomy, IFieldParser } from '@/types'
 import { LLMParser } from './LLMParser'
+import { FieldParseLog, ParserLogEntry, logParseField } from '@/utils/logger'
 
 class AutocompleteParser implements IFieldParser {
   name = 'AutocompleteParser'
@@ -24,7 +25,7 @@ class AutocompleteParser implements IFieldParser {
   async parse(context: FieldContext): Promise<CandidateType[]> {
     const autocomplete = context.attributes.autocomplete
     const type = this.autocompleteMap[autocomplete]
-    
+
     if (type) {
       return [{
         type,
@@ -56,7 +57,7 @@ class TypeAttributeParser implements IFieldParser {
   async parse(context: FieldContext): Promise<CandidateType[]> {
     const type = context.attributes.type?.toLowerCase()
     const taxonomy = this.typeMap[type || '']
-    
+
     if (taxonomy) {
       return [{
         type: taxonomy,
@@ -110,9 +111,9 @@ class NameIdParser implements IFieldParser {
     const name = context.attributes.name || ''
     const id = context.attributes.id || ''
     const combined = `${name} ${id}`.toLowerCase()
-    
+
     const results: CandidateType[] = []
-    
+
     for (const { pattern, type, score } of this.patterns) {
       if (pattern.test(combined)) {
         results.push({
@@ -122,7 +123,7 @@ class NameIdParser implements IFieldParser {
         })
       }
     }
-    
+
     return results.sort((a, b) => b.score - a.score)
   }
 }
@@ -160,9 +161,9 @@ class LabelParser implements IFieldParser {
     const label = context.labelText.toLowerCase()
     const section = context.sectionTitle.toLowerCase()
     const combined = `${label} ${section}`
-    
+
     const results: CandidateType[] = []
-    
+
     for (const { pattern, type, score } of this.patterns) {
       if (pattern.test(combined)) {
         results.push({
@@ -172,17 +173,26 @@ class LabelParser implements IFieldParser {
         })
       }
     }
-    
+
     return results.sort((a, b) => b.score - a.score)
   }
 }
 
-const parsers: IFieldParser[] = [
+// Rule-based parsers (no LLM)
+const ruleParsers: IFieldParser[] = [
   new AutocompleteParser(),
   new TypeAttributeParser(),
   new NameIdParser(),
   new LabelParser(),
-  new LLMParser(),
+]
+
+// LLM parser instance (singleton)
+const llmParser = new LLMParser()
+
+// All parsers including LLM
+const parsers: IFieldParser[] = [
+  ...ruleParsers,
+  llmParser,
 ]
 
 export function getParsers(): IFieldParser[] {
@@ -194,13 +204,34 @@ export function registerParser(parser: IFieldParser): void {
   parsers.sort((a, b) => b.priority - a.priority)
 }
 
-export async function parseField(context: FieldContext): Promise<CandidateType[]> {
+/**
+ * Parse a single field using all parsers (including LLM if enabled)
+ */
+export async function parseField(context: FieldContext, enableLogging = true): Promise<CandidateType[]> {
+  const startTime = performance.now()
   const allResults: CandidateType[] = []
   const sortedParsers = getParsers()
-  
+  const parserLogs: ParserLogEntry[] = []
+
   for (const parser of sortedParsers) {
-    if (parser.canParse(context)) {
+    const parserStart = performance.now()
+    const canParse = parser.canParse(context)
+
+    if (canParse) {
       const results = await parser.parse(context)
+      const parserTime = performance.now() - parserStart
+
+      parserLogs.push({
+        parserName: parser.name,
+        matched: results.length > 0,
+        candidates: results.map(r => ({
+          type: r.type,
+          score: r.score,
+          reasons: r.reasons,
+        })),
+        timeMs: parserTime,
+      })
+
       for (const result of results) {
         const existing = allResults.find(r => r.type === result.type)
         if (existing) {
@@ -212,9 +243,17 @@ export async function parseField(context: FieldContext): Promise<CandidateType[]
           allResults.push(result)
         }
       }
+    } else {
+      const parserTime = performance.now() - parserStart
+      parserLogs.push({
+        parserName: parser.name,
+        matched: false,
+        candidates: [],
+        timeMs: parserTime,
+      })
     }
   }
-  
+
   if (allResults.length === 0) {
     allResults.push({
       type: Taxonomy.UNKNOWN,
@@ -222,8 +261,175 @@ export async function parseField(context: FieldContext): Promise<CandidateType[]
       reasons: ['no match found']
     })
   }
-  
-  return allResults.sort((a, b) => b.score - a.score)
+
+  const sortedResults = allResults.sort((a, b) => b.score - a.score)
+  const totalTime = performance.now() - startTime
+
+  // Log detailed parsing info
+  if (enableLogging) {
+    const label = context.labelText || context.attributes.placeholder || context.attributes.name || 'Unknown'
+    const parseLog: FieldParseLog = {
+      label,
+      elementInfo: {
+        tagName: context.element.tagName.toLowerCase(),
+        type: context.attributes.type,
+        name: context.attributes.name,
+        id: context.attributes.id,
+        autocomplete: context.attributes.autocomplete,
+      },
+      parsers: parserLogs,
+      finalResult: {
+        type: sortedResults[0].type,
+        score: sortedResults[0].score,
+        reasons: sortedResults[0].reasons,
+      },
+      totalTimeMs: totalTime,
+    }
+    logParseField(parseLog)
+  }
+
+  return sortedResults
+}
+
+/**
+ * Parse multiple fields with batched LLM calls
+ * Uses rule-based parsers first, then batches unrecognized fields for LLM
+ */
+export async function parseFieldsBatch(
+  contexts: FieldContext[],
+  enableLogging = true
+): Promise<Map<number, CandidateType[]>> {
+  const startTime = performance.now()
+  const results = new Map<number, CandidateType[]>()
+  const fieldsNeedingLLM: Array<{ index: number; context: FieldContext }> = []
+
+  console.log(`[Parser] Batch parsing ${contexts.length} fields`)
+
+  // Phase 1: Try rule-based parsers for all fields
+  for (let i = 0; i < contexts.length; i++) {
+    const context = contexts[i]
+    const fieldResults: CandidateType[] = []
+
+    for (const parser of ruleParsers) {
+      if (parser.canParse(context)) {
+        const parserResults = await parser.parse(context)
+        for (const result of parserResults) {
+          const existing = fieldResults.find(r => r.type === result.type)
+          if (existing) {
+            if (result.score > existing.score) {
+              existing.score = result.score
+              existing.reasons = [...existing.reasons, ...result.reasons]
+            }
+          } else {
+            fieldResults.push(result)
+          }
+        }
+      }
+    }
+
+    // Sort results
+    fieldResults.sort((a, b) => b.score - a.score)
+
+    // If no good match from rules, queue for LLM
+    const bestResult = fieldResults[0]
+    if (!bestResult || bestResult.type === Taxonomy.UNKNOWN || bestResult.score < 0.5) {
+      fieldsNeedingLLM.push({ index: i, context })
+      // Store placeholder result for now
+      results.set(i, fieldResults.length > 0 ? fieldResults : [{
+        type: Taxonomy.UNKNOWN,
+        score: 0,
+        reasons: ['pending LLM classification']
+      }])
+    } else {
+      results.set(i, fieldResults)
+    }
+  }
+
+  const ruleMatchedCount = contexts.length - fieldsNeedingLLM.length
+  console.log(`[Parser] Rule-based: ${ruleMatchedCount} matched, ${fieldsNeedingLLM.length} need LLM`)
+
+  // Phase 2: Batch LLM classification for unrecognized fields
+  if (fieldsNeedingLLM.length > 0) {
+    const llmContexts = fieldsNeedingLLM.map(f => f.context)
+    const llmResults = await llmParser.parseBatch(llmContexts)
+
+    // Merge LLM results back
+    for (let i = 0; i < fieldsNeedingLLM.length; i++) {
+      const { index } = fieldsNeedingLLM[i]
+      const llmCandidates = llmResults.get(i) || []
+
+      if (llmCandidates.length > 0) {
+        // LLM found a match - use it
+        const existingResults = results.get(index) || []
+        const mergedResults = [...existingResults]
+
+        for (const llmResult of llmCandidates) {
+          const existing = mergedResults.find(r => r.type === llmResult.type)
+          if (existing) {
+            if (llmResult.score > existing.score) {
+              existing.score = llmResult.score
+              existing.reasons = [...existing.reasons, ...llmResult.reasons]
+            }
+          } else {
+            mergedResults.push(llmResult)
+          }
+        }
+
+        mergedResults.sort((a, b) => b.score - a.score)
+        results.set(index, mergedResults)
+      } else {
+        // LLM didn't find a match - ensure UNKNOWN is set
+        const existingResults = results.get(index) || []
+        if (existingResults.length === 0 || existingResults[0].type === Taxonomy.UNKNOWN) {
+          results.set(index, [{
+            type: Taxonomy.UNKNOWN,
+            score: 0,
+            reasons: ['no match from rules or LLM']
+          }])
+        }
+      }
+    }
+  }
+
+  const totalTime = performance.now() - startTime
+  console.log(`[Parser] Batch parsing complete in ${totalTime.toFixed(1)}ms`)
+
+  // Log results if enabled
+  if (enableLogging) {
+    for (let i = 0; i < contexts.length; i++) {
+      const context = contexts[i]
+      const fieldResults = results.get(i) || []
+      const label = context.labelText || context.attributes.placeholder || context.attributes.name || 'Unknown'
+
+      const parseLog: FieldParseLog = {
+        label,
+        elementInfo: {
+          tagName: context.element.tagName.toLowerCase(),
+          type: context.attributes.type,
+          name: context.attributes.name,
+          id: context.attributes.id,
+          autocomplete: context.attributes.autocomplete,
+        },
+        parsers: [], // Batch mode doesn't track individual parser logs
+        finalResult: {
+          type: fieldResults[0]?.type || Taxonomy.UNKNOWN,
+          score: fieldResults[0]?.score || 0,
+          reasons: fieldResults[0]?.reasons || ['no match'],
+        },
+        totalTimeMs: totalTime / contexts.length, // Average time per field
+      }
+      logParseField(parseLog)
+    }
+  }
+
+  return results
+}
+
+/**
+ * Get the LLM parser instance for direct access (e.g., cache clearing)
+ */
+export function getLLMParser(): LLMParser {
+  return llmParser
 }
 
 export { AutocompleteParser, TypeAttributeParser, NameIdParser, LabelParser }
