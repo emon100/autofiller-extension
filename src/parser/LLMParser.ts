@@ -59,6 +59,12 @@ const TAXONOMY_DESCRIPTIONS: Record<Taxonomy, string> = {
   [Taxonomy.EEO_VETERAN]: 'Veteran status (EEO)',
   [Taxonomy.EEO_DISABILITY]: 'Disability status (EEO)',
   [Taxonomy.GOV_ID]: 'Government ID (SSN, etc.)',
+  [Taxonomy.SUMMARY]: 'Professional summary/objective',
+  [Taxonomy.GPA]: 'Grade point average',
+  [Taxonomy.COMPANY_NAME]: 'Company/employer name',
+  [Taxonomy.JOB_TITLE]: 'Job title/position',
+  [Taxonomy.JOB_DESCRIPTION]: 'Job duties/responsibilities',
+  [Taxonomy.SKILLS]: 'Skills and competencies',
   [Taxonomy.UNKNOWN]: 'Unknown/unrecognized field',
 }
 

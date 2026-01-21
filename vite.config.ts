@@ -28,6 +28,7 @@ function generateSidepanelHtml() {
 
 // Content script 需要单独构建为 IIFE 格式（Chrome content scripts 不支持 ES modules）
 const isContentBuild = process.env.BUILD_TARGET === 'content'
+const isProduction = process.env.BUILD_MODE === 'production'
 
 export default defineConfig({
   plugins: isContentBuild ? [] : [react(), generateSidepanelHtml()],
@@ -65,7 +66,23 @@ export default defineConfig({
           },
         },
     target: 'esnext',
-    minify: false,
+    minify: isProduction ? 'terser' : false,
+    terserOptions: isProduction ? {
+      compress: {
+        drop_console: true,      // 移除 console.log
+        drop_debugger: true,     // 移除 debugger
+        pure_funcs: ['console.log', 'console.info', 'console.debug'],
+      },
+      mangle: {
+        properties: {
+          regex: /^_/,           // 混淆以 _ 开头的私有属性
+        },
+      },
+      format: {
+        comments: false,         // 移除所有注释
+      },
+    } : undefined,
+    sourcemap: !isProduction,    // 生产模式不生成 sourcemap
   },
   resolve: {
     alias: {

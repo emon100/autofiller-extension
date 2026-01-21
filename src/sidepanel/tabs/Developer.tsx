@@ -280,7 +280,12 @@ export default function Developer() {
         updatedAt: now,
       }))
 
-      await chrome.storage.local.set({ answers })
+      // Convert to object format expected by storage
+      const answersMap: Record<string, AnswerValue> = {}
+      for (const answer of answers) {
+        answersMap[answer.id] = answer
+      }
+      await chrome.storage.local.set({ answers: answersMap })
       showMessage('success', `Loaded "${profile.name}" profile with ${answers.length} fields`)
     } catch (err) {
       showMessage('error', 'Failed to load profile')
@@ -300,6 +305,22 @@ export default function Developer() {
       showMessage('success', 'All data cleared')
     } catch (err) {
       showMessage('error', 'Failed to clear data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function clearAnswersOnly() {
+    if (!confirm('This will delete all saved answers and experiences. Continue?')) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      await chrome.storage.local.remove(['answers', 'experiences'])
+      showMessage('success', 'All answers and experiences deleted')
+    } catch (err) {
+      showMessage('error', 'Failed to delete answers')
     } finally {
       setLoading(false)
     }
@@ -569,16 +590,27 @@ export default function Developer() {
       <div className="bg-white rounded-lg border border-red-200 p-4">
         <h3 className="font-medium text-red-900 mb-3">Danger Zone</h3>
 
-        <button
-          onClick={clearAllData}
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-          Clear All Data
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={clearAnswersOnly}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete All Saved Answers
+          </button>
+
+          <button
+            onClick={clearAllData}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Clear All Data
+          </button>
+        </div>
         <p className="text-xs text-red-600 mt-2">
-          This will permanently delete all saved answers, observations, and settings.
+          This will permanently delete saved data and cannot be undone.
         </p>
       </div>
     </div>

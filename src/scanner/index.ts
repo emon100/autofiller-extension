@@ -1,6 +1,9 @@
 import { FieldContext, WidgetKind, WidgetSignature, InteractionPlan } from '@/types'
 import { ScanLog, logScan } from '@/utils/logger'
 
+// Export section detection utilities
+export * from './sectionDetector'
+
 const INPUT_SELECTORS = [
   'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"])',
   'select',

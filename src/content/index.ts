@@ -1,12 +1,12 @@
-import { scanFields } from '@/scanner'
+import { scanFields, detectFormSections } from '@/scanner'
 import { parseField, parseFieldsBatch } from '@/parser'
 import { transformValue } from '@/transformer'
 import { fillField, createFillSnapshot, restoreSnapshot, FillSnapshot } from '@/executor'
 import { Recorder, generateId } from '@/recorder'
-import { storage, AnswerStorage, ObservationStorage, SiteSettingsStorage } from '@/storage'
+import { storage, AnswerStorage, ObservationStorage, SiteSettingsStorage, experienceStorage } from '@/storage'
 import { BadgeManager } from '@/ui/BadgeManager'
 import { FloatingWidget, DetectedField, showToast } from '@/ui'
-import { FieldContext, AnswerValue, Taxonomy, SENSITIVE_TYPES, FillResult, FillPlan, CandidateType, PendingObservation } from '@/types'
+import { FieldContext, AnswerValue, Taxonomy, SENSITIVE_TYPES, FillResult, FillPlan, CandidateType, PendingObservation, ExperienceGroupType } from '@/types'
 import { FillDebugInfo, createEmptyDebugInfo, saveDebugLog } from '@/utils/logger'
 
 const CONFIDENCE_THRESHOLD = 0.75
@@ -418,14 +418,37 @@ export class AutoFiller {
     // Use batch parsing for better LLM efficiency
     const parseResults = await parseFieldsBatch(fields)
 
+    // Build field type map for section detection
+    const fieldTypeMap = new Map<number, Taxonomy>()
+    for (const [index, candidates] of parseResults) {
+      if (candidates.length > 0 && candidates[0].type !== Taxonomy.UNKNOWN) {
+        fieldTypeMap.set(index, candidates[0].type)
+      }
+    }
+
+    // Detect form sections for experience-based filling
+    const sections = detectFormSections(fields, fieldTypeMap)
+
+    // Create a map from field to its section context
+    const fieldSectionMap = new Map<FieldContext, { groupType?: ExperienceGroupType; blockIndex: number }>()
+    for (const section of sections) {
+      for (const field of section.fields) {
+        fieldSectionMap.set(field, {
+          groupType: section.groupType,
+          blockIndex: section.blockIndex,
+        })
+      }
+    }
+
     for (let i = 0; i < fields.length; i++) {
       const field = fields[i]
       const candidates = parseResults.get(i) || [{ type: Taxonomy.UNKNOWN, score: 0, reasons: ['no match'] }]
       const bestCandidate = candidates[0]
       const label = field.labelText || field.attributes.placeholder || field.attributes.name || 'Unknown'
-      
+      const sectionContext = fieldSectionMap.get(field)
+
       const answers = bestCandidate.type !== Taxonomy.UNKNOWN
-        ? await this.findMatchingAnswers(bestCandidate, field)
+        ? await this.findMatchingAnswers(bestCandidate, field, sectionContext)
         : []
 
       const debugEntry: FillDebugInfo['fieldsParsed'][0] = {
@@ -452,8 +475,8 @@ export class AutoFiller {
       const answerValues = answers.map(a => a.answer)
 
       if (SENSITIVE_TYPES.has(bestCandidate.type) || bestAnswer.answer.autofillAllowed === false) {
-        debugEntry.reason = bestAnswer.answer.autofillAllowed === false 
-          ? 'Autofill disabled for this answer' 
+        debugEntry.reason = bestAnswer.answer.autofillAllowed === false
+          ? 'Autofill disabled for this answer'
           : 'Sensitive field - requires manual selection'
         fieldDebug.push(debugEntry)
         sensitiveFields.push({ field, candidates: answerValues.slice(0, 3) })
@@ -467,7 +490,9 @@ export class AutoFiller {
         continue
       }
 
-      debugEntry.reason = 'Will auto-fill'
+      debugEntry.reason = sectionContext?.groupType
+        ? `Will auto-fill (${sectionContext.groupType} block ${sectionContext.blockIndex})`
+        : 'Will auto-fill'
       fieldDebug.push(debugEntry)
       plans.push({
         field,
@@ -532,9 +557,28 @@ export class AutoFiller {
 
   private async findMatchingAnswers(
     candidate: CandidateType,
-    field: FieldContext
+    field: FieldContext,
+    sectionContext?: { groupType?: ExperienceGroupType; blockIndex: number }
   ): Promise<Array<{ answer: AnswerValue; transformedValue: string }>> {
     const results: Array<{ answer: AnswerValue; transformedValue: string; priority: number }> = []
+
+    // First, check if this field type belongs to an experience section
+    // and try to get value from ExperienceStorage
+    if (sectionContext?.groupType) {
+      const experienceValue = await this.getValueFromExperience(
+        candidate.type,
+        sectionContext.groupType,
+        sectionContext.blockIndex
+      )
+      if (experienceValue) {
+        const transformedValue = transformValue(experienceValue.value, candidate.type, field)
+        results.push({
+          answer: experienceValue,
+          transformedValue,
+          priority: 3, // Highest priority for experience-based matches
+        })
+      }
+    }
 
     const directAnswers = await this.answerStorage.getByType(candidate.type)
     for (const answer of directAnswers) {
@@ -559,6 +603,34 @@ export class AutoFiller {
         return b.answer.updatedAt - a.answer.updatedAt
       })
       .map(({ answer, transformedValue }) => ({ answer, transformedValue }))
+  }
+
+  /**
+   * Get value from experience storage for a specific field type and block index
+   */
+  private async getValueFromExperience(
+    fieldType: Taxonomy,
+    groupType: ExperienceGroupType,
+    blockIndex: number
+  ): Promise<AnswerValue | null> {
+    const experience = await experienceStorage.getByPriority(groupType, blockIndex)
+    if (!experience) return null
+
+    const value = experience.fields[fieldType]
+    if (!value) return null
+
+    // Create a pseudo-AnswerValue from the experience field
+    return {
+      id: `exp-${experience.id}-${fieldType}`,
+      type: fieldType,
+      value,
+      display: value,
+      aliases: [],
+      sensitivity: 'normal',
+      autofillAllowed: true,
+      createdAt: experience.createdAt,
+      updatedAt: experience.updatedAt,
+    }
   }
 
   private getRelatedTypes(targetType: Taxonomy): Taxonomy[] {
@@ -602,7 +674,7 @@ export class AutoFiller {
 
     for (const candidate of candidates.slice(0, 2)) {
       if (candidate.type === Taxonomy.UNKNOWN) continue
-      
+
       const answers = await this.answerStorage.getByType(candidate.type)
       for (const answer of answers.slice(0, 2)) {
         if (!suggestions.find(s => s.id === answer.id)) {
@@ -612,6 +684,10 @@ export class AutoFiller {
     }
 
     return suggestions.slice(0, 3)
+  }
+
+  setSidePanelState(isOpen: boolean): void {
+    this.floatingWidget.setSidePanelOpen(isOpen)
   }
 
   private notifyRecorded(type: Taxonomy, value: string): void {

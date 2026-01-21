@@ -1,4 +1,5 @@
 export enum Taxonomy {
+  // Personal Info
   FULL_NAME = 'FULL_NAME',
   FIRST_NAME = 'FIRST_NAME',
   LAST_NAME = 'LAST_NAME',
@@ -10,16 +11,32 @@ export enum Taxonomy {
   LINKEDIN = 'LINKEDIN',
   GITHUB = 'GITHUB',
   PORTFOLIO = 'PORTFOLIO',
+  SUMMARY = 'SUMMARY',
+
+  // Education
   SCHOOL = 'SCHOOL',
   DEGREE = 'DEGREE',
   MAJOR = 'MAJOR',
+  GPA = 'GPA',
   GRAD_DATE = 'GRAD_DATE',
   GRAD_YEAR = 'GRAD_YEAR',
   GRAD_MONTH = 'GRAD_MONTH',
+
+  // Work Experience (新增)
+  COMPANY_NAME = 'COMPANY_NAME',
+  JOB_TITLE = 'JOB_TITLE',
+  JOB_DESCRIPTION = 'JOB_DESCRIPTION',
+  SKILLS = 'SKILLS',
+
+  // Date fields (shared)
   START_DATE = 'START_DATE',
   END_DATE = 'END_DATE',
+
+  // Work Authorization
   WORK_AUTH = 'WORK_AUTH',
   NEED_SPONSORSHIP = 'NEED_SPONSORSHIP',
+
+  // Sensitive
   RESUME_TEXT = 'RESUME_TEXT',
   SALARY = 'SALARY',
   EEO_GENDER = 'EEO_GENDER',
@@ -27,6 +44,7 @@ export enum Taxonomy {
   EEO_VETERAN = 'EEO_VETERAN',
   EEO_DISABILITY = 'EEO_DISABILITY',
   GOV_ID = 'GOV_ID',
+
   UNKNOWN = 'UNKNOWN',
 }
 
@@ -166,3 +184,6 @@ export interface IValueTransformer {
   canTransform(sourceValue: string, targetContext: FieldContext): boolean
   transform(sourceValue: string, targetContext: FieldContext): string
 }
+
+// Export experience-related types
+export * from './experience'

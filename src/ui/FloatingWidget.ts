@@ -1,5 +1,7 @@
 import { WIDGET_STYLES } from './styles'
 import { showToast } from './Toast'
+import { TAXONOMY_OPTIONS } from '@/utils/typeLabels'
+import { isExtensionContextValid, ExtensionContextInvalidatedError } from '@/storage'
 import type { FillDebugInfo } from '@/utils/logger'
 
 export type WidgetPhase = 'widget' | 'learning' | 'success' | 'database' | 'hidden'
@@ -30,19 +32,11 @@ const ICONS = {
   check: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>`,
   database: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>`,
   chevronRight: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>`,
+  chevronLeft: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>`,
   grip: `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="2"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="9" cy="18" r="2"/><circle cx="15" cy="18" r="2"/></svg>`,
   close: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>`,
   trash: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`,
 }
-
-const TAXONOMY_OPTIONS = [
-  'FULL_NAME', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE',
-  'SCHOOL', 'DEGREE', 'MAJOR', 'GRAD_DATE', 'GRAD_YEAR', 'GRAD_MONTH',
-  'LINKEDIN', 'GITHUB', 'PORTFOLIO', 'LOCATION', 'CITY',
-  'WORK_AUTH', 'NEED_SPONSORSHIP', 'START_DATE', 'END_DATE',
-  'EEO_GENDER', 'EEO_ETHNICITY', 'EEO_VETERAN', 'EEO_DISABILITY',
-  'SALARY', 'GOV_ID', 'RESUME_TEXT', 'UNKNOWN'
-]
 
 export class FloatingWidget {
   private container: HTMLElement | null = null
@@ -50,7 +44,8 @@ export class FloatingWidget {
   private currentPhase: WidgetPhase = 'widget'
   private fields: DetectedField[] = []
   private callbacks: FloatingWidgetCallbacks = {}
-  
+  private sidePanelOpen = false
+
   private position = { right: 24, bottom: 24 }
   private isDragging = false
   private dragStart = { x: 0, y: 0 }
@@ -60,6 +55,7 @@ export class FloatingWidget {
     this.callbacks = callbacks
     this.handleMouseMove = this.handleMouseMove.bind(this)
     this.handleMouseUp = this.handleMouseUp.bind(this)
+    this.checkSidePanelState()
   }
 
   show(): void {
@@ -179,6 +175,9 @@ export class FloatingWidget {
   }
 
   private renderWidgetBar(): string {
+    const arrowIcon = this.sidePanelOpen ? ICONS.chevronLeft : ICONS.chevronRight
+    const buttonText = this.sidePanelOpen ? 'Close Panel' : 'Manage Database'
+
     return `
       <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
         <div style="background: white; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; overflow: hidden;">
@@ -199,8 +198,8 @@ export class FloatingWidget {
         </div>
         <a href="#" id="af-link-database" style="font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 4px; text-decoration: none; transition: color 0.15s; background: white; padding: 6px 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
           ${ICONS.database}
-          <span>Manage Database</span>
-          ${ICONS.chevronRight}
+          <span>${buttonText}</span>
+          ${arrowIcon}
         </a>
       </div>
     `
@@ -229,7 +228,7 @@ export class FloatingWidget {
         <div style="display: flex; align-items: center; gap: 4px; margin-left: 28px;">
           <span style="font-size: 10px; color: #9ca3af;">Type:</span>
           <select data-field-type="${field.id}" style="font-size: 11px; padding: 2px 4px; border: 1px solid #d1d5db; border-radius: 4px; background: white; color: ${field.type === 'UNKNOWN' ? '#dc2626' : '#374151'}; outline: none; cursor: pointer;">
-            ${TAXONOMY_OPTIONS.map(t => `<option value="${t}" ${field.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+            ${TAXONOMY_OPTIONS.map(t => `<option value="${t.value}" ${field.type === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
           </select>
           ${field.sensitive ? '<span style="font-size: 10px; color: #d97706; margin-left: 4px;">(sensitive)</span>' : ''}
           ${hasConflict ? `<span style="font-size: 10px; color: #dc2626; margin-left: 4px;">⚠ Will replace: "${this.escapeHtml(field.existingValue || '')}"</span>` : ''}
@@ -375,6 +374,12 @@ export class FloatingWidget {
   }
 
   private async handleSave(): Promise<void> {
+    // Check extension context before attempting save
+    if (!isExtensionContextValid()) {
+      showToast('Extension updated. Please refresh the page.', 'warning')
+      return
+    }
+
     const saveBtn = document.getElementById('af-btn-save')
     if (saveBtn) {
       saveBtn.innerHTML = `<span class="af-animate-spin" style="width: 16px; height: 16px; border: 2px solid #3b82f6; border-top-color: transparent; border-radius: 50%; display: inline-block;"></span>`
@@ -394,20 +399,91 @@ export class FloatingWidget {
       }
     } catch (error) {
       console.error('[AutoFiller] Save error:', error)
-      showToast('Error detecting fields', 'warning')
+
+      // Check if it's an extension context error
+      if (error instanceof ExtensionContextInvalidatedError ||
+          (error instanceof Error && error.message.includes('Extension context invalidated'))) {
+        showToast('Extension updated. Please refresh the page.', 'warning')
+      } else {
+        showToast('Error detecting fields', 'warning')
+      }
       this.showPhase('widget')
     }
   }
 
   private async handleFill(): Promise<void> {
-    if (this.callbacks.onFill) {
-      const { count, debug } = await this.callbacks.onFill()
-      if (count > 0) {
-        showToast(`Filled ${count} fields successfully!`, 'success')
+    const fillBtn = document.getElementById('af-btn-fill')
+    if (!fillBtn) return
+
+    // Check extension context before attempting fill
+    if (!isExtensionContextValid()) {
+      showToast('Extension updated. Please refresh the page.', 'warning')
+      return
+    }
+
+    // Immediately show loading state
+    const originalContent = fillBtn.innerHTML
+    fillBtn.innerHTML = `
+      <span class="af-animate-spin" style="width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; display: inline-block;"></span>
+      <span>Filling...</span>
+    `
+    fillBtn.setAttribute('disabled', 'true')
+    fillBtn.style.opacity = '0.8'
+
+    try {
+      if (this.callbacks.onFill) {
+        const { count, debug } = await this.callbacks.onFill()
+
+        if (count > 0) {
+          // Show success animation on button
+          fillBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
+            <span>Done!</span>
+          `
+          fillBtn.style.background = 'linear-gradient(to right, #22c55e, #10b981)'
+
+          showToast(`Filled ${count} fields successfully!`, 'success')
+
+          // Reset button after 1.5s
+          setTimeout(() => {
+            fillBtn.innerHTML = originalContent
+            fillBtn.style.background = 'linear-gradient(to right, #3b82f6, #2563eb)'
+            fillBtn.style.opacity = '1'
+            fillBtn.removeAttribute('disabled')
+          }, 1500)
+        } else {
+          // Show info state briefly
+          fillBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span>No fields</span>
+          `
+          fillBtn.style.background = 'linear-gradient(to right, #6b7280, #4b5563)'
+
+          const reason = this.getFailureReason(debug)
+          showToast(reason, 'info')
+          console.log('[AutoFiller Debug]', debug)
+
+          // Reset button after 1.5s
+          setTimeout(() => {
+            fillBtn.innerHTML = originalContent
+            fillBtn.style.background = 'linear-gradient(to right, #3b82f6, #2563eb)'
+            fillBtn.style.opacity = '1'
+            fillBtn.removeAttribute('disabled')
+          }, 1500)
+        }
+      }
+    } catch (error) {
+      console.error('[AutoFiller] Fill error:', error)
+      fillBtn.innerHTML = originalContent
+      fillBtn.style.opacity = '1'
+      fillBtn.removeAttribute('disabled')
+
+      // Check if it's an extension context error
+      if (error instanceof ExtensionContextInvalidatedError ||
+          (error instanceof Error && error.message.includes('Extension context invalidated'))) {
+        showToast('Extension updated. Please refresh the page.', 'warning')
       } else {
-        const reason = this.getFailureReason(debug)
-        showToast(reason, 'info')
-        console.log('[AutoFiller Debug]', debug)
+        showToast('Error filling fields', 'warning')
       }
     }
   }
@@ -437,22 +513,75 @@ export class FloatingWidget {
   }
 
   private async handleConfirm(): Promise<void> {
-    if (this.callbacks.onConfirm) {
-      await this.callbacks.onConfirm(this.fields)
+    // Check extension context before attempting confirm
+    if (!isExtensionContextValid()) {
+      showToast('Extension updated. Please refresh the page.', 'warning')
+      this.showPhase('widget')
+      return
     }
-    this.showPhase('success')
+
+    try {
+      if (this.callbacks.onConfirm) {
+        await this.callbacks.onConfirm(this.fields)
+      }
+      this.showPhase('success')
+    } catch (error) {
+      console.error('[AutoFiller] Confirm error:', error)
+
+      if (error instanceof ExtensionContextInvalidatedError ||
+          (error instanceof Error && error.message.includes('Extension context invalidated'))) {
+        showToast('Extension updated. Please refresh the page.', 'warning')
+      } else {
+        showToast('Error saving fields', 'warning')
+      }
+      this.showPhase('widget')
+    }
   }
 
   private openSidePanel(): void {
+    if (!isExtensionContextValid()) {
+      showToast('Extension updated. Please refresh the page.', 'warning')
+      return
+    }
+
     if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+      if (this.sidePanelOpen) {
+        // Side panel is open, send message to close it
+        chrome.runtime.sendMessage({ action: 'closeSidePanel' })
+        // Immediately update state since pagehide async callback may not complete
+        this.sidePanelOpen = false
+        this.render()
+        return
+      }
+
       chrome.runtime.sendMessage({ action: 'openSidePanel' }, (response) => {
-        if (!response?.success) {
+        if (response?.success) {
+          this.sidePanelOpen = true
+          this.render()
+        } else {
+          console.error('[AutoFiller] Failed to open side panel:', response?.error)
           showToast('Click extension icon to open side panel', 'info')
         }
       })
     } else {
       showToast('Side panel not available', 'info')
     }
+  }
+
+  private checkSidePanelState(): void {
+    if (!isExtensionContextValid()) return
+    if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) return
+
+    chrome.runtime.sendMessage({ action: 'getSidePanelState' }, (response) => {
+      if (!response?.isOpen) return
+      this.sidePanelOpen = true
+      if (this.container) this.render()
+    })
+  }
+
+  setSidePanelOpen(isOpen: boolean): void {
+    this.sidePanelOpen = isOpen
+    if (this.container) this.render()
   }
 
   private escapeHtml(text: string): string {

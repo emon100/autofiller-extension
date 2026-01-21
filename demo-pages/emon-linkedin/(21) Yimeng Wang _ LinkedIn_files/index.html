@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<!-- saved from url=(0186)https://li.protechts.net/index.html?ts=1768983073084&r_id=AAZI4XZ2FUn6c4HdRS2OPg%3D%3D&app_id=PXdOjV695v&uc=scraping&d_id=f2366870cf838ba4dea03e2a71337832050c64dab0d1f9a17db146b0c1b37948 -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <script>
+        function getDecodedQueryParams(queryString) {
+            var params = {};
+            var query = queryString.substring(1);
+            var vars = query.split('&');
+            for (var i = 0; i < vars.length; i++) {
+                try {
+                    var pair = vars[i].split('=');
+                    params[pair[0]] = decodeURIComponent(pair[1]);
+                } catch(e) {
+                    // ignore
+                }
+            }
+            return params;
+        }
+        var params = getDecodedQueryParams(window.location.search);
+        var appId = params['app_id'];
+        window._pxParam2 = params['d_id'];
+        window._pxParam3 = params['r_id'];
+        window._pxParam4 = params['uc'];
+        window._pxParam5 = params['pt'];
+
+        // Local sensor injection
+        var s = document.createElement('script');
+        s.src = 'https://client.protechts.net/' + appId + '/main.min.js';
+        document.head.appendChild(s);
+    </script><script src="./main.min.js"></script>
+</head>
+<body>
+
+</body><div style="all: initial;"><template shadowrootmode="closed"></template></div></html>

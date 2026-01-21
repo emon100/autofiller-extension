@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Experience Fill Test - Multiple Input Types</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    h2 {
+      color: #0066cc;
+      border-bottom: 2px solid #0066cc;
+      padding-bottom: 8px;
+      margin-top: 30px;
+    }
+    h3 {
+      color: #666;
+      margin-top: 20px;
+    }
+    .form-section {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: #333;
+    }
+    input[type="text"],
+    input[type="date"],
+    input[type="month"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #0066cc;
+      box-shadow: 0 0 0 2px rgba(0,102,204,0.2);
+    }
+    .row {
+      display: flex;
+      gap: 15px;
+    }
+    .row > * {
+      flex: 1;
+    }
+    .add-btn {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .add-btn:hover {
+      background: #218838;
+    }
+    .remove-btn {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+    .remove-btn:hover {
+      background: #c82333;
+    }
+    .entry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+    }
+    .entry-title {
+      font-weight: 600;
+      color: #333;
+    }
+    .hidden {
+      display: none;
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .checkbox-group input {
+      width: auto;
+    }
+    .date-range {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .date-range span {
+      color: #666;
+    }
+    .autocomplete-wrapper {
+      position: relative;
+    }
+    .autocomplete-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+    .autocomplete-list.show {
+      display: block;
+    }
+    .autocomplete-item {
+      padding: 10px;
+      cursor: pointer;
+    }
+    .autocomplete-item:hover {
+      background: #f0f0f0;
+    }
+    .info-box {
+      background: #e7f3ff;
+      border: 1px solid #b3d7ff;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .info-box h4 {
+      margin: 0 0 10px 0;
+      color: #0066cc;
+    }
+    .info-box ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .info-box li {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Experience Fill Test Page</h1>
+
+  <div class="info-box">
+    <h4>Test Instructions</h4>
+    <ul>
+      <li>This page tests various form input types for education and work experience</li>
+      <li>Import your LinkedIn profile in the AutoFiller sidebar first</li>
+      <li>Click "Fill" to test auto-filling</li>
+      <li>Different sections use different input methods (date pickers, dropdowns, text fields)</li>
+    </ul>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SECTION 1: Education with Native Date Input -->
+  <!-- ============================================ -->
+  <h2>Section 1: Education (Native Date Inputs)</h2>
+
+  <div class="form-section" id="education-section-1">
+    <div class="entry" data-entry-type="education" data-entry-index="0">
+      <div class="entry-header">
+        <span class="entry-title">Education #1</span>
+      </div>
+
+      <div class="form-group">
+        <label for="school1">School / University</label>
+        <input type="text" id="school1" name="school" placeholder="Enter school name" autocomplete="organization">
+      </div>
+
+      <div class="form-group">
+        <label for="degree1">Degree</label>
+        <select id="degree1" name="degree">
+          <option value="">Select degree...</option>
+          <option value="high_school">High School Diploma</option>
+          <option value="associate">Associate's Degree</option>
+          <option value="bachelor">Bachelor's Degree</option>
+          <option value="master">Master's Degree</option>
+          <option value="doctorate">Doctorate (PhD)</option>
+          <option value="mba">MBA</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="major1">Field of Study / Major</label>
+        <input type="text" id="major1" name="major" placeholder="e.g., Computer Science">
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="edu-start1">Start Date</label>
+          <input type="month" id="edu-start1" name="education_start_date">
+        </div>
+        <div class="form-group">
+          <label for="edu-end1">End Date (or Expected)</label>
+          <input type="month" id="edu-end1" name="education_end_date">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="gpa1">GPA (Optional)</label>
+        <input type="text" id="gpa1" name="gpa" placeholder="e.g., 3.8/4.0">
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SECTION 2: Education with Dropdown Selects  -->
+  <!-- ============================================ -->
+  <h2>Section 2: Education (Dropdown Date Selects)</h2>
+
+  <div class="form-section" id="education-section-2">
+    <div class="entry" data-entry-type="education" data-entry-index="0">
+      <div class="entry-header">
+        <span class="entry-title">Education</span>
+      </div>
+
+      <div class="form-group autocomplete-wrapper">
+        <label for="school2">Institution Name</label>
+        <input type="text" id="school2" name="institution" placeholder="Start typing school name..." autocomplete="off">
+        <div class="autocomplete-list" id="school2-list">
+          <div class="autocomplete-item">Harvard University</div>
+          <div class="autocomplete-item">Stanford University</div>
+          <div class="autocomplete-item">MIT</div>
+          <div class="autocomplete-item">UC Berkeley</div>
+          <div class="autocomplete-item">Columbia University</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="degree2">Degree Type</label>
+          <select id="degree2" name="degree_type">
+            <option value="">-- Select --</option>
+            <option value="BS">Bachelor of Science (BS)</option>
+            <option value="BA">Bachelor of Arts (BA)</option>
+            <option value="MS">Master of Science (MS)</option>
+            <option value="MA">Master of Arts (MA)</option>
+            <option value="PhD">Doctor of Philosophy (PhD)</option>
+            <option value="MBA">Master of Business Administration</option>
+            <option value="JD">Juris Doctor</option>
+            <option value="MD">Doctor of Medicine</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="major2">Major / Concentration</label>
+          <input type="text" id="major2" name="field_of_study" placeholder="Major">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label>Start Year</label>
+          <select id="start-year2" name="education_start_year">
+            <option value="">Year</option>
+            <script>
+              for(let y = 2025; y >= 1970; y--) {
+                document.write(`<option value="${y}">${y}</option>`);
+              }
+            </script>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Start Month</label>
+          <select id="start-month2" name="education_start_month">
+            <option value="">Month</option>
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label>End Year</label>
+          <select id="end-year2" name="education_end_year">
+            <option value="">Year</option>
+            <script>
+              for(let y = 2030; y >= 1970; y--) {
+                document.write(`<option value="${y}">${y}</option>`);
+              }
+            </script>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>End Month</label>
+          <select id="end-month2" name="education_end_month">
+            <option value="">Month</option>
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <input type="checkbox" id="current-student2" name="currently_enrolled">
+        <label for="current-student2" style="display: inline; font-weight: normal;">I am currently enrolled here</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SECTION 3: Work Experience - Native Dates   -->
+  <!-- ============================================ -->
+  <h2>Section 3: Work Experience (Native Date Inputs)</h2>
+
+  <div class="form-section" id="work-section-1">
+    <div class="entry" data-entry-type="work" data-entry-index="0">
+      <div class="entry-header">
+        <span class="entry-title">Most Recent Position</span>
+      </div>
+
+      <div class="form-group">
+        <label for="company1">Company Name</label>
+        <input type="text" id="company1" name="company" placeholder="Enter company name">
+      </div>
+
+      <div class="form-group">
+        <label for="title1">Job Title</label>
+        <input type="text" id="title1" name="job_title" placeholder="e.g., Software Engineer">
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="work-start1">Start Date</label>
+          <input type="date" id="work-start1" name="work_start_date">
+        </div>
+        <div class="form-group">
+          <label for="work-end1">End Date</label>
+          <input type="date" id="work-end1" name="work_end_date">
+        </div>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <input type="checkbox" id="current-job1" name="current_position">
+        <label for="current-job1" style="display: inline; font-weight: normal;">I currently work here</label>
+      </div>
+
+      <div class="form-group">
+        <label for="description1">Job Description</label>
+        <textarea id="description1" name="job_description" rows="4" placeholder="Describe your responsibilities and achievements..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SECTION 4: Work Experience - Text Dates     -->
+  <!-- ============================================ -->
+  <h2>Section 4: Work Experience (Text Date Fields)</h2>
+
+  <div class="form-section" id="work-section-2">
+    <div class="entry" data-entry-type="work" data-entry-index="0">
+      <div class="entry-header">
+        <span class="entry-title">Employment History</span>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="employer2">Employer</label>
+          <input type="text" id="employer2" name="employer_name" placeholder="Company/Organization">
+        </div>
+        <div class="form-group">
+          <label for="position2">Position/Title</label>
+          <input type="text" id="position2" name="position_title" placeholder="Your role">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="location2">Location</label>
+        <input type="text" id="location2" name="work_location" placeholder="City, State/Country">
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="from2">From (MM/YYYY)</label>
+          <input type="text" id="from2" name="employment_from" placeholder="MM/YYYY">
+        </div>
+        <div class="form-group">
+          <label for="to2">To (MM/YYYY)</label>
+          <input type="text" id="to2" name="employment_to" placeholder="MM/YYYY or Present">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="duties2">Key Responsibilities</label>
+        <textarea id="duties2" name="responsibilities" rows="3" placeholder="List your main duties..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SECTION 5: Dynamic Add/Remove Education     -->
+  <!-- ============================================ -->
+  <h2>Section 5: Multiple Education Entries (Add/Remove)</h2>
+
+  <div class="form-section" id="education-dynamic">
+    <div id="education-entries">
+      <!-- Entry 1 -->
+      <div class="entry" data-entry-type="education" data-entry-index="0" id="edu-entry-0">
+        <div class="entry-header">
+          <span class="entry-title">Education #1</span>
+        </div>
+
+        <div class="form-group">
+          <label>University/College</label>
+          <input type="text" name="edu_school_0" placeholder="School name">
+        </div>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Degree</label>
+            <input type="text" name="edu_degree_0" placeholder="e.g., Bachelor's">
+          </div>
+          <div class="form-group">
+            <label>Major</label>
+            <input type="text" name="edu_major_0" placeholder="Field of study">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Graduation Year</label>
+            <input type="number" name="edu_grad_year_0" placeholder="YYYY" min="1950" max="2035">
+          </div>
+          <div class="form-group">
+            <label>Graduation Month</label>
+            <select name="edu_grad_month_0">
+              <option value="">Select...</option>
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="add-btn" onclick="addEducationEntry()">
+      <span>+</span> Add Another Education
+    </button>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SECTION 6: Dynamic Add/Remove Work          -->
+  <!-- ============================================ -->
+  <h2>Section 6: Multiple Work Entries (Add/Remove)</h2>
+
+  <div class="form-section" id="work-dynamic">
+    <div id="work-entries">
+      <!-- Entry 1 -->
+      <div class="entry" data-entry-type="work" data-entry-index="0" id="work-entry-0">
+        <div class="entry-header">
+          <span class="entry-title">Position #1</span>
+        </div>
+
+        <div class="form-group">
+          <label>Company</label>
+          <input type="text" name="work_company_0" placeholder="Company name">
+        </div>
+
+        <div class="form-group">
+          <label>Job Title</label>
+          <input type="text" name="work_title_0" placeholder="Your title">
+        </div>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Start (YYYY-MM)</label>
+            <input type="text" name="work_start_0" placeholder="2020-01">
+          </div>
+          <div class="form-group">
+            <label>End (YYYY-MM)</label>
+            <input type="text" name="work_end_0" placeholder="2023-06 or Present">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="add-btn" onclick="addWorkEntry()">
+      <span>+</span> Add Another Position
+    </button>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- SECTION 7: Combined Form (Typical Job App)  -->
+  <!-- ============================================ -->
+  <h2>Section 7: Combined Application Form</h2>
+
+  <div class="form-section">
+    <h3>Education Background</h3>
+
+    <div class="entry" data-entry-type="education" data-entry-index="0">
+      <div class="form-group">
+        <label for="highest-degree">Highest Degree Obtained</label>
+        <select id="highest-degree" name="highest_degree">
+          <option value="">Please select...</option>
+          <option value="none">No formal education</option>
+          <option value="hs">High School / GED</option>
+          <option value="some_college">Some College</option>
+          <option value="associate">Associate Degree</option>
+          <option value="bachelor">Bachelor's Degree</option>
+          <option value="master">Master's Degree</option>
+          <option value="doctorate">Doctorate</option>
+          <option value="professional">Professional Degree (MD, JD, etc.)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="school-name">School/University Name</label>
+        <input type="text" id="school-name" name="school_name" placeholder="Where did you obtain this degree?">
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="study-field">Field of Study</label>
+          <input type="text" id="study-field" name="study_field" placeholder="Your major/concentration">
+        </div>
+        <div class="form-group">
+          <label for="grad-year">Year Graduated</label>
+          <select id="grad-year" name="graduation_year">
+            <option value="">Select year...</option>
+            <script>
+              for(let y = 2025; y >= 1960; y--) {
+                document.write(`<option value="${y}">${y}</option>`);
+              }
+            </script>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <h3>Most Recent Employment</h3>
+
+    <div class="entry" data-entry-type="work" data-entry-index="0">
+      <div class="row">
+        <div class="form-group">
+          <label for="recent-company">Company Name</label>
+          <input type="text" id="recent-company" name="recent_company">
+        </div>
+        <div class="form-group">
+          <label for="recent-title">Job Title</label>
+          <input type="text" id="recent-title" name="recent_title">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="years-employed">Years at Company</label>
+          <input type="number" id="years-employed" name="years_employed" min="0" max="50">
+        </div>
+        <div class="form-group">
+          <label for="still-employed">Currently Employed?</label>
+          <select id="still-employed" name="still_employed">
+            <option value="">Select...</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let educationCount = 1;
+    let workCount = 1;
+
+    function addEducationEntry() {
+      const container = document.getElementById('education-entries');
+      const index = educationCount++;
+
+      const entry = document.createElement('div');
+      entry.className = 'entry';
+      entry.setAttribute('data-entry-type', 'education');
+      entry.setAttribute('data-entry-index', index);
+      entry.id = `edu-entry-${index}`;
+
+      entry.innerHTML = `
+        <div class="entry-header">
+          <span class="entry-title">Education #${index + 1}</span>
+          <button type="button" class="remove-btn" onclick="removeEntry('edu-entry-${index}')">Remove</button>
+        </div>
+
+        <div class="form-group">
+          <label>University/College</label>
+          <input type="text" name="edu_school_${index}" placeholder="School name">
+        </div>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Degree</label>
+            <input type="text" name="edu_degree_${index}" placeholder="e.g., Bachelor's">
+          </div>
+          <div class="form-group">
+            <label>Major</label>
+            <input type="text" name="edu_major_${index}" placeholder="Field of study">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Graduation Year</label>
+            <input type="number" name="edu_grad_year_${index}" placeholder="YYYY" min="1950" max="2035">
+          </div>
+          <div class="form-group">
+            <label>Graduation Month</label>
+            <select name="edu_grad_month_${index}">
+              <option value="">Select...</option>
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+          </div>
+        </div>
+      `;
+
+      container.appendChild(entry);
+    }
+
+    function addWorkEntry() {
+      const container = document.getElementById('work-entries');
+      const index = workCount++;
+
+      const entry = document.createElement('div');
+      entry.className = 'entry';
+      entry.setAttribute('data-entry-type', 'work');
+      entry.setAttribute('data-entry-index', index);
+      entry.id = `work-entry-${index}`;
+
+      entry.innerHTML = `
+        <div class="entry-header">
+          <span class="entry-title">Position #${index + 1}</span>
+          <button type="button" class="remove-btn" onclick="removeEntry('work-entry-${index}')">Remove</button>
+        </div>
+
+        <div class="form-group">
+          <label>Company</label>
+          <input type="text" name="work_company_${index}" placeholder="Company name">
+        </div>
+
+        <div class="form-group">
+          <label>Job Title</label>
+          <input type="text" name="work_title_${index}" placeholder="Your title">
+        </div>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Start (YYYY-MM)</label>
+            <input type="text" name="work_start_${index}" placeholder="2020-01">
+          </div>
+          <div class="form-group">
+            <label>End (YYYY-MM)</label>
+            <input type="text" name="work_end_${index}" placeholder="2023-06 or Present">
+          </div>
+        </div>
+      `;
+
+      container.appendChild(entry);
+    }
+
+    function removeEntry(entryId) {
+      const entry = document.getElementById(entryId);
+      if (entry) {
+        entry.remove();
+      }
+    }
+
+    // Autocomplete simulation for school field
+    document.getElementById('school2').addEventListener('focus', function() {
+      document.getElementById('school2-list').classList.add('show');
+    });
+
+    document.getElementById('school2').addEventListener('blur', function() {
+      setTimeout(() => {
+        document.getElementById('school2-list').classList.remove('show');
+      }, 200);
+    });
+
+    document.querySelectorAll('#school2-list .autocomplete-item').forEach(item => {
+      item.addEventListener('click', function() {
+        document.getElementById('school2').value = this.textContent;
+        document.getElementById('school2-list').classList.remove('show');
+      });
+    });
+  </script>
+</body>
+</html>

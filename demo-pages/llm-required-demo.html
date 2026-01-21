@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Required Form - 需要LLM解析的表单</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+      color: #e4e4e7;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #f472b6, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      text-align: center;
+      color: #a1a1aa;
+      margin-bottom: 40px;
+      font-size: 14px;
+    }
+
+    .challenge-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(10px);
+    }
+    .challenge-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .challenge-number {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #f472b6, #818cf8);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .challenge-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .challenge-desc {
+      color: #a1a1aa;
+      font-size: 13px;
+      margin-bottom: 20px;
+      padding: 12px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      border-left: 3px solid #f472b6;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+    /* 用 div 替代 label，无语义关联 */
+    .question-text {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: #d4d4d8;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: #818cf8;
+      box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
+    }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+
+    .hint {
+      font-size: 12px;
+      color: #71717a;
+      margin-top: 6px;
+    }
+    .rule-fail {
+      display: inline-block;
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-left: 8px;
+    }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+    .context-box {
+      background: rgba(129, 140, 248, 0.1);
+      border: 1px dashed rgba(129, 140, 248, 0.3);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    .context-box strong { color: #818cf8; }
+
+    @media (max-width: 600px) {
+      .two-col, .three-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧠 LLM Required Form</h1>
+    <p class="subtitle">无 label 标签 - 规则无法通过 label 匹配，必须依赖 LLM 语义理解</p>
+
+    <!-- Challenge 1: 语义歧义 -->
+    <div class="challenge-card">
+      <div class="challenge-header">
+        <div class="challenge-number">1</div>
+        <div class="challenge-title">语义歧义 - 同词多义</div>
+      </div>
+      <div class="challenge-desc">
+        <strong>规则失败原因：</strong>无 label，只有 placeholder 或周围文本。"Name" 可能指人名、公司名、项目名。
+      </div>
+      <form id="form-ambiguity">
+        <div class="context-box">
+          <strong>场景：</strong>你正在申请一个开源项目的贡献者身份
+        </div>
+        <div class="two-col">
+          <div class="form-group">
+            <span class="question-text">Name <span class="rule-fail">人名 or 项目名?</span></span>
+            <input type="text" placeholder="Enter the name">
+          </div>
+          <div class="form-group">
+            <span class="question-text">Address <span class="rule-fail">物理地址 or 邮箱?</span></span>
+            <input type="text" placeholder="Your address">
+          </div>
+        </div>
+        <div class="form-group">
+          <span class="question-text">How long have you been working on it? <span class="rule-fail">"it"指什么?</span></span>
+          <input type="text" placeholder="Duration">
+        </div>
+      </form>
+    </div>
+
+    <!-- Challenge 2: 自然语言问题 -->
+    <div class="challenge-card">
+      <div class="challenge-header">
+        <div class="challenge-number">2</div>
+        <div class="challenge-title">自然语言问题 - 无结构化字段名</div>
+      </div>
+      <div class="challenge-desc">
+        <strong>规则失败原因：</strong>问题用完整句子表达，无 label，无 name/id 属性，只有纯文本描述。
+      </div>
+      <form id="form-natural-language">
+        <div class="form-group">
+          <span class="question-text">What should we call you when we reach out? <span class="rule-fail">需要：姓名</span></span>
+          <input type="text" placeholder="Your answer">
+        </div>
+        <div class="form-group">
+          <span class="question-text">Where can we send you updates about your application? <span class="rule-fail">需要：邮箱</span></span>
+          <input type="text" placeholder="Your answer">
+        </div>
+        <div class="form-group">
+          <span class="question-text">If we need to discuss something urgently, how can we reach you immediately? <span class="rule-fail">需要：电话</span></span>
+          <input type="text" placeholder="Your answer">
+        </div>
+        <div class="form-group">
+          <span class="question-text">Tell us about the place you call home <span class="rule-fail">需要：地址/城市</span></span>
+          <input type="text" placeholder="Your answer">
+        </div>
+      </form>
+    </div>
+
+    <!-- Challenge 3: 上下文依赖 -->
+    <div class="challenge-card">
+      <div class="challenge-header">
+        <div class="challenge-number">3</div>
+        <div class="challenge-title">上下文依赖 - 答案取决于其他字段</div>
+      </div>
+      <div class="challenge-desc">
+        <strong>规则失败原因：</strong>字段的正确答案取决于上下文（如之前选择的选项）。无 label 关联。
+      </div>
+      <form id="form-context">
+        <div class="form-group">
+          <span class="question-text">What type of work authorization do you have?</span>
+          <select id="auth_type">
+            <option value="">-- Select --</option>
+            <option value="citizen">US Citizen</option>
+            <option value="greencard">Green Card Holder</option>
+            <option value="h1b">H-1B Visa</option>
+            <option value="opt">OPT/CPT</option>
+            <option value="other">Other visa requiring sponsorship</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <span class="question-text">Based on your selection above, will you require sponsorship? <span class="rule-fail">依赖上文</span></span>
+          <select>
+            <option value="">-- Select --</option>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+            <option value="future">Not now, but in the future</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <span class="question-text">When would you need sponsorship? <span class="rule-fail">条件显示</span></span>
+          <input type="text" placeholder="Only if applicable">
+        </div>
+      </form>
+    </div>
+
+    <!-- Challenge 4: 隐含信息推理 -->
+    <div class="challenge-card">
+      <div class="challenge-header">
+        <div class="challenge-number">4</div>
+        <div class="challenge-title">隐含信息推理 - 需要计算或推导</div>
+      </div>
+      <div class="challenge-desc">
+        <strong>规则失败原因：</strong>答案不是直接存储的数据，需要从已知信息推理或计算得出。
+      </div>
+      <form id="form-inference">
+        <div class="context-box">
+          <strong>已知信息：</strong>用户数据库中存储了 graduation_date: "2020-06"
+        </div>
+        <div class="two-col">
+          <div class="form-group">
+            <span class="question-text">Years of professional experience <span class="rule-fail">需要计算</span></span>
+            <input type="number" placeholder="e.g., 5">
+          </div>
+          <div class="form-group">
+            <span class="question-text">Experience level <span class="rule-fail">需要分类</span></span>
+            <select>
+              <option value="">-- Select --</option>
+              <option value="entry">Entry Level (0-2 years)</option>
+              <option value="mid">Mid Level (3-5 years)</option>
+              <option value="senior">Senior (5-8 years)</option>
+              <option value="lead">Lead/Staff (8+ years)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <span class="question-text">Are you a recent graduate? <span class="rule-fail">需要判断</span></span>
+          <select>
+            <option value="">-- Select --</option>
+            <option value="yes">Yes, within last 2 years</option>
+            <option value="no">No</option>
+          </select>
+        </div>
+      </form>
+    </div>
+
+    <!-- Challenge 5: 非标准格式要求 -->
+    <div class="challenge-card">
+      <div class="challenge-header">
+        <div class="challenge-number">5</div>
+        <div class="challenge-title">非标准格式要求 - 需要语义理解才能正确格式化</div>
+      </div>
+      <div class="challenge-desc">
+        <strong>规则失败原因：</strong>格式要求用自然语言描述在周围文本中，不是标准 type 或正则。
+      </div>
+      <form id="form-format">
+        <div class="form-group">
+          <span class="question-text">Date you're available to start (write it like "January 15th, 2025") <span class="rule-fail">自然语言日期</span></span>
+          <input type="text" placeholder="Month Day, Year">
+        </div>
+        <div class="form-group">
+          <span class="question-text">Your name in "Last, First Middle" format <span class="rule-fail">需要重组</span></span>
+          <input type="text" placeholder="e.g., Smith, John Robert">
+        </div>
+        <div class="form-group">
+          <span class="question-text">Phone number with country code in parentheses, e.g., (+1) 555-123-4567 <span class="rule-fail">特殊格式</span></span>
+          <input type="text" placeholder="(+X) XXX-XXX-XXXX">
+        </div>
+      </form>
+    </div>
+
+    <!-- Challenge 6: 多语言混合 -->
+    <div class="challenge-card">
+      <div class="challenge-header">
+        <div class="challenge-number">6</div>
+        <div class="challenge-title">多语言混合 - 跨语言语义理解</div>
+      </div>
+      <div class="challenge-desc">
+        <strong>规则失败原因：</strong>表单混合使用多种语言，规则库通常只覆盖英语关键词。
+      </div>
+      <form id="form-multilingual">
+        <div class="three-col">
+          <div class="form-group">
+            <span class="question-text">お名前 (Onamae) <span class="rule-fail">日语：姓名</span></span>
+            <input type="text" placeholder="あなたの名前">
+          </div>
+          <div class="form-group">
+            <span class="question-text">电子邮箱地址 <span class="rule-fail">中文：邮箱</span></span>
+            <input type="text" placeholder="您的邮箱">
+          </div>
+          <div class="form-group">
+            <span class="question-text">Numéro de téléphone <span class="rule-fail">法语：电话</span></span>
+            <input type="text" placeholder="Votre numéro">
+          </div>
+        </div>
+        <div class="form-group">
+          <span class="question-text">귀하의 현재 직함은 무엇입니까? <span class="rule-fail">韩语：职位</span></span>
+          <input type="text" placeholder="현재 직책">
+        </div>
+      </form>
+    </div>
+
+    <!-- Challenge 7: 复杂条件逻辑 -->
+    <div class="challenge-card">
+      <div class="challenge-header">
+        <div class="challenge-number">7</div>
+        <div class="challenge-title">复杂条件逻辑 - 多条件组合判断</div>
+      </div>
+      <div class="challenge-desc">
+        <strong>规则失败原因：</strong>正确答案需要评估多个条件的组合，无 label 可匹配。
+      </div>
+      <form id="form-logic">
+        <div class="context-box">
+          <strong>职位要求：</strong>5+ years experience, Bachelor's degree, Python expertise
+        </div>
+        <div class="form-group">
+          <span class="question-text">Do you meet the minimum qualifications? <span class="rule-fail">需要多条件判断</span></span>
+          <select>
+            <option value="">-- Select --</option>
+            <option value="yes">Yes, I meet all requirements</option>
+            <option value="most">I meet most requirements</option>
+            <option value="no">No, I don't meet the requirements</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <span class="question-text">Briefly explain how your background aligns with this role <span class="rule-fail">需要综合生成</span></span>
+          <textarea placeholder="Describe how your experience matches..."></textarea>
+        </div>
+      </form>
+    </div>
+
+    <!-- Challenge 8: 同义词和变体 -->
+    <div class="challenge-card">
+      <div class="challenge-header">
+        <div class="challenge-number">8</div>
+        <div class="challenge-title">非标准同义词 - 需要语义匹配</div>
+      </div>
+      <div class="challenge-desc">
+        <strong>规则失败原因：</strong>使用了规则库未收录的同义词、缩写或口语表达，无 label。
+      </div>
+      <form id="form-synonyms">
+        <div class="three-col">
+          <div class="form-group">
+            <span class="question-text">Handle <span class="rule-fail">= username</span></span>
+            <input type="text" placeholder="Your handle">
+          </div>
+          <div class="form-group">
+            <span class="question-text">Digits <span class="rule-fail">= phone (slang)</span></span>
+            <input type="text" placeholder="Your digits">
+          </div>
+          <div class="form-group">
+            <span class="question-text">Snail mail <span class="rule-fail">= address</span></span>
+            <input type="text" placeholder="Snail mail">
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="form-group">
+            <span class="question-text">What do you go by? <span class="rule-fail">= preferred name</span></span>
+            <input type="text" placeholder="Name you go by">
+          </div>
+          <div class="form-group">
+            <span class="question-text">Your alma mater <span class="rule-fail">= school</span></span>
+            <input type="text" placeholder="Your school">
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Challenge 9: 开放式问题生成 -->
+    <div class="challenge-card">
+      <div class="challenge-header">
+        <div class="challenge-number">9</div>
+        <div class="challenge-title">开放式问题 - 需要生成而非填写</div>
+      </div>
+      <div class="challenge-desc">
+        <strong>规则失败原因：</strong>没有固定答案，需要根据用户画像生成个性化内容，无 label 可用。
+      </div>
+      <form id="form-generative">
+        <div class="form-group">
+          <span class="question-text">Why are you interested in this position? <span class="rule-fail">需要生成</span></span>
+          <textarea placeholder="Explain your interest..."></textarea>
+        </div>
+        <div class="form-group">
+          <span class="question-text">Describe a challenging project you've worked on <span class="rule-fail">需要叙述</span></span>
+          <textarea placeholder="Tell us about a project..."></textarea>
+        </div>
+        <div class="form-group">
+          <span class="question-text">What makes you unique as a candidate? <span class="rule-fail">需要总结</span></span>
+          <textarea placeholder="Your unique value proposition..."></textarea>
+        </div>
+      </form>
+    </div>
+
+    <!-- Summary -->
+    <div class="challenge-card" style="background: linear-gradient(135deg, rgba(244,114,182,0.1), rgba(129,140,248,0.1));">
+      <div class="challenge-header">
+        <div class="challenge-number">✓</div>
+        <div class="challenge-title">规则失败点汇总</div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px;">
+        <div style="padding: 16px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          <strong style="color: #ef4444;">❌ 无 Label</strong>
+          <p style="font-size: 13px; color: #a1a1aa; margin-top: 8px;">所有表单都使用 span 而非 label，无法通过 label 匹配</p>
+        </div>
+        <div style="padding: 16px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          <strong style="color: #ef4444;">❌ 无 name/id</strong>
+          <p style="font-size: 13px; color: #a1a1aa; margin-top: 8px;">input 没有 name 或 id 属性，无法通过属性匹配</p>
+        </div>
+        <div style="padding: 16px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          <strong style="color: #ef4444;">❌ 模糊 placeholder</strong>
+          <p style="font-size: 13px; color: #a1a1aa; margin-top: 8px;">placeholder 是通用的 "Your answer"，无法推断字段类型</p>
+        </div>
+        <div style="padding: 16px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          <strong style="color: #22c55e;">✅ LLM 可理解</strong>
+          <p style="font-size: 13px; color: #a1a1aa; margin-top: 8px;">周围文本包含足够语义信息供 LLM 理解</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

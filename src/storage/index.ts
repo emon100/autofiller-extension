@@ -1,4 +1,7 @@
-import { AnswerValue, Observation, SiteSettings, Taxonomy, PendingObservation } from '@/types'
+import { AnswerValue, Observation, SiteSettings, Taxonomy, PendingObservation, ExperienceEntry } from '@/types'
+import { ExperienceStorage, experienceStorage } from './experienceStorage'
+
+export { ExperienceStorage, experienceStorage }
 
 const STORAGE_KEYS = {
   ANSWERS: 'answers',
@@ -7,12 +10,54 @@ const STORAGE_KEYS = {
   QUESTION_KEYS: 'questionKeys',
 } as const
 
+/**
+ * Check if the extension context is still valid.
+ * Returns false if the extension has been reloaded/updated.
+ */
+export function isExtensionContextValid(): boolean {
+  try {
+    // In real extension environment, chrome.runtime.id exists when context is valid
+    // In test environment, chrome.runtime may not exist but chrome.storage does
+    if (typeof chrome === 'undefined') return false
+
+    // If chrome.runtime exists, check if id is present (real extension)
+    if (chrome.runtime) {
+      return !!chrome.runtime.id
+    }
+
+    // If only chrome.storage exists (test environment), consider it valid
+    if (chrome.storage?.local) {
+      return true
+    }
+
+    return false
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Custom error class for extension context invalidation
+ */
+export class ExtensionContextInvalidatedError extends Error {
+  constructor() {
+    super('Extension has been updated. Please refresh the page.')
+    this.name = 'ExtensionContextInvalidatedError'
+  }
+}
+
 async function getStorage<T>(key: string): Promise<T | null> {
+  if (!isExtensionContextValid()) {
+    throw new ExtensionContextInvalidatedError()
+  }
   const result = await chrome.storage.local.get(key)
   return result[key] || null
 }
 
 async function setStorage<T>(key: string, value: T): Promise<void> {
+  if (!isExtensionContextValid()) {
+    throw new ExtensionContextInvalidatedError()
+  }
   await chrome.storage.local.set({ [key]: value })
 }
 
@@ -270,6 +315,7 @@ export class Storage {
   observations = new ObservationStorage()
   siteSettings = new SiteSettingsStorage()
   pendingObservations = new PendingObservationStorage()
+  experiences = experienceStorage
 
   async clearAll(): Promise<void> {
     await chrome.storage.local.remove([
@@ -277,6 +323,7 @@ export class Storage {
       STORAGE_KEYS.OBSERVATIONS,
       STORAGE_KEYS.SITE_SETTINGS,
       STORAGE_KEYS.QUESTION_KEYS,
+      'experiences',
     ])
     this.pendingObservations.discardAll()
   }
@@ -285,18 +332,21 @@ export class Storage {
     answers: AnswerValue[]
     observations: Observation[]
     siteSettings: SiteSettings[]
+    experiences: ExperienceEntry[]
   }> {
-    const [answers, observations, siteSettings] = await Promise.all([
+    const [answers, observations, siteSettings, experiences] = await Promise.all([
       this.answers.getAll(),
       this.observations.getRecent(1000),
       this.siteSettings.getAll(),
+      this.experiences.getAll(),
     ])
-    return { answers, observations, siteSettings }
+    return { answers, observations, siteSettings, experiences }
   }
 
   async importData(data: {
     answers?: AnswerValue[]
     siteSettings?: SiteSettings[]
+    experiences?: ExperienceEntry[]
   }): Promise<void> {
     if (data.answers) {
       for (const answer of data.answers) {
@@ -307,6 +357,9 @@ export class Storage {
       for (const settings of data.siteSettings) {
         await this.siteSettings.save(settings)
       }
+    }
+    if (data.experiences) {
+      await this.experiences.saveBatch(data.experiences)
     }
   }
 }
