@@ -30,7 +30,7 @@ const ICONS = {
   check: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>`,
   database: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>`,
   chevronRight: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>`,
-  grip: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg>`,
+  grip: `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="2"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="9" cy="18" r="2"/><circle cx="15" cy="18" r="2"/></svg>`,
   close: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>`,
   trash: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>`,
 }
@@ -183,7 +183,7 @@ export class FloatingWidget {
       <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
         <div style="background: white; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; overflow: hidden;">
           <div style="display: flex; align-items: center;">
-            <div id="af-drag-handle" style="padding: 12px 8px; cursor: grab; color: #9ca3af; border-right: 1px solid #f3f4f6; user-select: none;">
+            <div id="af-drag-handle" style="padding: 12px 8px; cursor: grab; color: #6b7280; border-right: 1px solid #f3f4f6; user-select: none;">
               ${ICONS.grip}
             </div>
             <button id="af-btn-save" class="af-btn-hover" style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: #374151; display: flex; align-items: center; gap: 8px; transition: background 0.15s;">
@@ -197,7 +197,7 @@ export class FloatingWidget {
             </button>
           </div>
         </div>
-        <a href="#" id="af-link-database" style="font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 4px; text-decoration: none; transition: color 0.15s;">
+        <a href="#" id="af-link-database" style="font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 4px; text-decoration: none; transition: color 0.15s; background: white; padding: 6px 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 1px solid #e5e7eb;">
           ${ICONS.database}
           <span>Manage Database</span>
           ${ICONS.chevronRight}

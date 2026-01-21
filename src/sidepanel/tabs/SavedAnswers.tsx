@@ -279,8 +279,8 @@ function AnswerItem({ answer, isSensitive, isEditing, onToggleAutofill, onEdit, 
         <p className="text-sm text-gray-800 truncate">{answer.value}</p>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
-        {isSensitive ? (
-          <label className="flex items-center gap-1 cursor-pointer">
+        {isSensitive && (
+          <label className="flex items-center gap-1 cursor-pointer mr-2">
             <span className="text-xs text-gray-400">Auto</span>
             <div className="relative">
               <input
@@ -293,24 +293,21 @@ function AnswerItem({ answer, isSensitive, isEditing, onToggleAutofill, onEdit, 
               <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-3 transition-transform"></div>
             </div>
           </label>
-        ) : (
-          <>
-            <button 
-              onClick={onEdit}
-              className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-600 transition-all"
-              title="Edit"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={onDelete}
-              className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 transition-all"
-              title="Delete"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </>
         )}
+        <button
+          onClick={onEdit}
+          className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-600 transition-all"
+          title="Edit"
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onDelete}
+          className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 transition-all"
+          title="Delete"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
     </div>
   )

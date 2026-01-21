@@ -212,15 +212,20 @@ export class BadgeManager {
         padding: 0 2px;
         margin-left: 2px;
         cursor: pointer;
-        opacity: 0;
+        opacity: 0.6;
         transition: opacity 0.15s;
         font-size: 14px;
         line-height: 1;
         color: inherit;
       }
-      
+
       .${BADGE_CLASS}:hover .autofiller-badge-undo {
         opacity: 1;
+      }
+
+      .autofiller-badge-undo:hover {
+        opacity: 1;
+        color: #dc2626;
       }
       
       .${BADGE_DROPDOWN_CLASS} {
