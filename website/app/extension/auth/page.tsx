@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Zap, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
-export default function ExtensionAuthPage() {
+function ExtensionAuthContent() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string>('');
   const supabase = createClient();
@@ -156,5 +156,21 @@ export default function ExtensionAuthPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+    </div>
+  );
+}
+
+export default function ExtensionAuthPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ExtensionAuthContent />
+    </Suspense>
   );
 }
