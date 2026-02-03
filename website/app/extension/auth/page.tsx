@@ -1,95 +1,110 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Zap, Loader2 } from 'lucide-react';
+import { Zap, Loader2, Mail, KeyRound } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { translateAuthError } from '@/lib/auth-utils';
+import GoogleIcon from '@/components/auth/GoogleIcon';
+import PasswordInput from '@/components/auth/PasswordInput';
+
+type LoginMethod = 'password' | 'otp';
+type OtpStage = 'idle' | 'sent' | 'verifying';
 
 function ExtensionAuthContent() {
   const searchParams = useSearchParams();
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('password');
+  const [otpStage, setOtpStage] = useState<OtpStage>('idle');
+  const [otpCode, setOtpCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const otpInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
-
   const redirectUri = searchParams.get('redirect_uri');
 
   useEffect(() => {
-    checkAuthAndRedirect();
-  }, []);
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
 
-  async function checkAuthAndRedirect() {
+  useEffect(() => {
+    if (otpStage === 'sent') otpInputRef.current?.focus();
+  }, [otpStage]);
+
+  useEffect(() => {
     if (!redirectUri) {
       setError('Missing redirect_uri parameter');
       return;
     }
-
-    try {
-      // Check if already logged in
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        // Already logged in, get token and redirect
-        await redirectWithToken();
-      }
-      // If not logged in, show login buttons (handled by the UI)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
-    }
-  }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) redirectWithToken();
+    });
+  }, []);
 
   async function redirectWithToken() {
     if (!redirectUri) return;
-
     try {
-      // Get session token
       const response = await fetch('/api/extension/token');
-      if (!response.ok) {
-        throw new Error('Failed to get token');
-      }
-
+      if (!response.ok) throw new Error('Failed to get token');
       const tokenData = await response.json();
-      const encodedToken = encodeURIComponent(JSON.stringify(tokenData));
-
-      // Redirect to extension callback with token
-      window.location.href = `${redirectUri}?token=${encodedToken}`;
+      window.location.href = `${redirectUri}?token=${encodeURIComponent(JSON.stringify(tokenData))}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to get token');
     }
   }
 
+  const resetOtpState = () => { setOtpStage('idle'); setOtpCode(''); setCooldown(0); };
+
   async function handleGoogleLogin() {
     if (!redirectUri) return;
-
-    // Store redirect_uri for after OAuth
     sessionStorage.setItem('extension_redirect_uri', redirectUri);
-
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/extension/auth/callback`,
-      },
+      options: { redirectTo: `${window.location.origin}/extension/auth/callback` },
     });
-
-    if (error) {
-      setError(error.message);
-    }
+    if (error) setError(translateAuthError(error.message));
   }
 
-  async function handleLinkedInLogin() {
+  async function handlePasswordLogin() {
     if (!redirectUri) return;
-
-    sessionStorage.setItem('extension_redirect_uri', redirectUri);
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'linkedin_oidc',
-      options: {
-        redirectTo: `${window.location.origin}/extension/auth/callback`,
-      },
-    });
-
-    if (error) {
-      setError(error.message);
-    }
+    setLoading(true);
+    setError('');
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { setError(translateAuthError(error.message)); setLoading(false); }
+    else await redirectWithToken();
   }
+
+  async function handleSendOtp() {
+    if (!redirectUri) return;
+    setLoading(true);
+    setError('');
+    setMessage('');
+    const { error } = await supabase.auth.signInWithOtp({ email });
+    if (error) setError(translateAuthError(error.message));
+    else { setOtpStage('sent'); setMessage('验证码已发送到您的邮箱'); setCooldown(60); }
+    setLoading(false);
+  }
+
+  async function handleVerifyOtp() {
+    if (!redirectUri || otpCode.length !== 6) { setError('请输入6位验证码'); return; }
+    setLoading(true);
+    setOtpStage('verifying');
+    setError('');
+    const { error } = await supabase.auth.verifyOtp({ email, token: otpCode, type: 'email' });
+    if (error) { setError(translateAuthError(error.message)); setOtpStage('sent'); setLoading(false); }
+    else await redirectWithToken();
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    loginMethod === 'otp' ? (otpStage === 'idle' ? handleSendOtp() : handleVerifyOtp()) : handlePasswordLogin();
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
@@ -99,77 +114,114 @@ function ExtensionAuthContent() {
             <Zap className="h-8 w-8 text-blue-600" />
             <span className="text-2xl font-bold">AutoFiller</span>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900">
-            Connect Extension
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign in to sync your credits
-          </p>
+          <h1 className="text-xl font-semibold text-gray-900">连接扩展</h1>
+          <p className="mt-2 text-sm text-gray-600">登录以同步您的积分</p>
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          {error ? (
+          {error && !redirectUri ? (
             <div className="text-center">
               <p className="text-red-600 mb-4">{error}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="text-blue-600 hover:underline"
-              >
-                Try again
-              </button>
+              <button onClick={() => window.location.reload()} className="text-blue-600 hover:underline">重试</button>
             </div>
           ) : !redirectUri ? (
             <div className="text-center text-gray-500">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-              Loading...
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />加载中...
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <button
                 onClick={handleGoogleLogin}
-                className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-700 hover:bg-gray-50"
+                disabled={loading}
+                className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                </svg>
-                Continue with Google
+                <GoogleIcon />
+                Google 登录
               </button>
 
-              <button
-                onClick={handleLinkedInLogin}
-                className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-700 hover:bg-gray-50"
-              >
-                <svg className="h-5 w-5" fill="#0A66C2" viewBox="0 0 24 24">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                </svg>
-                Continue with LinkedIn
-              </button>
+              <div className="flex items-center">
+                <div className="flex-1 border-t border-gray-200" />
+                <span className="px-3 text-sm text-gray-500">或</span>
+                <div className="flex-1 border-t border-gray-200" />
+              </div>
+
+              <div className="flex items-center justify-center gap-4 text-sm">
+                {([{ method: 'password', icon: KeyRound, label: '密码' }, { method: 'otp', icon: Mail, label: '验证码' }] as const).map(({ method, icon: Icon, label }) => (
+                  <label key={method} className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="loginMethod"
+                      checked={loginMethod === method}
+                      onChange={() => { setLoginMethod(method); if (method === 'password') resetOtpState(); setError(''); }}
+                      className="text-blue-600"
+                    />
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="邮箱地址"
+                  required
+                  disabled={otpStage !== 'idle'}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                />
+
+                {loginMethod === 'password' && (
+                  <PasswordInput value={password} onChange={setPassword} placeholder="密码" className="py-2.5" />
+                )}
+
+                {loginMethod === 'otp' && otpStage !== 'idle' && (
+                  <div className="flex gap-2">
+                    <input
+                      ref={otpInputRef}
+                      type="text"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="验证码"
+                      maxLength={6}
+                      className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-center tracking-widest focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={loading || cooldown > 0}
+                      className="whitespace-nowrap rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {cooldown > 0 ? `${cooldown}s` : '重发'}
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || !email || (loginMethod === 'password' && !password)}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loginMethod === 'otp' ? (otpStage === 'idle' ? '发送验证码' : '验证登录') : '登录'}
+                </button>
+              </form>
+
+              {message && <div className="rounded-lg bg-green-50 p-2 text-sm text-green-700">{message}</div>}
+              {error && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{error}</div>}
             </div>
           )}
         </div>
-
-        <p className="mt-4 text-center text-xs text-gray-500">
-          This window will close automatically after sign in
-        </p>
+        <p className="mt-4 text-center text-xs text-gray-500">登录成功后此窗口将自动关闭</p>
       </div>
-    </div>
-  );
-}
-
-function LoadingFallback() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
     </div>
   );
 }
 
 export default function ExtensionAuthPage() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-gray-50"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>}>
       <ExtensionAuthContent />
     </Suspense>
   );

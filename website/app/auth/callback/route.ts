@@ -5,9 +5,15 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const action = requestUrl.searchParams.get('action');
 
   // 默认跳转到dashboard
   let next = '/dashboard';
+
+  // 如果是账户关联操作，跳转到设置页面
+  if (action === 'link') {
+    next = '/dashboard/settings?linked=true';
+  }
 
   if (code) {
     const cookieStore = cookies();
@@ -44,12 +50,23 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('Auth callback error:', error);
+      // 如果是账户关联失败，返回设置页面并显示错误
+      if (action === 'link') {
+        return NextResponse.redirect(
+          new URL(`/dashboard/settings?error=${encodeURIComponent(error.message)}`, origin)
+        );
+      }
       return NextResponse.redirect(
         new URL(`/login?error=${encodeURIComponent(error.message)}`, origin)
       );
     }
 
     // 登录成功，重定向到特殊页面让客户端读取localStorage
+    // 如果是账户关联操作，直接跳转到设置页面
+    if (action === 'link') {
+      return NextResponse.redirect(new URL(next, origin));
+    }
+
     console.log('Auth successful, redirecting to auth-redirect');
     return NextResponse.redirect(new URL('/auth/redirect', origin));
   }
