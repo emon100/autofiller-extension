@@ -20,7 +20,8 @@ enabled = true
 site_url = "http://localhost:3000"
 additional_redirect_urls = [
   "http://localhost:3000/auth/callback",
-  "https://autofiller.app/auth/callback",
+  "https://www.onefil.help/auth/callback",
+  "https://onefil.help/auth/callback",
   "chrome-extension://*/auth/callback"
 ]
 jwt_expiry = 3600

@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     title: 'AutoFiller - Job Application Autofill Chrome Extension',
     description:
       'Save hours on job applications. Fill any application form in seconds.',
-    url: 'https://autofiller.app',
+    url: 'https://www.onefil.help',
     siteName: 'AutoFiller',
     locale: 'en_US',
     type: 'website',

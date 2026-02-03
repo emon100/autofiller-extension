@@ -223,7 +223,7 @@ export default function ExtensionConnectPage() {
 
         <p className="mt-6 text-center text-sm text-gray-500">
           Need help?{' '}
-          <a href="mailto:support@autofiller.app" className="text-blue-600 hover:underline">
+          <a href="mailto:support@onefil.help" className="text-blue-600 hover:underline">
             Contact support
           </a>
         </p>

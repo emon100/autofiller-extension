@@ -4,7 +4,7 @@ import { storage } from '@/storage'
 import { AuthUser, CreditsInfo, AuthState } from '@/types'
 
 // API base URL
-const WEBSITE_URL = 'https://prospectively-dusty-juanita.ngrok-free.dev'
+const WEBSITE_URL = 'https://www.onefil.help'
 
 interface LLMConfig {
   enabled: boolean

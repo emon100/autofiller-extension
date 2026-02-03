@@ -276,7 +276,7 @@ export default function PricingPage() {
             </Link>{' '}
             or{' '}
             <a
-              href="mailto:support@autofiller.app"
+              href="mailto:support@onefil.help"
               className="text-blue-600 hover:underline"
             >
               contact us
