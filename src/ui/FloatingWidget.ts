@@ -3,8 +3,9 @@ import { showToast } from './Toast'
 import { TAXONOMY_OPTIONS } from '@/utils/typeLabels'
 import { isExtensionContextValid, ExtensionContextInvalidatedError } from '@/storage'
 import type { FillDebugInfo } from '@/utils/logger'
+import type { FillAnimationStage } from '@/types'
 
-export type WidgetPhase = 'widget' | 'learning' | 'success' | 'database' | 'hidden'
+export type WidgetPhase = 'widget' | 'learning' | 'success' | 'database' | 'filling' | 'hidden'
 
 export interface DetectedField {
   id: string
@@ -21,9 +22,17 @@ export interface FillResult {
   debug: FillDebugInfo
 }
 
+export interface FillAnimationState {
+  stage: FillAnimationStage
+  currentFieldIndex: number
+  totalFields: number
+  currentFieldLabel: string
+  progress: number  // 0-100
+}
+
 export interface FloatingWidgetCallbacks {
   onSave?: () => DetectedField[] | Promise<DetectedField[]>
-  onFill?: () => Promise<FillResult>
+  onFill?: (animated?: boolean, onProgress?: (state: FillAnimationState) => void) => Promise<FillResult>
   onConfirm?: (fields: DetectedField[]) => Promise<void>
 }
 
@@ -50,6 +59,15 @@ export class FloatingWidget {
   private isDragging = false
   private dragStart = { x: 0, y: 0 }
   private dragStartPos = { right: 0, bottom: 0 }
+
+  // Animation state
+  private fillAnimationState: FillAnimationState = {
+    stage: 'idle',
+    currentFieldIndex: 0,
+    totalFields: 0,
+    currentFieldLabel: '',
+    progress: 0
+  }
 
   constructor(callbacks: FloatingWidgetCallbacks = {}) {
     this.callbacks = callbacks
@@ -162,6 +180,9 @@ export class FloatingWidget {
       case 'database':
         popup = this.renderDatabasePopup()
         break
+      case 'filling':
+        popup = this.renderFillingPopup()
+        break
     }
 
     this.container.innerHTML = `
@@ -218,7 +239,7 @@ export class FloatingWidget {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${field.type === 'UNKNOWN' ? '#dc2626' : hasConflict ? '#d97706' : field.sensitive ? '#d97706' : '#16a34a'}" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
           </div>
           <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 11px; color: #6b7280; margin-bottom: 2px;">${field.label}</div>
+            <div style="font-size: 11px; color: #6b7280; margin-bottom: 2px;">${this.escapeHtml(field.label)}</div>
             <input type="text" value="${this.escapeHtml(field.value)}" data-field-input="${field.id}" style="width: 100%; font-size: 13px; font-weight: 500; color: #1f2937; background: transparent; border: none; padding: 0; outline: none;">
           </div>
           <button data-delete-field="${field.id}" style="padding: 4px; color: #9ca3af; border-radius: 4px; transition: all 0.15s; flex-shrink: 0;">
@@ -313,6 +334,92 @@ export class FloatingWidget {
         <div style="position: absolute; bottom: -8px; right: 32px; width: 16px; height: 16px; background: white; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; transform: rotate(45deg);"></div>
       </div>
     `
+  }
+
+  private renderFillingPopup(): string {
+    const { stage, currentFieldIndex, totalFields, currentFieldLabel, progress } = this.fillAnimationState
+
+    const stageText = {
+      idle: 'Preparing...',
+      scanning: 'Scanning',
+      thinking: 'Thinking',
+      filling: 'Filling',
+      done: 'Complete!'
+    }[stage] || 'Processing...'
+
+    const stageEmoji = {
+      idle: '⏳',
+      scanning: '🔍',
+      thinking: '🧠',
+      filling: '✍️',
+      done: '✨'
+    }[stage] || '⚙️'
+
+    const dots = stage !== 'done' ? '<span class="af-dot-bounce"></span><span class="af-dot-bounce"></span><span class="af-dot-bounce"></span>' : ''
+
+    return `
+      <div class="af-filling-container" style="position: relative;">
+        <div class="af-filling-popup">
+          <div class="af-filling-header">
+            <div class="af-filling-stage" data-stage="${stage}" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>${stageEmoji}</span>
+              <span>${stageText}</span>
+              <span style="display: inline-flex; gap: 3px; margin-left: 4px;">${dots}</span>
+            </div>
+            <div class="af-filling-field">
+              ${stage === 'filling' && currentFieldLabel ? `📝 ${this.escapeHtml(currentFieldLabel)}` : ''}
+              ${stage === 'done' ? '🎉 All fields filled!' : ''}
+            </div>
+          </div>
+          <div class="af-filling-progress">
+            <div class="af-progress-bar">
+              <div class="af-progress-fill" style="width: ${progress}%;"></div>
+            </div>
+            <div class="af-filling-stats">
+              <span>${stage === 'filling' ? `Field ${currentFieldIndex + 1} of ${totalFields}` : ''}</span>
+              <span>${Math.round(progress)}%</span>
+            </div>
+          </div>
+        </div>
+        <div style="position: absolute; bottom: -8px; right: 32px; width: 16px; height: 16px; background: linear-gradient(135deg, #1e1b4b, #312e81); border-right: 1px solid rgba(129, 140, 248, 0.3); border-bottom: 1px solid rgba(129, 140, 248, 0.3); transform: rotate(45deg);"></div>
+      </div>
+    `
+  }
+
+  // Update filling animation state - only re-render on stage change
+  updateFillAnimationState(state: Partial<FillAnimationState>): void {
+    this.fillAnimationState = { ...this.fillAnimationState, ...state }
+
+    if (this.currentPhase === 'filling' && this.container) {
+      const stageEl = this.container.querySelector('.af-filling-stage')
+      const currentStageAttr = stageEl?.getAttribute('data-stage')
+
+      // Only do full re-render when stage actually changes
+      if (state.stage && state.stage !== currentStageAttr) {
+        this.render()
+        return
+      }
+
+      // For same-stage updates, just update dynamic parts (no re-render)
+      const fieldEl = this.container.querySelector('.af-filling-field')
+      const progressEl = this.container.querySelector('.af-progress-fill') as HTMLElement
+      const statsEl = this.container.querySelector('.af-filling-stats')
+
+      if (fieldEl && this.fillAnimationState.currentFieldLabel) {
+        fieldEl.innerHTML = `📝 ${this.escapeHtml(this.fillAnimationState.currentFieldLabel)}`
+      }
+
+      if (progressEl) {
+        progressEl.style.width = `${this.fillAnimationState.progress}%`
+      }
+
+      if (statsEl && this.fillAnimationState.stage === 'filling') {
+        statsEl.innerHTML = `
+          <span>Field ${this.fillAnimationState.currentFieldIndex + 1} of ${this.fillAnimationState.totalFields}</span>
+          <span>${Math.round(this.fillAnimationState.progress)}%</span>
+        `
+      }
+    }
   }
 
   private attachEventListeners(): void {
@@ -421,69 +528,118 @@ export class FloatingWidget {
       return
     }
 
-    // Immediately show loading state
     const originalContent = fillBtn.innerHTML
-    fillBtn.innerHTML = `
-      <span class="af-animate-spin" style="width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; display: inline-block;"></span>
-      <span>Filling...</span>
-    `
-    fillBtn.setAttribute('disabled', 'true')
-    fillBtn.style.opacity = '0.8'
 
+    // Check if animation is enabled (default true)
+    let animationEnabled = true
     try {
-      if (this.callbacks.onFill) {
-        const { count, debug } = await this.callbacks.onFill()
+      const result = await chrome.storage.local.get('fillAnimationConfig')
+      animationEnabled = result.fillAnimationConfig?.enabled ?? true
+    } catch {
+      // Default to enabled if storage fails
+    }
 
-        if (count > 0) {
-          // Show success animation on button
-          fillBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
-            <span>Done!</span>
-          `
-          fillBtn.style.background = 'linear-gradient(to right, #22c55e, #10b981)'
+    if (animationEnabled) {
+      // Show animated filling popup
+      this.fillAnimationState = {
+        stage: 'scanning',
+        currentFieldIndex: 0,
+        totalFields: 0,
+        currentFieldLabel: '',
+        progress: 0
+      }
+      this.showPhase('filling')
 
-          showToast(`Filled ${count} fields successfully!`, 'success')
+      try {
+        if (this.callbacks.onFill) {
+          const { count, debug } = await this.callbacks.onFill(true, (state) => {
+            this.updateFillAnimationState(state)
+          })
 
-          // Reset button after 1.5s
-          setTimeout(() => {
-            fillBtn.innerHTML = originalContent
-            fillBtn.style.background = 'linear-gradient(to right, #3b82f6, #2563eb)'
-            fillBtn.style.opacity = '1'
-            fillBtn.removeAttribute('disabled')
-          }, 1500)
+          if (count > 0) {
+            this.updateFillAnimationState({ stage: 'done', progress: 100 })
+            showToast(`Filled ${count} fields successfully!`, 'success')
+
+            // Return to widget after showing complete state
+            setTimeout(() => {
+              this.showPhase('widget')
+            }, 1500)
+          } else {
+            const reason = this.getFailureReason(debug)
+            showToast(reason, 'info')
+            console.log('[AutoFiller Debug]', debug)
+            this.showPhase('widget')
+          }
+        }
+      } catch (error) {
+        console.error('[AutoFiller] Fill error:', error)
+        this.showPhase('widget')
+
+        if (error instanceof ExtensionContextInvalidatedError ||
+            (error instanceof Error && error.message.includes('Extension context invalidated'))) {
+          showToast('Extension updated. Please refresh the page.', 'warning')
         } else {
-          // Show info state briefly
-          fillBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            <span>No fields</span>
-          `
-          fillBtn.style.background = 'linear-gradient(to right, #6b7280, #4b5563)'
-
-          const reason = this.getFailureReason(debug)
-          showToast(reason, 'info')
-          console.log('[AutoFiller Debug]', debug)
-
-          // Reset button after 1.5s
-          setTimeout(() => {
-            fillBtn.innerHTML = originalContent
-            fillBtn.style.background = 'linear-gradient(to right, #3b82f6, #2563eb)'
-            fillBtn.style.opacity = '1'
-            fillBtn.removeAttribute('disabled')
-          }, 1500)
+          showToast('Error filling fields', 'warning')
         }
       }
-    } catch (error) {
-      console.error('[AutoFiller] Fill error:', error)
-      fillBtn.innerHTML = originalContent
-      fillBtn.style.opacity = '1'
-      fillBtn.removeAttribute('disabled')
+    } else {
+      // Non-animated mode (original behavior)
+      fillBtn.innerHTML = `
+        <span class="af-animate-spin" style="width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; display: inline-block;"></span>
+        <span>Filling...</span>
+      `
+      fillBtn.setAttribute('disabled', 'true')
+      fillBtn.style.opacity = '0.8'
 
-      // Check if it's an extension context error
-      if (error instanceof ExtensionContextInvalidatedError ||
-          (error instanceof Error && error.message.includes('Extension context invalidated'))) {
-        showToast('Extension updated. Please refresh the page.', 'warning')
-      } else {
-        showToast('Error filling fields', 'warning')
+      try {
+        if (this.callbacks.onFill) {
+          const { count, debug } = await this.callbacks.onFill(false)
+
+          if (count > 0) {
+            fillBtn.innerHTML = `
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
+              <span>Done!</span>
+            `
+            fillBtn.style.background = 'linear-gradient(to right, #22c55e, #10b981)'
+            showToast(`Filled ${count} fields successfully!`, 'success')
+
+            setTimeout(() => {
+              fillBtn.innerHTML = originalContent
+              fillBtn.style.background = 'linear-gradient(to right, #3b82f6, #2563eb)'
+              fillBtn.style.opacity = '1'
+              fillBtn.removeAttribute('disabled')
+            }, 1500)
+          } else {
+            fillBtn.innerHTML = `
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+              <span>No fields</span>
+            `
+            fillBtn.style.background = 'linear-gradient(to right, #6b7280, #4b5563)'
+
+            const reason = this.getFailureReason(debug)
+            showToast(reason, 'info')
+            console.log('[AutoFiller Debug]', debug)
+
+            setTimeout(() => {
+              fillBtn.innerHTML = originalContent
+              fillBtn.style.background = 'linear-gradient(to right, #3b82f6, #2563eb)'
+              fillBtn.style.opacity = '1'
+              fillBtn.removeAttribute('disabled')
+            }, 1500)
+          }
+        }
+      } catch (error) {
+        console.error('[AutoFiller] Fill error:', error)
+        fillBtn.innerHTML = originalContent
+        fillBtn.style.opacity = '1'
+        fillBtn.removeAttribute('disabled')
+
+        if (error instanceof ExtensionContextInvalidatedError ||
+            (error instanceof Error && error.message.includes('Extension context invalidated'))) {
+          showToast('Extension updated. Please refresh the page.', 'warning')
+        } else {
+          showToast('Error filling fields', 'warning')
+        }
       }
     }
   }

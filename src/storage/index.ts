@@ -1,4 +1,4 @@
-import { AnswerValue, Observation, SiteSettings, Taxonomy, PendingObservation, ExperienceEntry } from '@/types'
+import { AnswerValue, Observation, SiteSettings, Taxonomy, PendingObservation, ExperienceEntry, AuthState, CreditsInfo } from '@/types'
 import { ExperienceStorage, experienceStorage } from './experienceStorage'
 
 export { ExperienceStorage, experienceStorage }
@@ -8,6 +8,8 @@ const STORAGE_KEYS = {
   OBSERVATIONS: 'observations',
   SITE_SETTINGS: 'siteSettings',
   QUESTION_KEYS: 'questionKeys',
+  AUTH_STATE: 'authState',
+  CREDITS_CACHE: 'creditsCache',
 } as const
 
 /**
@@ -234,15 +236,15 @@ export class PendingObservationStorage {
     const existingIndex = existing.findIndex(
       p => p.fieldLocator === pending.fieldLocator
     )
-    
+
     if (existingIndex >= 0) {
       existing[existingIndex] = pending
     } else {
       existing.push(pending)
     }
-    
+
     this.pendingByForm.set(formId, existing)
-    
+
     for (const callback of this.onPendingAddedCallbacks) {
       callback(pending)
     }
@@ -310,12 +312,139 @@ export class PendingObservationStorage {
   }
 }
 
+// API base URL - configure based on environment
+const API_BASE_URL = 'https://prospectively-dusty-juanita.ngrok-free.dev/api'
+
+export class AuthStorage {
+  async getAuthState(): Promise<AuthState | null> {
+    return getStorage<AuthState>(STORAGE_KEYS.AUTH_STATE)
+  }
+
+  async setAuthState(state: AuthState): Promise<void> {
+    await setStorage(STORAGE_KEYS.AUTH_STATE, state)
+  }
+
+  async clearAuthState(): Promise<void> {
+    if (!isExtensionContextValid()) {
+      throw new ExtensionContextInvalidatedError()
+    }
+    await chrome.storage.local.remove(STORAGE_KEYS.AUTH_STATE)
+  }
+
+  async isLoggedIn(): Promise<boolean> {
+    const state = await this.getAuthState()
+    if (!state) return false
+    // Check if token is expired (with 5 minute buffer)
+    return state.expiresAt > Date.now() + 5 * 60 * 1000
+  }
+
+  async getAccessToken(): Promise<string | null> {
+    const state = await this.getAuthState()
+    if (!state) return null
+
+    // Token expired - try to refresh
+    if (state.expiresAt <= Date.now() + 5 * 60 * 1000) {
+      // In production, implement token refresh logic here
+      return null
+    }
+
+    return state.accessToken
+  }
+
+  // Credits Management
+  async getCachedCredits(): Promise<CreditsInfo | null> {
+    return getStorage<CreditsInfo>(STORAGE_KEYS.CREDITS_CACHE)
+  }
+
+  async setCachedCredits(credits: CreditsInfo): Promise<void> {
+    await setStorage(STORAGE_KEYS.CREDITS_CACHE, credits)
+  }
+
+  async fetchCredits(): Promise<CreditsInfo | null> {
+    const token = await this.getAccessToken()
+    if (!token) return null
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/credits`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Token invalid - clear auth state
+          await this.clearAuthState()
+        }
+        return null
+      }
+
+      const credits = await response.json() as CreditsInfo
+      await this.setCachedCredits(credits)
+      return credits
+    } catch {
+      // Return cached credits on network error
+      return this.getCachedCredits()
+    }
+  }
+
+  async consumeCredits(amount: number, type: 'fill' | 'resume_parse'): Promise<{ success: boolean; newBalance: number; error?: string }> {
+    const token = await this.getAccessToken()
+    if (!token) {
+      return { success: false, newBalance: 0, error: 'Not logged in' }
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/credits`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ amount, type }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        return {
+          success: false,
+          newBalance: result.balance || 0,
+          error: result.error || 'Failed to consume credits'
+        }
+      }
+
+      // Update cached credits
+      const cached = await this.getCachedCredits()
+      if (cached) {
+        cached.balance = result.newBalance
+        await this.setCachedCredits(cached)
+      }
+
+      return { success: true, newBalance: result.newBalance }
+    } catch (e) {
+      return { success: false, newBalance: 0, error: `Network error: ${e}` }
+    }
+  }
+
+  async hasCredits(amount: number = 1): Promise<boolean> {
+    const credits = await this.fetchCredits()
+    if (!credits) return true // Allow offline usage
+
+    // -1 means unlimited (subscription)
+    if (credits.balance === -1) return true
+
+    return credits.balance >= amount
+  }
+}
+
 export class Storage {
   answers = new AnswerStorage()
   observations = new ObservationStorage()
   siteSettings = new SiteSettingsStorage()
   pendingObservations = new PendingObservationStorage()
   experiences = experienceStorage
+  auth = new AuthStorage()
 
   async clearAll(): Promise<void> {
     await chrome.storage.local.remove([

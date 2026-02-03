@@ -319,6 +319,7 @@ export interface LLMLogEntry {
   response?: string
   error?: string
   latencyMs?: number
+  endpoint?: string
   tokenUsage?: {
     promptTokens?: number
     completionTokens?: number

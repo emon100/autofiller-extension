@@ -1,12 +1,12 @@
 import { scanFields, detectFormSections } from '@/scanner'
 import { parseField, parseFieldsBatch } from '@/parser'
 import { transformValue } from '@/transformer'
-import { fillField, createFillSnapshot, restoreSnapshot, FillSnapshot } from '@/executor'
+import { fillField, createFillSnapshot, restoreSnapshot, FillSnapshot, executeFillPlanAnimated } from '@/executor'
 import { Recorder, generateId } from '@/recorder'
 import { storage, AnswerStorage, ObservationStorage, SiteSettingsStorage, experienceStorage } from '@/storage'
 import { BadgeManager } from '@/ui/BadgeManager'
-import { FloatingWidget, DetectedField, showToast } from '@/ui'
-import { FieldContext, AnswerValue, Taxonomy, SENSITIVE_TYPES, FillResult, FillPlan, CandidateType, PendingObservation, ExperienceGroupType } from '@/types'
+import { FloatingWidget, DetectedField, FillAnimationState, showToast } from '@/ui'
+import { FieldContext, AnswerValue, Taxonomy, SENSITIVE_TYPES, FillResult, FillPlan, CandidateType, PendingObservation, ExperienceGroupType, DEFAULT_FILL_ANIMATION_CONFIG, FillAnimationConfig } from '@/types'
 import { FillDebugInfo, createEmptyDebugInfo, saveDebugLog } from '@/utils/logger'
 
 const CONFIDENCE_THRESHOLD = 0.75
@@ -48,7 +48,7 @@ export class AutoFiller {
     })
     this.floatingWidget = new FloatingWidget({
       onSave: () => this.detectFieldsForWidget(),
-      onFill: () => this.fillAndReturnCount(),
+      onFill: (animated, onProgress) => this.fillAndReturnCount(animated, onProgress),
       onConfirm: (fields) => this.handleConfirmAndSubmit(fields),
     })
 
@@ -266,8 +266,11 @@ export class AutoFiller {
     return ''
   }
 
-  private async fillAndReturnCount(): Promise<{ count: number; debug: FillDebugInfo }> {
-    const { results, debug } = await this.fillWithDebug()
+  private async fillAndReturnCount(
+    animated = false,
+    onProgress?: (state: FillAnimationState) => void
+  ): Promise<{ count: number; debug: FillDebugInfo }> {
+    const { results, debug } = await this.fillWithDebug(animated, onProgress)
     return { count: results.filter(r => r.success).length, debug }
   }
 
@@ -334,12 +337,15 @@ export class AutoFiller {
     return results
   }
 
-  private async fillWithDebug(): Promise<{ results: FillResult[]; debug: FillDebugInfo }> {
+  private async fillWithDebug(
+    animated = false,
+    onProgress?: (state: FillAnimationState) => void
+  ): Promise<{ results: FillResult[]; debug: FillDebugInfo }> {
     const debug = createEmptyDebugInfo()
     const settings = await this.siteSettingsStorage.get(this.siteKey)
-    
+
     debug.autofillEnabled = settings?.autofillEnabled ?? false
-    
+
     if (!settings?.autofillEnabled) {
       await saveDebugLog('fill', debug)
       return { results: [], debug }
@@ -347,8 +353,43 @@ export class AutoFiller {
 
     this.badgeManager.hideAll()
 
+    // Get animation config
+    let animConfig: FillAnimationConfig = DEFAULT_FILL_ANIMATION_CONFIG
+    try {
+      const result = await chrome.storage.local.get('fillAnimationConfig')
+      if (result.fillAnimationConfig) {
+        animConfig = { ...DEFAULT_FILL_ANIMATION_CONFIG, ...result.fillAnimationConfig }
+      }
+    } catch {
+      // Use defaults
+    }
+
+    // Scanning stage
+    if (animated && onProgress) {
+      onProgress({
+        stage: 'scanning',
+        currentFieldIndex: 0,
+        totalFields: 0,
+        currentFieldLabel: '',
+        progress: 5
+      })
+      await new Promise(resolve => setTimeout(resolve, animConfig.stageDelays.scanning))
+    }
+
     const fields = scanFields(document.body)
     debug.fieldsScanned = fields.length
+
+    // Thinking stage
+    if (animated && onProgress) {
+      onProgress({
+        stage: 'thinking',
+        currentFieldIndex: 0,
+        totalFields: fields.length,
+        currentFieldLabel: '',
+        progress: 15
+      })
+      await new Promise(resolve => setTimeout(resolve, animConfig.stageDelays.thinking))
+    }
 
     const { plans, suggestions, sensitiveFields, fieldDebug } = await this.createFillPlansWithDebug(fields)
     debug.fieldsParsed = fieldDebug
@@ -359,28 +400,87 @@ export class AutoFiller {
     const results: FillResult[] = []
     this.fillHistory = []
 
-    for (const plan of plans) {
-      const snapshot = createFillSnapshot(plan.field.element)
-      const result = await fillField(plan.field, plan.answer.value)
+    if (animated && onProgress && plans.length > 0) {
+      // Filling stage with animation
+      onProgress({
+        stage: 'filling',
+        currentFieldIndex: 0,
+        totalFields: plans.length,
+        currentFieldLabel: plans[0]?.field.labelText || 'Field',
+        progress: 20
+      })
 
-      if (result.success) {
-        this.fillHistory.push({
-          field: plan.field,
-          snapshot,
-          answerId: plan.answer.id,
-          timestamp: Date.now(),
-        })
-        // 标记为程序填写，并添加用户修改监听器
-        this.markAsFilledByProgram(plan.field.element)
-        this.badgeManager.showBadge(plan.field, {
-          type: 'filled',
-          answerId: plan.answer.id,
-          canUndo: true,
-        })
+      // Use animated executor
+      const animatedPlans = plans.map(p => ({
+        context: p.field,
+        value: p.answer.value
+      }))
+
+      const animResults = await executeFillPlanAnimated(animatedPlans, {
+        config: animConfig,
+        onProgress: (fieldIndex, totalFields, currentChar, totalChars, fieldLabel) => {
+          // Calculate overall progress (20% to 95%)
+          const charProgress = totalChars > 0 ? currentChar / totalChars : 0
+          const fieldContribution = 75 / totalFields
+          const progress = 20 + (fieldIndex * fieldContribution) + (charProgress * fieldContribution)
+
+          onProgress({
+            stage: 'filling',
+            currentFieldIndex: fieldIndex,
+            totalFields,
+            currentFieldLabel: fieldLabel,
+            progress: Math.min(95, progress)
+          })
+        }
+      })
+
+      // Process results
+      for (let i = 0; i < animResults.length; i++) {
+        const plan = plans[i]
+        const result = animResults[i]
+
+        if (result.success) {
+          const snapshot = createFillSnapshot(plan.field.element)
+          this.fillHistory.push({
+            field: plan.field,
+            snapshot,
+            answerId: plan.answer.id,
+            timestamp: Date.now(),
+          })
+          this.markAsFilledByProgram(plan.field.element)
+          this.badgeManager.showBadge(plan.field, {
+            type: 'filled',
+            answerId: plan.answer.id,
+            canUndo: true,
+          })
+        }
+
+        results.push(result)
       }
+    } else {
+      // Non-animated mode (original behavior)
+      for (const plan of plans) {
+        const snapshot = createFillSnapshot(plan.field.element)
+        const result = await fillField(plan.field, plan.answer.value)
 
-      results.push(result)
-      await this.yieldToMainThread()
+        if (result.success) {
+          this.fillHistory.push({
+            field: plan.field,
+            snapshot,
+            answerId: plan.answer.id,
+            timestamp: Date.now(),
+          })
+          this.markAsFilledByProgram(plan.field.element)
+          this.badgeManager.showBadge(plan.field, {
+            type: 'filled',
+            answerId: plan.answer.id,
+            canUndo: true,
+          })
+        }
+
+        results.push(result)
+        await this.yieldToMainThread()
+      }
     }
 
     for (const { field, candidates } of suggestions) {
@@ -399,7 +499,7 @@ export class AutoFiller {
 
     debug.fillResults = results.filter(r => r.success).length
     this.notifyFilled(debug.fillResults)
-    
+
     await saveDebugLog('fill', debug)
     return { results, debug }
   }

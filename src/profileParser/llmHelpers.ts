@@ -6,6 +6,7 @@ export interface LLMConfig {
   apiKey: string
   endpoint?: string
   model?: string
+  disableThinking?: boolean
 }
 
 const DEFAULT_LLM_CONFIG: LLMConfig = {
@@ -13,6 +14,7 @@ const DEFAULT_LLM_CONFIG: LLMConfig = {
   provider: 'openai',
   apiKey: '',
   model: 'gpt-4o-mini',
+  disableThinking: false,
 }
 
 const PROVIDER_ENDPOINTS: Record<string, string> = {
@@ -115,23 +117,46 @@ async function callOpenAICompatibleText(
   }
   messages.push({ role: 'user', content: prompt })
 
+  // 智谱AI的某些模型只支持流式模式
+  const needsStream = config.provider === 'zhipu' || (model && model.startsWith('glm-4'))
+
+  // 构建请求体
+  const requestBody: Record<string, unknown> = {
+    model,
+    messages,
+    temperature,
+    max_tokens: maxTokens,
+  }
+
+  // 流式模式
+  if (needsStream) {
+    requestBody.stream = true
+  }
+
+  // 禁用thinking模式
+  if (config.disableThinking) {
+    // 智谱AI GLM系列模型使用 enable_thinking 参数
+    requestBody.enable_thinking = false
+    // 某些版本可能使用 thinking 对象
+    requestBody.thinking = { type: 'disabled' }
+  }
+
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${config.apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens: maxTokens,
-    }),
+    body: JSON.stringify(requestBody),
   })
 
   if (!response.ok) {
     const errorText = await response.text()
     throw new Error(`API error ${response.status}: ${errorText}`)
+  }
+
+  if (needsStream) {
+    return parseStreamResponse(response)
   }
 
   const data = await response.json()
@@ -221,6 +246,9 @@ async function callOpenAIVision(
     ],
   })
 
+  // 智谱AI的某些模型只支持流式模式
+  const needsStream = config.provider === 'zhipu' || (model && model.startsWith('glm-4'))
+
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -232,12 +260,17 @@ async function callOpenAIVision(
       messages,
       temperature,
       max_tokens: maxTokens,
+      ...(needsStream && { stream: true }),
     }),
   })
 
   if (!response.ok) {
     const errorText = await response.text()
     throw new Error(`Vision API error ${response.status}: ${errorText}`)
+  }
+
+  if (needsStream) {
+    return parseStreamResponse(response)
   }
 
   const data = await response.json()
@@ -341,4 +374,48 @@ export function parseJSONFromLLMResponse<T>(content: string): T | null {
     console.error('[llmHelpers] Failed to parse JSON from LLM response:', error)
     return null
   }
+}
+
+/**
+ * 解析流式响应 (SSE 格式)
+ */
+async function parseStreamResponse(response: Response): Promise<string> {
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('No response body')
+  }
+
+  const decoder = new TextDecoder()
+  let content = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      const chunk = decoder.decode(value, { stream: true })
+      const lines = chunk.split('\n')
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6).trim()
+          if (data === '[DONE]') continue
+
+          try {
+            const json = JSON.parse(data)
+            const delta = json.choices?.[0]?.delta?.content
+            if (delta) {
+              content += delta
+            }
+          } catch {
+            // 忽略解析错误的行
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+
+  return content
 }

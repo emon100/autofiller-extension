@@ -1,6 +1,76 @@
 // Track side panel state per tab
 const sidePanelOpenTabs = new Set<number>()
 
+// Context menu IDs
+const CONTEXT_MENU_IDS = {
+  FILL_FORM: 'autofiller-fill-form',
+  OPEN_SIDEPANEL: 'autofiller-open-sidepanel',
+} as const
+
+// Create context menus on install
+function createContextMenus() {
+  // Remove existing menus first to avoid duplicates
+  chrome.contextMenus.removeAll(() => {
+    // Main fill action - shown on page
+    chrome.contextMenus.create({
+      id: CONTEXT_MENU_IDS.FILL_FORM,
+      title: 'AutoFill this form',
+      contexts: ['page', 'editable'],
+    })
+
+    // Open side panel
+    chrome.contextMenus.create({
+      id: CONTEXT_MENU_IDS.OPEN_SIDEPANEL,
+      title: 'Open AutoFiller panel',
+      contexts: ['page'],
+    })
+  })
+}
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (!tab?.id) return
+
+  switch (info.menuItemId) {
+    case CONTEXT_MENU_IDS.FILL_FORM:
+      try {
+        // Send fill command to content script
+        await chrome.tabs.sendMessage(tab.id, { action: 'fill' })
+      } catch (error) {
+        console.error('[AutoFiller] Failed to send fill command:', error)
+        // Content script may not be loaded, try to inject it
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js'],
+          })
+          // Retry after injection
+          setTimeout(async () => {
+            try {
+              await chrome.tabs.sendMessage(tab.id!, { action: 'fill' })
+            } catch (e) {
+              console.error('[AutoFiller] Fill failed after injection:', e)
+            }
+          }, 500)
+        } catch (injectError) {
+          console.error('[AutoFiller] Failed to inject content script:', injectError)
+        }
+      }
+      break
+
+    case CONTEXT_MENU_IDS.OPEN_SIDEPANEL:
+      if (chrome.sidePanel?.open) {
+        try {
+          await chrome.sidePanel.open({ tabId: tab.id })
+          sidePanelOpenTabs.add(tab.id)
+        } catch (error) {
+          console.error('[AutoFiller] Failed to open side panel:', error)
+        }
+      }
+      break
+  }
+})
+
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id) return
 
@@ -92,8 +162,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[AutoFiller] Extension installed')
-  
+
+  // Create context menus
+  createContextMenus()
+
   if (chrome.sidePanel?.setPanelBehavior) {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false })
   }
+})
+
+// Also create menus on startup (in case extension was updated)
+chrome.runtime.onStartup.addListener(() => {
+  createContextMenus()
 })

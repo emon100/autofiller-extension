@@ -1,4 +1,4 @@
-import { FieldContext, FillResult } from '@/types'
+import { FieldContext, FillResult, FillAnimationConfig, DEFAULT_FILL_ANIMATION_CONFIG } from '@/types'
 import { ExecutorLog, logExecutor } from '@/utils/logger'
 
 export interface FillResultWithLog extends FillResult {
@@ -10,6 +10,15 @@ export interface FillSnapshot {
   checked?: boolean
   selectedIndex?: number
 }
+
+// Animation progress callback type
+export type FillAnimationProgressCallback = (
+  fieldIndex: number,
+  totalFields: number,
+  currentChar: number,
+  totalChars: number,
+  fieldLabel: string
+) => void
 
 export function createFillSnapshot(element: HTMLElement): FillSnapshot {
   const snapshot: FillSnapshot = {}
@@ -452,6 +461,162 @@ export async function executeFillPlan(
 
     if (i + batchSize < plans.length) {
       await new Promise(resolve => setTimeout(resolve, delayBetweenBatches))
+    }
+  }
+
+  return results
+}
+
+// Animated text fill with typewriter effect
+export async function fillTextAnimated(
+  element: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+  charDelay: number,
+  onProgress?: (currentChar: number, totalChars: number) => void
+): Promise<FillResult> {
+  const previousValue = element.value
+
+  try {
+    // Focus the element first
+    element.focus()
+
+    // Clear existing value
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+      element instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype,
+      'value'
+    )?.set
+
+    // Type character by character
+    for (let i = 0; i <= value.length; i++) {
+      const partialValue = value.substring(0, i)
+
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(element, partialValue)
+      } else {
+        element.value = partialValue
+      }
+
+      // Dispatch input event for each character (for React controlled inputs)
+      element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+
+      onProgress?.(i, value.length)
+
+      if (i < value.length) {
+        await new Promise(resolve => setTimeout(resolve, charDelay))
+      }
+    }
+
+    // Final change event
+    element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }))
+
+    return {
+      success: true,
+      element,
+      previousValue,
+      newValue: value,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      element,
+      previousValue,
+      newValue: value,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+// Calculate optimal character delay based on total content and max duration
+export function calculateCharDelay(
+  plans: Array<{ value: string }>,
+  config: FillAnimationConfig
+): number {
+  const totalChars = plans.reduce((sum, p) => sum + p.value.length, 0)
+  const totalFields = plans.length
+
+  // Available time for typing (subtract stage delays and field delays)
+  const stageTime = config.stageDelays.scanning + config.stageDelays.thinking
+  const fieldDelayTime = totalFields * config.fieldDelay
+  const availableTime = (config.maxDuration * 1000) - stageTime - fieldDelayTime
+
+  if (totalChars === 0) return config.minCharDelay
+
+  // Calculate delay per character
+  const calculatedDelay = availableTime / totalChars
+
+  // Clamp between min and max
+  return Math.max(config.minCharDelay, Math.min(config.maxCharDelay, calculatedDelay))
+}
+
+// Execute fill plan with animation
+export async function executeFillPlanAnimated(
+  plans: Array<{ context: FieldContext; value: string }>,
+  options: {
+    config?: FillAnimationConfig
+    onProgress?: FillAnimationProgressCallback
+    enableLogging?: boolean
+  } = {}
+): Promise<FillResultWithLog[]> {
+  const {
+    config = DEFAULT_FILL_ANIMATION_CONFIG,
+    onProgress,
+    enableLogging = false
+  } = options
+
+  const results: FillResultWithLog[] = []
+  const charDelay = calculateCharDelay(plans, config)
+
+  for (let fieldIndex = 0; fieldIndex < plans.length; fieldIndex++) {
+    const { context, value } = plans[fieldIndex]
+    const { element, widgetSignature, labelText } = context
+    const startTime = performance.now()
+
+    let result: FillResultWithLog
+
+    // Only animate text-based fields
+    if (
+      (widgetSignature.kind === 'text' || widgetSignature.kind === 'textarea') &&
+      element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement
+    ) {
+      // Animated fill with typewriter effect
+      const fillResult = await fillTextAnimated(
+        element as HTMLInputElement | HTMLTextAreaElement,
+        value,
+        charDelay,
+        (currentChar, totalChars) => {
+          onProgress?.(fieldIndex, plans.length, currentChar, totalChars, labelText)
+        }
+      )
+
+      result = {
+        ...fillResult,
+        executorLog: {
+          fieldLabel: labelText,
+          widgetKind: widgetSignature.kind,
+          strategy: 'animated-typewriter',
+          targetValue: value,
+          success: fillResult.success,
+          error: fillResult.error,
+          timeMs: performance.now() - startTime
+        }
+      }
+    } else {
+      // Non-text fields use regular fill
+      result = await fillField(context, value, enableLogging)
+
+      // Simulate some animation time for non-text fields
+      onProgress?.(fieldIndex, plans.length, value.length, value.length, labelText)
+    }
+
+    results.push(result)
+
+    if (enableLogging && result.executorLog) {
+      logExecutor(result.executorLog)
+    }
+
+    // Delay between fields
+    if (fieldIndex < plans.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, config.fieldDelay))
     }
   }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Database, Trash2, Download, Upload, CheckCircle, AlertTriangle, User, Building2, GraduationCap, MessageSquare, Send, Bot, Loader2, Clock, XCircle } from 'lucide-react'
-import { Taxonomy, AnswerValue, SENSITIVE_TYPES } from '@/types'
+import { Database, Trash2, Download, Upload, CheckCircle, AlertTriangle, User, Building2, GraduationCap, MessageSquare, Send, Bot, Loader2, Clock, XCircle, Sparkles, Play, RotateCcw } from 'lucide-react'
+import { Taxonomy, AnswerValue, SENSITIVE_TYPES, FillAnimationConfig, DEFAULT_FILL_ANIMATION_CONFIG } from '@/types'
 import { saveLLMLog, getLLMLogs, clearLLMLogs, LLMLogEntry, logLLMRequest, logLLMResponse, logLLMError } from '@/utils/logger'
 
 // Test profiles for development
@@ -105,9 +105,23 @@ export default function Developer() {
   const [llmLogs, setLLMLogs] = useState<LLMLogEntry[]>([])
   const [showLogs, setShowLogs] = useState(false)
 
+  // Animation config states
+  const [animationConfig, setAnimationConfig] = useState<FillAnimationConfig>(DEFAULT_FILL_ANIMATION_CONFIG)
+  const [animationTesting, setAnimationTesting] = useState(false)
+
+  // Demo animation states
+  const [animationStage, setAnimationStage] = useState<'idle' | 'scanning' | 'thinking' | 'filling' | 'done'>('idle')
+  const [demoInputs, setDemoInputs] = useState([
+    { label: 'Full Name', targetValue: 'John Smith', currentValue: '' },
+    { label: 'Email', targetValue: 'john.smith@example.com', currentValue: '' },
+  ])
+  const [currentFieldIndex, setCurrentFieldIndex] = useState(0)
+  const [animationProgress, setAnimationProgress] = useState(0)
+
   useEffect(() => {
     loadLLMConfig()
     loadLLMLogs()
+    loadAnimationConfig()
   }, [])
 
   async function loadLLMConfig() {
@@ -122,6 +136,120 @@ export default function Developer() {
   async function loadLLMLogs() {
     const logs = await getLLMLogs()
     setLLMLogs(logs)
+  }
+
+  async function loadAnimationConfig() {
+    try {
+      const result = await chrome.storage.local.get('fillAnimationConfig')
+      if (result.fillAnimationConfig) {
+        setAnimationConfig({ ...DEFAULT_FILL_ANIMATION_CONFIG, ...result.fillAnimationConfig })
+      }
+    } catch {
+      // Use defaults
+    }
+  }
+
+  async function saveAnimationConfig(config: FillAnimationConfig) {
+    setAnimationConfig(config)
+    await chrome.storage.local.set({ fillAnimationConfig: config })
+    showMessage('success', 'Animation config saved')
+  }
+
+  function updateAnimationConfig(updates: Partial<FillAnimationConfig>) {
+    const newConfig = { ...animationConfig, ...updates }
+    saveAnimationConfig(newConfig)
+  }
+
+  // Calculate character delay based on total content
+  function calculateCharDelay(): number {
+    const totalChars = demoInputs.reduce((sum, input) => sum + input.targetValue.length, 0)
+    const totalFields = demoInputs.length
+    const stageTime = animationConfig.stageDelays.scanning + animationConfig.stageDelays.thinking
+    const fieldDelayTime = totalFields * animationConfig.fieldDelay
+    const availableTime = (animationConfig.maxDuration * 1000) - stageTime - fieldDelayTime
+
+    if (totalChars === 0) return animationConfig.minCharDelay
+    const calculatedDelay = availableTime / totalChars
+    return Math.max(animationConfig.minCharDelay, Math.min(animationConfig.maxCharDelay, calculatedDelay))
+  }
+
+  // Play demo animation locally
+  async function playDemoAnimation() {
+    if (animationTesting) return
+    setAnimationTesting(true)
+
+    // Reset demo inputs
+    setDemoInputs(prev => prev.map(input => ({ ...input, currentValue: '' })))
+    setCurrentFieldIndex(0)
+    setAnimationProgress(0)
+
+    const charDelay = calculateCharDelay()
+
+    try {
+      // Stage 1: Scanning
+      setAnimationStage('scanning')
+      setAnimationProgress(5)
+      await new Promise(r => setTimeout(r, animationConfig.stageDelays.scanning))
+
+      // Stage 2: Thinking
+      setAnimationStage('thinking')
+      setAnimationProgress(15)
+      await new Promise(r => setTimeout(r, animationConfig.stageDelays.thinking))
+
+      // Stage 3: Filling
+      setAnimationStage('filling')
+      const totalChars = demoInputs.reduce((sum, input) => sum + input.targetValue.length, 0)
+      let charsFilled = 0
+
+      for (let fieldIdx = 0; fieldIdx < demoInputs.length; fieldIdx++) {
+        setCurrentFieldIndex(fieldIdx)
+        const targetValue = demoInputs[fieldIdx].targetValue
+
+        // Type character by character
+        for (let charIdx = 0; charIdx <= targetValue.length; charIdx++) {
+          const partialValue = targetValue.substring(0, charIdx)
+          setDemoInputs(prev => prev.map((input, idx) =>
+            idx === fieldIdx ? { ...input, currentValue: partialValue } : input
+          ))
+
+          // Update progress (20% to 95%)
+          charsFilled++
+          const progress = 20 + (charsFilled / totalChars) * 75
+          setAnimationProgress(Math.min(95, progress))
+
+          if (charIdx < targetValue.length) {
+            await new Promise(r => setTimeout(r, charDelay))
+          }
+        }
+
+        // Delay between fields
+        if (fieldIdx < demoInputs.length - 1) {
+          await new Promise(r => setTimeout(r, animationConfig.fieldDelay))
+        }
+      }
+
+      // Stage 4: Done
+      setAnimationStage('done')
+      setAnimationProgress(100)
+      await new Promise(r => setTimeout(r, 1500))
+
+      // Reset to idle
+      setAnimationStage('idle')
+
+    } catch (err) {
+      showMessage('error', 'Animation error')
+    } finally {
+      setAnimationTesting(false)
+    }
+  }
+
+  // Reset demo to initial state
+  function resetDemo() {
+    setAnimationStage('idle')
+    setDemoInputs(prev => prev.map(input => ({ ...input, currentValue: '' })))
+    setCurrentFieldIndex(0)
+    setAnimationProgress(0)
+    setAnimationTesting(false)
   }
 
   async function handleClearLLMLogs() {
@@ -149,6 +277,7 @@ export default function Developer() {
       provider,
       model,
       prompt: userMessage,
+      endpoint: provider === 'custom' ? llmConfig.endpoint : undefined,
     })
 
     try {
@@ -177,7 +306,7 @@ export default function Developer() {
           messages: [{ role: 'user', content: userMessage }],
         }
       } else if (provider === 'custom') {
-        // Custom endpoint
+        // Custom endpoint (OpenAI compatible)
         endpoint = llmConfig.endpoint || ''
         if (!endpoint) throw new Error('Custom endpoint URL not configured')
         headers['Authorization'] = `Bearer ${llmConfig.apiKey}`
@@ -186,6 +315,12 @@ export default function Developer() {
           messages: [{ role: 'user', content: userMessage }],
           max_tokens: 500,
         }
+        // Debug log for custom endpoint
+        console.log('[LLM Test] Custom endpoint request:', {
+          endpoint,
+          hasAuthHeader: !!headers['Authorization'],
+          model,
+        })
       } else {
         // OpenAI compatible providers: openai, dashscope, deepseek, zhipu
         endpoint = PROVIDER_ENDPOINTS[provider] || PROVIDER_ENDPOINTS.openai
@@ -357,8 +492,18 @@ export default function Developer() {
       try {
         const text = await file.text()
         const data = JSON.parse(text)
-        await chrome.storage.local.set(data)
-        showMessage('success', 'Data imported successfully')
+        const ALLOWED_KEYS = ['answers', 'observations', 'siteSettings', 'experiences', 'fillAnimationConfig']
+        const sanitized: Record<string, unknown> = {}
+        for (const key of ALLOWED_KEYS) {
+          if (key in data) sanitized[key] = data[key]
+        }
+        if (Object.keys(sanitized).length === 0) {
+          showMessage('error', 'No valid data keys found in file')
+          setLoading(false)
+          return
+        }
+        await chrome.storage.local.set(sanitized)
+        showMessage('success', `Imported ${Object.keys(sanitized).length} data keys successfully`)
       } catch (err) {
         showMessage('error', 'Failed to import data - invalid format')
       } finally {
@@ -435,6 +580,15 @@ export default function Developer() {
             <div className="text-xs text-blue-700 mb-3">
               Provider: <span className="font-medium">{llmConfig.provider}</span> |
               Model: <span className="font-medium">{llmConfig.model || 'default'}</span>
+              {llmConfig.provider === 'custom' && llmConfig.endpoint && (
+                <>
+                  <br />
+                  Endpoint: <span className="font-medium text-blue-600">{llmConfig.endpoint}</span>
+                </>
+              )}
+              {llmConfig.provider === 'custom' && !llmConfig.endpoint && (
+                <span className="text-red-500 ml-2">⚠️ Endpoint not configured</span>
+              )}
             </div>
 
             {/* Chat Messages */}
@@ -544,6 +698,9 @@ export default function Developer() {
                       {new Date(log.timestamp).toLocaleTimeString()}
                     </span>
                   </div>
+                  {log.endpoint && (
+                    <div className="text-blue-600 truncate">Endpoint: {log.endpoint}</div>
+                  )}
                   {log.prompt && (
                     <div className="text-gray-700 truncate">Prompt: {log.prompt}</div>
                   )}
@@ -561,6 +718,213 @@ export default function Developer() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Fill Animation Config */}
+      <div className="bg-indigo-50 rounded-lg border border-indigo-200 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-indigo-600" />
+            <h3 className="font-medium text-indigo-900">Fill Animation</h3>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-xs text-indigo-700">Enabled</span>
+            <input
+              type="checkbox"
+              checked={animationConfig.enabled}
+              onChange={(e) => updateAnimationConfig({ enabled: e.target.checked })}
+              className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+            />
+          </label>
+        </div>
+
+        <p className="text-xs text-indigo-700 mb-4">
+          Typewriter effect with Scanning → Thinking → Filling stages
+        </p>
+
+        <div className="space-y-4">
+          {/* Max Duration */}
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-indigo-800">Max Duration</span>
+              <span className="font-medium text-indigo-900">{animationConfig.maxDuration}s</span>
+            </div>
+            <input
+              type="range"
+              min="3"
+              max="20"
+              step="1"
+              value={animationConfig.maxDuration}
+              onChange={(e) => updateAnimationConfig({ maxDuration: Number(e.target.value) })}
+              className="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+            />
+          </div>
+
+          {/* Char Delay Range */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-indigo-800">Min Char Delay</span>
+                <span className="font-medium text-indigo-900">{animationConfig.minCharDelay}ms</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="50"
+                step="5"
+                value={animationConfig.minCharDelay}
+                onChange={(e) => updateAnimationConfig({ minCharDelay: Number(e.target.value) })}
+                className="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-indigo-800">Max Char Delay</span>
+                <span className="font-medium text-indigo-900">{animationConfig.maxCharDelay}ms</span>
+              </div>
+              <input
+                type="range"
+                min="30"
+                max="150"
+                step="10"
+                value={animationConfig.maxCharDelay}
+                onChange={(e) => updateAnimationConfig({ maxCharDelay: Number(e.target.value) })}
+                className="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+            </div>
+          </div>
+
+          {/* Stage Delays */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-indigo-800">Scanning Stage</span>
+                <span className="font-medium text-indigo-900">{animationConfig.stageDelays.scanning}ms</span>
+              </div>
+              <input
+                type="range"
+                min="200"
+                max="2000"
+                step="100"
+                value={animationConfig.stageDelays.scanning}
+                onChange={(e) => updateAnimationConfig({
+                  stageDelays: { ...animationConfig.stageDelays, scanning: Number(e.target.value) }
+                })}
+                className="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+            </div>
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-indigo-800">Thinking Stage</span>
+                <span className="font-medium text-indigo-900">{animationConfig.stageDelays.thinking}ms</span>
+              </div>
+              <input
+                type="range"
+                min="200"
+                max="2000"
+                step="100"
+                value={animationConfig.stageDelays.thinking}
+                onChange={(e) => updateAnimationConfig({
+                  stageDelays: { ...animationConfig.stageDelays, thinking: Number(e.target.value) }
+                })}
+                className="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+            </div>
+          </div>
+
+          {/* Field Delay */}
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-indigo-800">Field Delay</span>
+              <span className="font-medium text-indigo-900">{animationConfig.fieldDelay}ms</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="500"
+              step="50"
+              value={animationConfig.fieldDelay}
+              onChange={(e) => updateAnimationConfig({ fieldDelay: Number(e.target.value) })}
+              className="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+            />
+          </div>
+
+          {/* Demo Preview */}
+          <div className="bg-gradient-to-br from-indigo-900 to-purple-900 rounded-lg p-4 mt-4">
+            {/* Stage Indicator */}
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <span className="text-lg">
+                {animationStage === 'idle' && '⏸️'}
+                {animationStage === 'scanning' && '🔍'}
+                {animationStage === 'thinking' && '🧠'}
+                {animationStage === 'filling' && '✍️'}
+                {animationStage === 'done' && '✨'}
+              </span>
+              <span className="text-white font-medium">
+                {animationStage === 'idle' && 'Ready'}
+                {animationStage === 'scanning' && 'Scanning...'}
+                {animationStage === 'thinking' && 'Thinking...'}
+                {animationStage === 'filling' && `Filling: ${demoInputs[currentFieldIndex]?.label || ''}`}
+                {animationStage === 'done' && 'Complete!'}
+              </span>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="h-1.5 bg-white/20 rounded-full overflow-hidden mb-4">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-400 to-purple-400 transition-all duration-100"
+                style={{ width: `${animationProgress}%` }}
+              />
+            </div>
+
+            {/* Demo Input Fields */}
+            <div className="space-y-3">
+              {demoInputs.map((input, idx) => (
+                <div key={idx}>
+                  <label className="text-xs text-indigo-200 mb-1 block">{input.label}</label>
+                  <div className={`relative bg-white rounded-lg overflow-hidden ${
+                    animationStage === 'filling' && currentFieldIndex === idx ? 'ring-2 ring-indigo-400' : ''
+                  }`}>
+                    <input
+                      type="text"
+                      value={input.currentValue}
+                      readOnly
+                      placeholder={input.targetValue}
+                      className="w-full px-3 py-2 text-sm text-gray-800 bg-transparent outline-none"
+                    />
+                    {animationStage === 'filling' && currentFieldIndex === idx && (
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-indigo-600 animate-pulse" />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={playDemoAnimation}
+              disabled={animationTesting || !animationConfig.enabled}
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            >
+              {animationTesting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
+              {animationTesting ? 'Playing...' : 'Play Demo'}
+            </button>
+            <button
+              onClick={resetDemo}
+              disabled={animationTesting}
+              className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-indigo-700 bg-white border border-indigo-300 rounded-lg hover:bg-indigo-50 disabled:opacity-50 transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 p-4">

@@ -7,6 +7,7 @@ interface LLMConfig {
   apiKey: string
   endpoint?: string
   model?: string
+  disableThinking?: boolean
 }
 
 interface FieldMetadata {
@@ -469,21 +470,40 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
     const endpoint = config.endpoint || PROVIDER_ENDPOINTS[config.provider] || PROVIDER_ENDPOINTS.openai
     const model = config.model || DEFAULT_MODELS[config.provider] || 'gpt-4o-mini'
 
+    // 智谱AI的某些模型只支持流式模式
+    const needsStream = config.provider === 'zhipu' || (model && model.startsWith('glm-4'))
+
+    // 构建请求体
+    const requestBody: Record<string, unknown> = {
+      model,
+      messages: [
+        { role: 'system', content: 'You are a form field classifier. Respond only with valid JSON.' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0,
+      max_tokens: 100,
+    }
+
+    // 流式模式
+    if (needsStream) {
+      requestBody.stream = true
+    }
+
+    // 禁用thinking模式
+    if (config.disableThinking) {
+      // 智谱AI GLM系列模型使用 enable_thinking 参数
+      requestBody.enable_thinking = false
+      // 某些版本可能使用 thinking 对象
+      requestBody.thinking = { type: 'disabled' }
+    }
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${config.apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: 'You are a form field classifier. Respond only with valid JSON.' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0,
-        max_tokens: 100,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
@@ -491,8 +511,13 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
       throw new Error(`API error ${response.status}: ${errorText}`)
     }
 
-    const data = await response.json()
-    const content = data.choices?.[0]?.message?.content || ''
+    let content: string
+    if (needsStream) {
+      content = await this.parseStreamResponse(response)
+    } else {
+      const data = await response.json()
+      content = data.choices?.[0]?.message?.content || ''
+    }
     return this.parseSingleResponse(content)
   }
 
@@ -533,21 +558,40 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
 
     console.log(`[LLMParser] Calling ${config.provider} batch at ${endpoint} with model ${model}`)
 
+    // 智谱AI的某些模型只支持流式模式
+    const needsStream = config.provider === 'zhipu' || (model && model.startsWith('glm-4'))
+
+    // 构建请求体
+    const requestBody: Record<string, unknown> = {
+      model,
+      messages: [
+        { role: 'system', content: 'You are a form field classifier. Respond only with valid JSON array.' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0,
+      max_tokens: 1000, // More tokens for batch response
+    }
+
+    // 流式模式
+    if (needsStream) {
+      requestBody.stream = true
+    }
+
+    // 禁用thinking模式
+    if (config.disableThinking) {
+      // 智谱AI GLM系列模型使用 enable_thinking 参数
+      requestBody.enable_thinking = false
+      // 某些版本可能使用 thinking 对象
+      requestBody.thinking = { type: 'disabled' }
+    }
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${config.apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: 'You are a form field classifier. Respond only with valid JSON array.' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0,
-        max_tokens: 1000, // More tokens for batch response
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
@@ -555,8 +599,13 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
       throw new Error(`API error ${response.status}: ${errorText}`)
     }
 
-    const data = await response.json()
-    const content = data.choices?.[0]?.message?.content || ''
+    let content: string
+    if (needsStream) {
+      content = await this.parseStreamResponse(response)
+    } else {
+      const data = await response.json()
+      content = data.choices?.[0]?.message?.content || ''
+    }
     return this.parseBatchResponse(content)
   }
 
@@ -644,6 +693,50 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
       console.error('[LLMParser] Batch parse error:', error)
       return []
     }
+  }
+
+  /**
+   * 解析流式响应 (SSE 格式)
+   */
+  private async parseStreamResponse(response: Response): Promise<string> {
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error('No response body')
+    }
+
+    const decoder = new TextDecoder()
+    let content = ''
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim()
+            if (data === '[DONE]') continue
+
+            try {
+              const json = JSON.parse(data)
+              const delta = json.choices?.[0]?.delta?.content
+              if (delta) {
+                content += delta
+              }
+            } catch {
+              // 忽略解析错误的行
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock()
+    }
+
+    return content
   }
 
   clearCache(): void {

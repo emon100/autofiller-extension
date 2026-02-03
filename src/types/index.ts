@@ -147,6 +147,33 @@ export interface SiteSettings {
   updatedAt: number
 }
 
+// Fill Animation Configuration
+export interface FillAnimationConfig {
+  enabled: boolean
+  maxDuration: number           // 最大动画总时长（秒），默认10
+  minCharDelay: number          // 每字符最小延迟（ms），默认15
+  maxCharDelay: number          // 每字符最大延迟（ms），默认60
+  stageDelays: {
+    scanning: number            // Scanning 阶段时长（ms），默认800
+    thinking: number            // Thinking 阶段时长（ms），默认1200
+  }
+  fieldDelay: number            // 字段间延迟（ms），默认100
+}
+
+export const DEFAULT_FILL_ANIMATION_CONFIG: FillAnimationConfig = {
+  enabled: true,
+  maxDuration: 10,
+  minCharDelay: 15,
+  maxCharDelay: 60,
+  stageDelays: {
+    scanning: 800,
+    thinking: 1200,
+  },
+  fieldDelay: 100,
+}
+
+export type FillAnimationStage = 'idle' | 'scanning' | 'thinking' | 'filling' | 'done'
+
 export type PendingStatus = 'pending' | 'committed' | 'discarded'
 
 export interface PendingObservation {
@@ -184,6 +211,33 @@ export interface IValueTransformer {
   canTransform(sourceValue: string, targetContext: FieldContext): boolean
   transform(sourceValue: string, targetContext: FieldContext): string
 }
+
+// User and Credits types for backend integration
+export interface AuthUser {
+  id: string
+  email: string
+  displayName: string
+  avatarUrl?: string
+}
+
+export interface AuthState {
+  accessToken: string
+  refreshToken: string
+  expiresAt: number
+  user: AuthUser
+}
+
+export interface CreditsInfo {
+  balance: number
+  lifetimeUsed: number
+  subscription?: {
+    planId: string
+    status: string
+    expiresAt: string
+  }
+}
+
+export type CreditTransactionType = 'fill' | 'resume_parse'
 
 // Export experience-related types
 export * from './experience'
