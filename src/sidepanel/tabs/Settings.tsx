@@ -3,7 +3,6 @@ import { Key, Cloud, Server, CheckCircle, Code2, Type, User, CreditCard, LogIn, 
 import { storage } from '@/storage'
 import { AuthUser, CreditsInfo, AuthState } from '@/types'
 
-// API base URL
 const WEBSITE_URL = 'https://www.onefil.help'
 
 interface LLMConfig {
@@ -15,28 +14,12 @@ interface LLMConfig {
   disableThinking?: boolean
 }
 
-interface DevSettings {
-  devModeEnabled: boolean
-}
-
-interface FillAnimationConfig {
-  enabled: boolean
-}
-
 const DEFAULT_CONFIG: LLMConfig = {
   enabled: false,
   provider: 'openai',
   apiKey: '',
   model: 'gpt-4o-mini',
   disableThinking: false,
-}
-
-const DEFAULT_DEV_SETTINGS: DevSettings = {
-  devModeEnabled: false,
-}
-
-const DEFAULT_FILL_ANIMATION_CONFIG: FillAnimationConfig = {
-  enabled: true,
 }
 
 const PROVIDERS = [
@@ -50,8 +33,8 @@ const PROVIDERS = [
 
 export default function Settings() {
   const [config, setConfig] = useState<LLMConfig>(DEFAULT_CONFIG)
-  const [devSettings, setDevSettings] = useState<DevSettings>(DEFAULT_DEV_SETTINGS)
-  const [fillAnimationConfig, setFillAnimationConfig] = useState<FillAnimationConfig>(DEFAULT_FILL_ANIMATION_CONFIG)
+  const [devModeEnabled, setDevModeEnabled] = useState(false)
+  const [fillAnimationEnabled, setFillAnimationEnabled] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -64,83 +47,47 @@ export default function Settings() {
   const [refreshingCredits, setRefreshingCredits] = useState(false)
 
   useEffect(() => {
-    loadConfig()
-    loadDevSettings()
-    loadFillAnimationConfig()
-    loadAuthState()
-  }, [])
+    (async () => {
+      const result = await chrome.storage.local.get(['llmConfig', 'devSettings', 'fillAnimationConfig'])
+      if (result.llmConfig) setConfig({ ...DEFAULT_CONFIG, ...result.llmConfig })
+      if (result.devSettings) setDevModeEnabled(result.devSettings.devModeEnabled ?? false)
+      if (result.fillAnimationConfig) setFillAnimationEnabled(result.fillAnimationConfig.enabled ?? true)
 
-  async function loadAuthState() {
-    setLoadingAuth(true)
-    try {
       const authState = await storage.auth.getAuthState()
       if (authState && authState.expiresAt > Date.now()) {
         setUser(authState.user)
-        const creditsInfo = await storage.auth.fetchCredits()
-        setCredits(creditsInfo)
+        setCredits(await storage.auth.fetchCredits())
       }
-    } catch {
-      // Not logged in
-    } finally {
       setLoadingAuth(false)
-    }
-  }
+    })()
+  }, [])
 
   async function handleLogin() {
     setLoggingIn(true)
     setLoginError('')
 
     try {
-      // Get extension's redirect URL for OAuth callback
       const redirectUrl = chrome.identity.getRedirectURL('callback')
-      console.log('Redirect URL:', redirectUrl)
-
-      // Build auth URL
       const authUrl = `${WEBSITE_URL}/extension/auth?redirect_uri=${encodeURIComponent(redirectUrl)}`
 
-      // Launch web auth flow in a popup
       const responseUrl = await new Promise<string>((resolve, reject) => {
-        chrome.identity.launchWebAuthFlow(
-          {
-            url: authUrl,
-            interactive: true,
-          },
-          (callbackUrl) => {
-            if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message))
-            } else if (callbackUrl) {
-              resolve(callbackUrl)
-            } else {
-              reject(new Error('No callback URL received'))
-            }
-          }
-        )
+        chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, (callbackUrl) => {
+          if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message))
+          else if (callbackUrl) resolve(callbackUrl)
+          else reject(new Error('No callback URL received'))
+        })
       })
 
-      // Parse token from callback URL
-      const url = new URL(responseUrl)
-      const encodedToken = url.searchParams.get('token')
-
-      if (!encodedToken) {
-        throw new Error('No token in callback')
-      }
+      const encodedToken = new URL(responseUrl).searchParams.get('token')
+      if (!encodedToken) throw new Error('No token in callback')
 
       const tokenData = JSON.parse(decodeURIComponent(encodedToken)) as AuthState
+      if (!tokenData.accessToken || !tokenData.user) throw new Error('Invalid token data')
 
-      if (!tokenData.accessToken || !tokenData.user) {
-        throw new Error('Invalid token data')
-      }
-
-      // Save auth state
       await storage.auth.setAuthState(tokenData)
       setUser(tokenData.user)
-
-      // Fetch credits
-      const creditsInfo = await storage.auth.fetchCredits()
-      setCredits(creditsInfo)
-
+      setCredits(await storage.auth.fetchCredits())
     } catch (err) {
-      console.error('Login error:', err)
       setLoginError(err instanceof Error ? err.message : 'Login failed')
     } finally {
       setLoggingIn(false)
@@ -149,14 +96,8 @@ export default function Settings() {
 
   async function handleRefreshCredits() {
     setRefreshingCredits(true)
-    try {
-      const creditsInfo = await storage.auth.fetchCredits()
-      setCredits(creditsInfo)
-    } catch {
-      // Failed to refresh
-    } finally {
-      setRefreshingCredits(false)
-    }
+    setCredits(await storage.auth.fetchCredits())
+    setRefreshingCredits(false)
   }
 
   async function handleLogout() {
@@ -165,67 +106,30 @@ export default function Settings() {
     setCredits(null)
   }
 
-  async function loadConfig() {
-    try {
-      const result = await chrome.storage.local.get('llmConfig')
-      if (result.llmConfig) {
-        setConfig({ ...DEFAULT_CONFIG, ...result.llmConfig })
-      }
-    } catch {
-      setConfig(DEFAULT_CONFIG)
-    }
-  }
-
-  async function loadDevSettings() {
-    try {
-      const result = await chrome.storage.local.get('devSettings')
-      if (result.devSettings) {
-        setDevSettings({ ...DEFAULT_DEV_SETTINGS, ...result.devSettings })
-      }
-    } catch {
-      setDevSettings(DEFAULT_DEV_SETTINGS)
-    }
-  }
-
-  async function loadFillAnimationConfig() {
-    try {
-      const result = await chrome.storage.local.get('fillAnimationConfig')
-      if (result.fillAnimationConfig) {
-        setFillAnimationConfig({ ...DEFAULT_FILL_ANIMATION_CONFIG, ...result.fillAnimationConfig })
-      }
-    } catch {
-      setFillAnimationConfig(DEFAULT_FILL_ANIMATION_CONFIG)
-    }
-  }
-
   async function toggleDevMode() {
-    const newSettings = { ...devSettings, devModeEnabled: !devSettings.devModeEnabled }
-    setDevSettings(newSettings)
-    await chrome.storage.local.set({ devSettings: newSettings })
+    const newValue = !devModeEnabled
+    setDevModeEnabled(newValue)
+    await chrome.storage.local.set({ devSettings: { devModeEnabled: newValue } })
   }
 
   async function toggleFillAnimation() {
-    const newConfig = { ...fillAnimationConfig, enabled: !fillAnimationConfig.enabled }
-    setFillAnimationConfig(newConfig)
-    await chrome.storage.local.set({ fillAnimationConfig: newConfig })
+    const newValue = !fillAnimationEnabled
+    setFillAnimationEnabled(newValue)
+    await chrome.storage.local.set({ fillAnimationConfig: { enabled: newValue } })
   }
 
   async function saveConfig() {
     setSaving(true)
-    try {
-      await chrome.storage.local.set({ llmConfig: config })
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    } finally {
-      setSaving(false)
-    }
+    await chrome.storage.local.set({ llmConfig: config })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+    setSaving(false)
   }
 
   function handleProviderChange(provider: LLMConfig['provider']) {
     setConfig(prev => ({
       ...prev,
       provider,
-      // 切换 provider 时清空模型，让用户自己选择或输入
       model: '',
       endpoint: provider === 'custom' ? (prev.endpoint || '') : undefined,
     }))
@@ -520,12 +424,12 @@ export default function Settings() {
           <button
             onClick={toggleFillAnimation}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              fillAnimationConfig.enabled ? 'bg-green-600' : 'bg-gray-200'
+              fillAnimationEnabled ? 'bg-green-600' : 'bg-gray-200'
             }`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                fillAnimationConfig.enabled ? 'translate-x-6' : 'translate-x-1'
+                fillAnimationEnabled ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
           </button>
@@ -544,12 +448,12 @@ export default function Settings() {
           <button
             onClick={toggleDevMode}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              devSettings.devModeEnabled ? 'bg-purple-600' : 'bg-gray-200'
+              devModeEnabled ? 'bg-purple-600' : 'bg-gray-200'
             }`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                devSettings.devModeEnabled ? 'translate-x-6' : 'translate-x-1'
+                devModeEnabled ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
           </button>

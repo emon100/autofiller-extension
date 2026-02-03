@@ -228,26 +228,13 @@ export class SiteSettingsStorage {
 
 export class PendingObservationStorage {
   private pendingByForm = new Map<string, PendingObservation[]>()
-  private onPendingAddedCallbacks: Array<(pending: PendingObservation) => void> = []
-  private onCommitCallbacks: Array<(observations: Observation[]) => void> = []
 
   add(formId: string, pending: PendingObservation): void {
     const existing = this.pendingByForm.get(formId) || []
-    const existingIndex = existing.findIndex(
-      p => p.fieldLocator === pending.fieldLocator
-    )
-
-    if (existingIndex >= 0) {
-      existing[existingIndex] = pending
-    } else {
-      existing.push(pending)
-    }
-
+    const idx = existing.findIndex(p => p.fieldLocator === pending.fieldLocator)
+    if (idx >= 0) existing[idx] = pending
+    else existing.push(pending)
     this.pendingByForm.set(formId, existing)
-
-    for (const callback of this.onPendingAddedCallbacks) {
-      callback(pending)
-    }
   }
 
   getByForm(formId: string): PendingObservation[] {
@@ -255,11 +242,7 @@ export class PendingObservationStorage {
   }
 
   getAllPending(): PendingObservation[] {
-    const all: PendingObservation[] = []
-    for (const observations of this.pendingByForm.values()) {
-      all.push(...observations)
-    }
-    return all
+    return Array.from(this.pendingByForm.values()).flat()
   }
 
   getFormIds(): string[] {
@@ -267,19 +250,13 @@ export class PendingObservationStorage {
   }
 
   updateStatus(formId: string, status: PendingObservation['status']): void {
-    const pending = this.pendingByForm.get(formId)
-    if (pending) {
-      for (const p of pending) {
-        p.status = status
-      }
-    }
+    this.pendingByForm.get(formId)?.forEach(p => p.status = status)
   }
 
   commit(formId: string): PendingObservation[] {
     const pending = this.pendingByForm.get(formId) || []
-    const committed = pending.map(p => ({ ...p, status: 'committed' as const }))
     this.pendingByForm.delete(formId)
-    return committed
+    return pending.map(p => ({ ...p, status: 'committed' as const }))
   }
 
   discard(formId: string): void {
@@ -291,29 +268,17 @@ export class PendingObservationStorage {
   }
 
   hasPending(formId: string): boolean {
-    const pending = this.pendingByForm.get(formId)
-    return pending !== undefined && pending.length > 0
+    return (this.pendingByForm.get(formId)?.length ?? 0) > 0
   }
 
   getPendingCount(): number {
-    let count = 0
-    for (const observations of this.pendingByForm.values()) {
-      count += observations.length
-    }
-    return count
-  }
-
-  onPendingAdded(callback: (pending: PendingObservation) => void): void {
-    this.onPendingAddedCallbacks.push(callback)
-  }
-
-  onCommit(callback: (observations: Observation[]) => void): void {
-    this.onCommitCallbacks.push(callback)
+    return Array.from(this.pendingByForm.values()).reduce((sum, arr) => sum + arr.length, 0)
   }
 }
 
-// API base URL - configure based on environment
-const API_BASE_URL = 'https://prospectively-dusty-juanita.ngrok-free.dev/api'
+// API base URL
+const API_BASE_URL = 'https://www.onefil.help/api'
+const TOKEN_BUFFER_MS = 5 * 60 * 1000 // 5 minutes
 
 export class AuthStorage {
   async getAuthState(): Promise<AuthState | null> {
@@ -325,39 +290,14 @@ export class AuthStorage {
   }
 
   async clearAuthState(): Promise<void> {
-    if (!isExtensionContextValid()) {
-      throw new ExtensionContextInvalidatedError()
-    }
+    if (!isExtensionContextValid()) throw new ExtensionContextInvalidatedError()
     await chrome.storage.local.remove(STORAGE_KEYS.AUTH_STATE)
-  }
-
-  async isLoggedIn(): Promise<boolean> {
-    const state = await this.getAuthState()
-    if (!state) return false
-    // Check if token is expired (with 5 minute buffer)
-    return state.expiresAt > Date.now() + 5 * 60 * 1000
   }
 
   async getAccessToken(): Promise<string | null> {
     const state = await this.getAuthState()
-    if (!state) return null
-
-    // Token expired - try to refresh
-    if (state.expiresAt <= Date.now() + 5 * 60 * 1000) {
-      // In production, implement token refresh logic here
-      return null
-    }
-
+    if (!state || state.expiresAt <= Date.now() + TOKEN_BUFFER_MS) return null
     return state.accessToken
-  }
-
-  // Credits Management
-  async getCachedCredits(): Promise<CreditsInfo | null> {
-    return getStorage<CreditsInfo>(STORAGE_KEYS.CREDITS_CACHE)
-  }
-
-  async setCachedCredits(credits: CreditsInfo): Promise<void> {
-    await setStorage(STORAGE_KEYS.CREDITS_CACHE, credits)
   }
 
   async fetchCredits(): Promise<CreditsInfo | null> {
@@ -366,75 +306,48 @@ export class AuthStorage {
 
     try {
       const response = await fetch(`${API_BASE_URL}/credits`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
       })
 
       if (!response.ok) {
-        if (response.status === 401) {
-          // Token invalid - clear auth state
-          await this.clearAuthState()
-        }
+        if (response.status === 401) await this.clearAuthState()
         return null
       }
 
       const credits = await response.json() as CreditsInfo
-      await this.setCachedCredits(credits)
+      await setStorage(STORAGE_KEYS.CREDITS_CACHE, credits)
       return credits
     } catch {
-      // Return cached credits on network error
-      return this.getCachedCredits()
+      return getStorage<CreditsInfo>(STORAGE_KEYS.CREDITS_CACHE)
     }
   }
 
   async consumeCredits(amount: number, type: 'fill' | 'resume_parse'): Promise<{ success: boolean; newBalance: number; error?: string }> {
     const token = await this.getAccessToken()
-    if (!token) {
-      return { success: false, newBalance: 0, error: 'Not logged in' }
-    }
+    if (!token) return { success: false, newBalance: 0, error: 'Not logged in' }
 
     try {
       const response = await fetch(`${API_BASE_URL}/credits`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount, type }),
       })
 
       const result = await response.json()
-
       if (!response.ok) {
-        return {
-          success: false,
-          newBalance: result.balance || 0,
-          error: result.error || 'Failed to consume credits'
-        }
+        return { success: false, newBalance: result.balance || 0, error: result.error || 'Failed to consume credits' }
       }
 
-      // Update cached credits
-      const cached = await this.getCachedCredits()
+      const cached = await getStorage<CreditsInfo>(STORAGE_KEYS.CREDITS_CACHE)
       if (cached) {
         cached.balance = result.newBalance
-        await this.setCachedCredits(cached)
+        await setStorage(STORAGE_KEYS.CREDITS_CACHE, cached)
       }
 
       return { success: true, newBalance: result.newBalance }
     } catch (e) {
       return { success: false, newBalance: 0, error: `Network error: ${e}` }
     }
-  }
-
-  async hasCredits(amount: number = 1): Promise<boolean> {
-    const credits = await this.fetchCredits()
-    if (!credits) return true // Allow offline usage
-
-    // -1 means unlimited (subscription)
-    if (credits.balance === -1) return true
-
-    return credits.balance >= amount
   }
 }
 
