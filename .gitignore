@@ -41,3 +41,5 @@ yarn-error.log*
 # Chrome extension specific
 *.crx
 *.pem
+/website/.next/
+/website/node_modules
