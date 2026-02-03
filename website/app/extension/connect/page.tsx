@@ -6,6 +6,14 @@ import Link from 'next/link';
 import { Zap, CheckCircle, Loader2, AlertCircle, Copy } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
+// Chrome extension API type declaration
+declare const chrome: {
+  runtime?: {
+    sendMessage: (extensionId: string, message: unknown, callback: (response: { success?: boolean }) => void) => void;
+    lastError?: { message: string };
+  };
+} | undefined;
+
 export default function ExtensionConnectPage() {
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated' | 'connected' | 'error'>('loading');
   const [error, setError] = useState<string>('');
@@ -45,7 +53,7 @@ export default function ExtensionConnectPage() {
         if (extensionId) {
           try {
             chrome.runtime.sendMessage(extensionId, { type: 'AUTH_TOKEN', data }, (response) => {
-              if (chrome.runtime.lastError) {
+              if (chrome?.runtime?.lastError) {
                 console.log('Extension not available, showing manual copy option');
                 setStatus('authenticated');
               } else if (response?.success) {
