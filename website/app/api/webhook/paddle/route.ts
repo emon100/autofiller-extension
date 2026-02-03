@@ -91,9 +91,10 @@ export async function POST(request: Request) {
     switch (eventType) {
       case 'transaction.completed': {
         const { data } = event;
-        const customData = data.custom_data
+        // custom_data may be string or object depending on Paddle version
+        const customData = typeof data.custom_data === 'string'
           ? JSON.parse(data.custom_data)
-          : {};
+          : (data.custom_data || {});
         const userId = customData.userId;
 
         if (!userId) {
@@ -136,9 +137,10 @@ export async function POST(request: Request) {
       case 'subscription.activated':
       case 'subscription.updated': {
         const { data } = event;
-        const customData = data.custom_data
+        // custom_data may be string or object depending on Paddle version
+        const customData = typeof data.custom_data === 'string'
           ? JSON.parse(data.custom_data)
-          : {};
+          : (data.custom_data || {});
         const userId = customData.userId;
 
         if (!userId) {
