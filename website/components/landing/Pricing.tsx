@@ -80,7 +80,11 @@ export default function Pricing() {
   };
 
   const dbPlans = groupProductsForDisplay(products, t);
-  const plans = [freePlan, ...dbPlans];
+  // Update all plan hrefs to /download for non-subscription plans
+  const plans = [freePlan, ...dbPlans.map(plan => ({
+    ...plan,
+    href: '/download',
+  }))];
 
   return (
     <section id="pricing" className="bg-white py-24">

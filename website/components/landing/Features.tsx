@@ -107,19 +107,19 @@ export default function Features() {
               {t('hero.privacy.title')}
             </h3>
           </div>
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-3">
             {privacyFeatures.map((feature) => (
               <div
                 key={feature.title}
-                className="rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 p-6"
+                className="rounded-xl border border-gray-200 p-6 transition hover:border-blue-200 hover:shadow-lg"
               >
                 <div className="mb-4 inline-flex rounded-lg bg-green-100 p-3">
                   <feature.icon className="h-6 w-6 text-green-600" />
                 </div>
-                <h4 className="mb-2 text-lg font-semibold text-gray-900">
+                <h3 className="mb-2 text-lg font-semibold text-gray-900">
                   {feature.title}
-                </h4>
-                <p className="text-sm text-gray-600">{feature.description}</p>
+                </h3>
+                <p className="text-gray-600">{feature.description}</p>
               </div>
             ))}
           </div>
