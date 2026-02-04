@@ -2,52 +2,48 @@
 
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-
-const faqs = [
-  {
-    question: 'Is my data safe with AutoFiller?',
-    answer:
-      'Absolutely. Your data is stored locally on your device and never transmitted to our servers. We use industry-standard encryption for any sensitive information. You have full control over your data and can delete it at any time.',
-  },
-  {
-    question: 'Which job sites does AutoFiller support?',
-    answer:
-      'AutoFiller works with all major Applicant Tracking Systems (ATS) including Greenhouse, Lever, Workday, Ashby, BambooHR, iCIMS, and hundreds more. It also works on custom job application forms.',
-  },
-  {
-    question: 'How does the learning work?',
-    answer:
-      "When you fill out a job application form, AutoFiller observes which answers you provide for different types of questions. It learns the semantic relationship between questions and answers, so it can recognize similar questions on other sites even if they're worded differently.",
-  },
-  {
-    question: 'What if AutoFiller fills something incorrectly?',
-    answer:
-      "Every filled field shows a visual badge. You can hover over any field to see what was filled and click to undo. AutoFiller also won't auto-fill sensitive fields (like salary expectations) without your explicit confirmation.",
-  },
-  {
-    question: 'Do I need to create an account?',
-    answer:
-      'No account is required to use the free tier. Your data stays entirely on your device. An account is only needed if you want cloud sync or purchase additional credits.',
-  },
-  {
-    question: 'Can I get a refund?',
-    answer:
-      "Yes. We offer a 14-day money-back guarantee on all purchases. If you're not satisfied, contact us and we'll process your refund promptly.",
-  },
-];
+import { useI18n } from '@/lib/i18n';
 
 export default function FAQ() {
+  const { t } = useI18n();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const faqs = [
+    {
+      question: t('faq.q1.question'),
+      answer: t('faq.q1.answer'),
+    },
+    {
+      question: t('faq.q2.question'),
+      answer: t('faq.q2.answer'),
+    },
+    {
+      question: t('faq.q3.question'),
+      answer: t('faq.q3.answer'),
+    },
+    {
+      question: t('faq.q4.question'),
+      answer: t('faq.q4.answer'),
+    },
+    {
+      question: t('faq.q5.question'),
+      answer: t('faq.q5.answer'),
+    },
+    {
+      question: t('faq.q6.question'),
+      answer: t('faq.q6.answer'),
+    },
+  ];
 
   return (
     <section id="faq" className="bg-gray-50 py-24">
       <div className="mx-auto max-w-3xl px-6">
         <div className="text-center">
           <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Frequently Asked Questions
+            {t('faq.title')}
           </h2>
           <p className="mt-4 text-lg text-gray-600">
-            Got questions? We&apos;ve got answers.
+            {t('faq.subtitle')}
           </p>
         </div>
 

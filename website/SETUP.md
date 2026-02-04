@@ -1,4 +1,4 @@
-# AutoFiller Website Setup Guide
+# OneFillr Website Setup Guide
 
 ## 配置清单
 
@@ -78,13 +78,18 @@ Description: Supabase Edge Function
 获取Webhook Secret并保存到Supabase secrets中。
 
 #### 2.3 Products & Prices
-确保在Paddle中创建了产品和价格ID，并记录到 `.env.local`:
-```env
-NEXT_PUBLIC_PADDLE_STARTER_PRODUCT_ID=pri_01xxx
-NEXT_PUBLIC_PADDLE_PRO_PRODUCT_ID=pri_01yyy
-NEXT_PUBLIC_PADDLE_UNLIMITED_MONTHLY_ID=pri_01zzz
-NEXT_PUBLIC_PADDLE_UNLIMITED_YEARLY_ID=pri_01www
-```
+产品和价格现在通过数据库 `products` 表管理，不再使用环境变量。
+
+1. 在 Paddle Dashboard 创建产品和价格
+2. 在 Supabase `products` 表中添加记录，包含：
+   - `paddle_price_id`: Paddle 的 Price ID (如 `pri_01xxx`)
+   - `name`: 产品名称 (如 `Starter`, `Unlimited Monthly`)
+   - `price_amount`: 价格（分为单位，如 999 = $9.99）
+   - `credits`: 积分数量（订阅计划可为 null）
+   - `features`: 功能列表（JSON 数组）
+   - `is_active`: 是否在前端显示
+
+3. 使用 `/admin` 页面管理产品（需要 admin 权限）
 
 ### 3. 本地环境变量
 
@@ -93,14 +98,16 @@ NEXT_PUBLIC_PADDLE_UNLIMITED_YEARLY_ID=pri_01www
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # Paddle (sandbox)
+NEXT_PUBLIC_PADDLE_ENVIRONMENT=sandbox
 NEXT_PUBLIC_PADDLE_CLIENT_TOKEN=your-sandbox-client-token
-NEXT_PUBLIC_PADDLE_STARTER_PRODUCT_ID=pri_01xxx
-NEXT_PUBLIC_PADDLE_PRO_PRODUCT_ID=pri_01yyy
-NEXT_PUBLIC_PADDLE_UNLIMITED_MONTHLY_ID=pri_01zzz
-NEXT_PUBLIC_PADDLE_UNLIMITED_YEARLY_ID=pri_01www
+PADDLE_API_KEY=your-paddle-api-key
+PADDLE_WEBHOOK_SECRET=your-paddle-webhook-secret
 ```
+
+**注意**: 产品价格 ID 不再需要在环境变量中配置，现在通过数据库 `products` 表管理。
 
 ### 4. 数据库迁移
 

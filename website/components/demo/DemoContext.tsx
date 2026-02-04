@@ -29,6 +29,7 @@ interface DemoContextValue {
   loadProfile: (profileId: string) => void
   loadTemplate: (templateId: string) => void
   setAnswers: (answers: Record<string, DemoAnswerValue>) => void
+  addAnswer: (type: string, value: string) => void
   updateAnswer: (type: string, value: string) => void
   deleteAnswer: (type: string) => void
   clearAllAnswers: () => void
@@ -114,6 +115,31 @@ export function DemoProvider({ children, defaultTemplate = 'generic', defaultPro
   const setAnswers = useCallback((newAnswers: Record<string, DemoAnswerValue>) => {
     setAnswersState(newAnswers)
     demoStorage.setAnswers(newAnswers)
+  }, [])
+
+  const addAnswer = useCallback((type: string, value: string) => {
+    setAnswersState(prev => {
+      const updated = {
+        ...prev,
+        [type]: {
+          id: Date.now().toString(),
+          type,
+          value,
+          display: value,
+          aliases: [],
+          sensitivity: SENSITIVE_TYPES.has(type) ? 'sensitive' : 'normal',
+          autofillAllowed: !SENSITIVE_TYPES.has(type),
+        },
+      }
+      demoStorage.setAnswers(updated)
+      return updated
+    })
+    setActivityLog(prev => [{
+      id: Date.now().toString(),
+      type: 'manual',
+      timestamp: new Date(),
+      data: { fieldType: type, value },
+    }, ...prev])
   }, [])
 
   const updateAnswer = useCallback((type: string, value: string) => {
@@ -219,6 +245,7 @@ export function DemoProvider({ children, defaultTemplate = 'generic', defaultPro
     loadProfile,
     loadTemplate,
     setAnswers,
+    addAnswer,
     updateAnswer,
     deleteAnswer,
     clearAllAnswers,

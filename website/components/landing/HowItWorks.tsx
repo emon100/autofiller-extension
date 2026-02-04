@@ -3,19 +3,19 @@ const steps = [
     number: '01',
     title: 'Install the Extension',
     description:
-      'Add AutoFiller to Chrome from the Chrome Web Store. Takes 10 seconds.',
+      'Download OneFillr from the Download page and add to Chrome. Takes under 2 minutes.',
   },
   {
     number: '02',
     title: 'Fill Out a Form Manually',
     description:
-      'Apply to one job as usual. AutoFiller watches and learns your answers.',
+      'Apply to one job as usual. OneFillr watches and learns your answers.',
   },
   {
     number: '03',
     title: 'Auto-Fill Future Applications',
     description:
-      'Click the AutoFiller button on any job application. Done in seconds.',
+      'Click the OneFillr button on any job application. Done in seconds.',
   },
 ];
 

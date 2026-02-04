@@ -66,13 +66,3 @@ export async function openCheckout(options: {
     alert('Failed to open checkout. Please try again.');
   }
 }
-
-// Product IDs (Price IDs from Paddle)
-export const PRODUCTS = {
-  STARTER: process.env.NEXT_PUBLIC_PADDLE_STARTER_PRODUCT_ID || 'pri_starter',
-  PRO: process.env.NEXT_PUBLIC_PADDLE_PRO_PRODUCT_ID || 'pri_pro',
-  UNLIMITED_MONTHLY:
-    process.env.NEXT_PUBLIC_PADDLE_UNLIMITED_MONTHLY_ID || 'pri_unlimited_monthly',
-  UNLIMITED_YEARLY:
-    process.env.NEXT_PUBLIC_PADDLE_UNLIMITED_YEARLY_ID || 'pri_unlimited_yearly',
-} as const;

@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Zap,
   Shield,
@@ -5,58 +7,75 @@ import {
   RefreshCw,
   Eye,
   Lock,
+  Database,
+  Cpu,
+  FileText,
 } from 'lucide-react';
-
-const features = [
-  {
-    icon: Zap,
-    title: 'Lightning Fast',
-    description:
-      'Fill entire application forms in 2-3 seconds. No more repetitive typing.',
-  },
-  {
-    icon: Globe,
-    title: 'Works Everywhere',
-    description:
-      'Greenhouse, Lever, Workday, Ashby, and hundreds more ATS platforms supported.',
-  },
-  {
-    icon: Shield,
-    title: 'Privacy First',
-    description:
-      'Your data stays on your device. We never store or transmit your personal information.',
-  },
-  {
-    icon: RefreshCw,
-    title: 'Learns Once',
-    description:
-      'Fill out forms manually once, and AutoFiller learns your answers for future applications.',
-  },
-  {
-    icon: Eye,
-    title: 'Full Transparency',
-    description:
-      'See exactly what was filled, with undo buttons and clear visual feedback.',
-  },
-  {
-    icon: Lock,
-    title: 'Sensitive Field Protection',
-    description:
-      'Salary, demographics, and other sensitive fields require explicit confirmation.',
-  },
-];
+import { useI18n } from '@/lib/i18n';
 
 export default function Features() {
+  const { t } = useI18n();
+
+  const features = [
+    {
+      icon: Zap,
+      title: t('features.lightningFast.title'),
+      description: t('features.lightningFast.description'),
+    },
+    {
+      icon: Globe,
+      title: t('features.worksEverywhere.title'),
+      description: t('features.worksEverywhere.description'),
+    },
+    {
+      icon: Shield,
+      title: t('features.privacyFirst.title'),
+      description: t('features.privacyFirst.description'),
+    },
+    {
+      icon: RefreshCw,
+      title: t('features.learnsOnce.title'),
+      description: t('features.learnsOnce.description'),
+    },
+    {
+      icon: Eye,
+      title: t('features.fullTransparency.title'),
+      description: t('features.fullTransparency.description'),
+    },
+    {
+      icon: Lock,
+      title: t('features.sensitiveProtection.title'),
+      description: t('features.sensitiveProtection.description'),
+    },
+  ];
+
+  const privacyFeatures = [
+    {
+      icon: Database,
+      title: t('hero.privacy.localStorage'),
+      description: t('hero.privacy.localStorageDesc'),
+    },
+    {
+      icon: Cpu,
+      title: t('hero.privacy.aiLogic'),
+      description: t('hero.privacy.aiLogicDesc'),
+    },
+    {
+      icon: FileText,
+      title: t('hero.privacy.smartImport'),
+      description: t('hero.privacy.smartImportDesc'),
+    },
+  ];
+
   return (
     <section id="features" className="bg-white py-24">
       <div className="mx-auto max-w-7xl px-6">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Everything You Need to Apply Faster
+            {t('features.title')}
           </h2>
           <p className="mt-4 text-lg text-gray-600">
-            Built by job seekers, for job seekers. Every feature is designed to
-            save you time while keeping you in control.
+            {t('features.subtitle')}
           </p>
         </div>
 
@@ -75,6 +94,35 @@ export default function Features() {
               <p className="text-gray-600">{feature.description}</p>
             </div>
           ))}
+        </div>
+
+        {/* Privacy Section */}
+        <div className="mx-auto mt-20 max-w-4xl">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-2 text-sm text-green-700 mb-4">
+              <Shield className="h-4 w-4" />
+              Privacy by Design
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900">
+              {t('hero.privacy.title')}
+            </h3>
+          </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            {privacyFeatures.map((feature) => (
+              <div
+                key={feature.title}
+                className="rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 p-6"
+              >
+                <div className="mb-4 inline-flex rounded-lg bg-green-100 p-3">
+                  <feature.icon className="h-6 w-6 text-green-600" />
+                </div>
+                <h4 className="mb-2 text-lg font-semibold text-gray-900">
+                  {feature.title}
+                </h4>
+                <p className="text-sm text-gray-600">{feature.description}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

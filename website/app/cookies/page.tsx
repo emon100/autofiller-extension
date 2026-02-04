@@ -3,8 +3,8 @@ import { Zap, ArrowLeft } from 'lucide-react';
 import Footer from '@/components/landing/Footer';
 
 export const metadata = {
-  title: 'Cookie Policy | AutoFiller',
-  description: 'Learn about how AutoFiller uses cookies and similar technologies.',
+  title: 'Cookie Policy | OneFillr',
+  description: 'Learn about how OneFillr uses cookies and similar technologies.',
 };
 
 export default function CookiePolicyPage() {
@@ -14,7 +14,7 @@ export default function CookiePolicyPage() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 border-b">
         <Link href="/" className="flex items-center gap-2">
           <Zap className="h-8 w-8 text-blue-600" />
-          <span className="text-xl font-bold">AutoFiller</span>
+          <span className="text-xl font-bold">OneFillr</span>
         </Link>
         <Link
           href="/"
@@ -41,7 +41,7 @@ export default function CookiePolicyPage() {
 
           <h2>How We Use Cookies</h2>
           <p>
-            AutoFiller uses cookies and similar technologies for the following purposes:
+            OneFillr uses cookies and similar technologies for the following purposes:
           </p>
 
           <h3>Strictly Necessary Cookies</h3>

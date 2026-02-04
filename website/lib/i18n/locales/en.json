@@ -1,0 +1,379 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "login": "Login",
+    "logout": "Sign Out",
+    "signup": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "or": "or"
+  },
+  "nav": {
+    "features": "Features",
+    "pricing": "Pricing",
+    "faq": "FAQ",
+    "dashboard": "Dashboard",
+    "download": "Download",
+    "getStarted": "Get Started",
+    "backToHome": "Back to Home"
+  },
+  "hero": {
+    "badge": "Local storage, privacy first",
+    "titleFill": "Fill",
+    "title10x": "10x Faster",
+    "subtitle": "Stop typing the same information over and over. OneFillr learns your profile once and fills any form in seconds.",
+    "ctaChrome": "Add to Chrome - It's Free",
+    "ctaHowItWorks": "See How It Works",
+    "freeCredits": "20 free fills included. No credit card required.",
+    "trustBadges": {
+      "localStorage": "Data stored locally",
+      "aiPrivacy": "AI processes logic only, not your data",
+      "import": "LinkedIn / PDF import"
+    },
+    "privacy": {
+      "title": "How We Protect Your Privacy",
+      "localStorage": "Local Storage",
+      "localStorageDesc": "Your personal information (name, email, work history, etc.) is stored only in your browser and never uploaded to any server.",
+      "aiLogic": "AI Processes Logic Only",
+      "aiLogicDesc": "We use AI to identify form field types (e.g., \"is this a name field or email field\"), but we never send your actual personal information to AI.",
+      "smartImport": "Smart Import",
+      "smartImportDesc": "Import information from LinkedIn pages or resume PDFs with one click. Imported data is also stored locally only."
+    },
+    "formTypes": {
+      "jobApplications": "Job Applications",
+      "internshipForms": "Internship Forms",
+      "graduatePrograms": "Graduate Programs",
+      "visaApplications": "Visa Applications",
+      "scholarshipForms": "Scholarship Forms",
+      "universityAdmissions": "University Admissions",
+      "companyProfiles": "Company Profiles",
+      "backgroundChecks": "Background Checks"
+    }
+  },
+  "demo": {
+    "heroTitle": "See How OneFillr Works",
+    "heroSubtitle": "3 steps to demonstrate the complete auto-fill workflow",
+    "startDemo": "Start Demo",
+    "interactiveDemo": "Interactive Demo",
+    "tryInteractive": "Or try the interactive demo",
+    "step": "Step {number}",
+    "steps": {
+      "import": {
+        "title": "Import Profile",
+        "description": "Import your information from LinkedIn or resume PDF to your local knowledge base"
+      },
+      "fillAndLearn": {
+        "title": "Smart Fill + Learn",
+        "description": "Auto-fill known fields, new manually entered content is automatically learned"
+      },
+      "crossPlatform": {
+        "title": "Cross-Platform",
+        "description": "Different websites, different form styles, same instant fill"
+      }
+    },
+    "linkedinUrl": "LinkedIn Profile URL",
+    "parse": "Parse",
+    "parsing": "Parsing LinkedIn page...",
+    "importToKb": "Import to local knowledge base",
+    "complete": "Complete",
+    "imported": "{count} fields imported to knowledge base, data stored locally only",
+    "learnedNewContent": "Learned New Content",
+    "learnedNewDesc": "Detected {count} new fields. Save to knowledge base?",
+    "confirmSave": "Confirm Save",
+    "skip": "Skip",
+    "filled": "Filled",
+    "new": "New",
+    "allFilled": "{count} fields all filled!",
+    "timeUsed": "Time: {time}s",
+    "differentFormSameSpeed": "Different form styles, same blazing speed"
+  },
+  "features": {
+    "title": "Everything You Need to Apply Faster",
+    "subtitle": "Built by job seekers, for job seekers. Every feature is designed to save you time while keeping you in control.",
+    "lightningFast": {
+      "title": "Lightning Fast",
+      "description": "Fill entire application forms in 2-3 seconds. No more repetitive typing."
+    },
+    "worksEverywhere": {
+      "title": "Works Everywhere",
+      "description": "Greenhouse, Lever, Workday, Ashby, and hundreds more ATS platforms supported."
+    },
+    "privacyFirst": {
+      "title": "Privacy First",
+      "description": "Your data stays on your device. We never store or transmit your personal information."
+    },
+    "learnsOnce": {
+      "title": "Learns Once",
+      "description": "Fill out forms manually once, and OneFillr learns your answers for future applications."
+    },
+    "fullTransparency": {
+      "title": "Full Transparency",
+      "description": "See exactly what was filled, with undo buttons and clear visual feedback."
+    },
+    "sensitiveProtection": {
+      "title": "Sensitive Field Protection",
+      "description": "Salary, demographics, and other sensitive fields require explicit confirmation."
+    }
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "subtitle": "Get started in under a minute. No configuration required.",
+    "step1": {
+      "title": "Install the Extension",
+      "description": "Download OneFillr from the Download page and add to Chrome. Takes under 2 minutes."
+    },
+    "step2": {
+      "title": "Fill Out a Form Manually",
+      "description": "Apply to one job as usual. OneFillr watches and learns your answers."
+    },
+    "step3": {
+      "title": "Auto-Fill Future Applications",
+      "description": "Click the OneFillr button on any job application. Done in seconds."
+    }
+  },
+  "pricing": {
+    "title": "Simple, Transparent Pricing",
+    "subtitle": "Start free. Upgrade when you need more.",
+    "chooseYourPlan": "Choose Your Plan",
+    "startWith20": "Start with 20 free credits. Upgrade anytime.",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "save45": "Save 45%",
+    "mostPopular": "Most Popular",
+    "purchase": "Purchase",
+    "loginToPurchase": "Login to Purchase",
+    "oneTime": "one-time",
+    "perMonth": "/month",
+    "perYear": "/year",
+    "subscription": "Subscription",
+    "credits": "{count} credits",
+    "unlimited": "Unlimited",
+    "noPlans": "No plans available. Please check back later.",
+    "questions": "Have questions?",
+    "checkFaq": "Check our FAQ",
+    "contactUs": "contact us",
+    "free": {
+      "name": "Free",
+      "description": "Perfect for trying out OneFillr",
+      "cta": "Get Started",
+      "features": [
+        "20 form fills",
+        "All ATS platforms supported",
+        "Local data storage",
+        "Basic field recognition"
+      ]
+    }
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "subtitle": "Got questions? We've got answers.",
+    "q1": {
+      "question": "Is my data safe with OneFillr?",
+      "answer": "Absolutely. Your data is stored locally on your device and never transmitted to our servers. We use industry-standard encryption for any sensitive information. You have full control over your data and can delete it at any time."
+    },
+    "q2": {
+      "question": "Which job sites does OneFillr support?",
+      "answer": "OneFillr works with all major Applicant Tracking Systems (ATS) including Greenhouse, Lever, Workday, Ashby, BambooHR, iCIMS, and hundreds more. It also works on custom job application forms."
+    },
+    "q3": {
+      "question": "How does the learning work?",
+      "answer": "When you fill out a job application form, OneFillr observes which answers you provide for different types of questions. It learns the semantic relationship between questions and answers, so it can recognise similar questions on other sites even if they're worded differently."
+    },
+    "q4": {
+      "question": "What if OneFillr fills something incorrectly?",
+      "answer": "Every filled field shows a visual badge. You can hover over any field to see what was filled and click to undo. OneFillr also won't auto-fill sensitive fields (like salary expectations) without your explicit confirmation."
+    },
+    "q5": {
+      "question": "Do I need to create an account?",
+      "answer": "No account is required to use the free tier. Your data stays entirely on your device. An account is only needed if you want cloud sync or purchase additional credits."
+    },
+    "q6": {
+      "question": "Can I get a refund?",
+      "answer": "Yes. We offer a 14-day money-back guarantee on all purchases. If you're not satisfied, contact us and we'll process your refund promptly."
+    }
+  },
+  "download": {
+    "title": "Download OneFillr Extension",
+    "subtitle": "As the extension is not yet on the Chrome Web Store, please follow the steps below to install manually. Takes less than 2 minutes.",
+    "badge": "Free download · No registration required",
+    "downloadBtn": "Download Extension (.zip)",
+    "browserSupport": "Works with Chrome, Edge, Brave and other Chromium-based browsers",
+    "stepsTitle": "Installation Steps",
+    "steps": {
+      "s1": {
+        "title": "Download the extension file",
+        "description": "Click the button above to download the OneFillr extension ZIP file."
+      },
+      "s2": {
+        "title": "Extract the ZIP file",
+        "description": "Extract the downloaded ZIP file to a folder you can easily find, such as Desktop or Documents."
+      },
+      "s3": {
+        "title": "Open Chrome extensions page",
+        "description": "Type chrome://extensions in your Chrome address bar and press Enter, or go to Menu → More Tools → Extensions."
+      },
+      "s4": {
+        "title": "Enable Developer Mode",
+        "description": "Toggle on 'Developer mode' in the top right corner of the extensions page."
+      },
+      "s5": {
+        "title": "Load the unpacked extension",
+        "description": "Click 'Load unpacked' button and select the folder you extracted (the one containing manifest.json)."
+      },
+      "s6": {
+        "title": "Start using",
+        "description": "The OneFillr icon will appear in your browser toolbar. Visit any job site and click the icon to start auto-filling!"
+      }
+    },
+    "notes": {
+      "title": "Notes",
+      "n1": "Manually installed extensions may need to be re-enabled after Chrome updates.",
+      "n2": "If you see a 'This extension is not from the Chrome Web Store' warning, this is normal - click 'Keep' to continue.",
+      "n3": "Once the extension is on the Chrome Web Store, we'll notify you by email so you can switch to the store version for automatic updates."
+    },
+    "help": {
+      "title": "Need help?",
+      "description": "If you encounter any issues during installation, feel free to contact us."
+    }
+  },
+  "login": {
+    "welcomeBack": "Welcome Back",
+    "createAccount": "Create Account",
+    "loginSubtitle": "Login to manage your account and credits",
+    "signupSubtitle": "Sign up to start auto-filling",
+    "googleLogin": "Login with Google",
+    "loginMethod": "Login method:",
+    "passwordMethod": "Password",
+    "otpMethod": "OTP Code",
+    "emailAddress": "Email Address",
+    "confirmPassword": "Confirm Password",
+    "sendOtp": "Send OTP",
+    "verifyLogin": "Verify & Login",
+    "resend": "Resend",
+    "changeEmail": "Change email",
+    "otpSent": "OTP code sent to your email",
+    "signupSuccess": "Sign up successful! Logging in...",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "enterOtp": "Enter 6-digit code",
+    "agreeToTerms": "By logging in, you agree to our",
+    "termsOfService": "Terms of Service",
+    "and": "and",
+    "privacyPolicy": "Privacy Policy"
+  },
+  "dashboard": {
+    "credits": "Credits",
+    "history": "History",
+    "settings": "Settings",
+    "buyCredits": "Buy Credits",
+    "paymentSuccess": "Payment successful!",
+    "creditsWillBeAdded": "Your credits will be added shortly. Please refresh if they don't appear."
+  },
+  "account": {
+    "title": "Account Settings",
+    "profile": "Profile",
+    "emailLabel": "Email",
+    "emailCannotChange": "Email cannot be changed",
+    "displayName": "Display Name",
+    "saveChanges": "Save Changes",
+    "saveSuccess": "Saved successfully",
+    "saveFailed": "Failed to save",
+    "linkedAccounts": "Linked Accounts",
+    "linkedAccountsDesc": "Manage login methods for your account",
+    "linkGoogle": "Link Google Account",
+    "unlink": "Unlink",
+    "setPassword": "Set Password",
+    "newPassword": "New Password",
+    "atLeast6Chars": "At least 6 characters",
+    "confirmNewPassword": "Confirm Password",
+    "enterAgain": "Enter password again",
+    "passwordSetSuccess": "Password set successfully",
+    "keepOneMethod": "You must keep at least one login method",
+    "extensionSync": "Extension Sync",
+    "extensionSyncDesc": "To sync your account with the Chrome extension:",
+    "extensionStep1": "Open the OneFillr extension",
+    "extensionStep2": "Go to Settings",
+    "extensionStep3": "Click 'Login to Sync'",
+    "extensionStep4": "Login with the same account as here",
+    "dangerZone": "Danger Zone",
+    "dangerZoneDesc": "Deleting your account will permanently remove all your data and unused credits.",
+    "deleteAccount": "Delete Account",
+    "deleting": "Deleting..."
+  },
+  "usageHistory": {
+    "title": "Usage History",
+    "noTransactions": "No transactions yet",
+    "startUsing": "Start using OneFillr to see your usage history"
+  },
+  "creditBalance": {
+    "title": "Credit Balance",
+    "currentBalance": "Current Balance",
+    "credits": "credits",
+    "lifetimeUsed": "Lifetime Used",
+    "subscription": "Subscription",
+    "active": "Active",
+    "renewsOn": "Renews on {date}"
+  },
+  "demoPage": {
+    "title": "OneFillr Demo",
+    "subtitle": "Interactive Form Filling Demo",
+    "knowledgeBase": "Knowledge Base",
+    "fields": "{count} fields",
+    "localStorage": "Local storage",
+    "addField": "Add Field",
+    "fieldType": "Field type (e.g. COMPANY)",
+    "fieldValue": "Field value",
+    "emptyKb": "Knowledge base is empty",
+    "loadProfileOrFill": "Load a profile or fill forms to build your knowledge base",
+    "clearAll": "Clear All",
+    "dataStoredLocally": "Data stored locally only",
+    "exportData": "Export data",
+    "categories": {
+      "personal": "Personal Info",
+      "professional": "Professional",
+      "education": "Education",
+      "other": "Other"
+    },
+    "twoPhaseActive": "Two-Phase Save: Active",
+    "pendingFields": "Pending Fields"
+  },
+  "footer": {
+    "product": "Product",
+    "tryDemo": "Try Demo",
+    "legal": "Legal",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service",
+    "cookiePolicy": "Cookie Policy",
+    "connect": "Connect",
+    "copyright": "© {year} OneFillr. All rights reserved."
+  },
+  "extension": {
+    "connectTitle": "Connect Extension",
+    "connectSubtitle": "Link your OneFillr extension to your account",
+    "connecting": "Connecting...",
+    "pleaseSignIn": "Please sign in to connect your extension",
+    "signIn": "Sign In",
+    "accountVerified": "Account Verified",
+    "copyTokenDesc": "Copy the token below and paste it in your extension settings",
+    "copyToken": "Copy Token",
+    "copied": "Copied!",
+    "afterCopy": "After copying, go to your OneFillr extension, click Settings, and paste the token",
+    "connected": "Connected!",
+    "connectedDesc": "Your extension is now linked to your account. You can close this window.",
+    "needHelp": "Need help?",
+    "contactSupport": "Contact support",
+    "authTitle": "Connect Extension",
+    "authSubtitle": "Login to sync your credits",
+    "autoClose": "This window will close automatically after login"
+  }
+}

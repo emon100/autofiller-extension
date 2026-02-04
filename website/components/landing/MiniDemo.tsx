@@ -74,7 +74,7 @@ export default function MiniDemo() {
             <Zap className="w-5 h-5" />
             <span className="font-semibold">Job Application</span>
           </div>
-          <p className="text-blue-100 text-sm mt-1">See AutoFiller in action</p>
+          <p className="text-blue-100 text-sm mt-1">See OneFillr in action</p>
         </div>
 
         {/* Form */}
