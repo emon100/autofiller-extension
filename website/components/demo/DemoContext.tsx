@@ -10,6 +10,7 @@ import {
   FillHistoryItem,
   PendingObservation,
   SENSITIVE_TYPES,
+  Taxonomy,
 } from '@/lib/demo/types'
 import { PROFILES } from '@/lib/demo/profiles'
 import { FORM_TEMPLATES } from '@/lib/demo/templates'
@@ -29,9 +30,9 @@ interface DemoContextValue {
   loadProfile: (profileId: string) => void
   loadTemplate: (templateId: string) => void
   setAnswers: (answers: Record<string, DemoAnswerValue>) => void
-  addAnswer: (type: string, value: string) => void
-  updateAnswer: (type: string, value: string) => void
-  deleteAnswer: (type: string) => void
+  addAnswer: (type: Taxonomy, value: string) => void
+  updateAnswer: (type: Taxonomy, value: string) => void
+  deleteAnswer: (type: Taxonomy) => void
   clearAllAnswers: () => void
   setFillHistory: (history: FillHistoryItem[]) => void
   setLastFillStats: (stats: FillStats | null) => void
@@ -117,9 +118,9 @@ export function DemoProvider({ children, defaultTemplate = 'generic', defaultPro
     demoStorage.setAnswers(newAnswers)
   }, [])
 
-  const addAnswer = useCallback((type: string, value: string) => {
+  const addAnswer = useCallback((type: Taxonomy, value: string) => {
     setAnswersState(prev => {
-      const updated = {
+      const updated: Record<string, DemoAnswerValue> = {
         ...prev,
         [type]: {
           id: Date.now().toString(),
@@ -136,15 +137,15 @@ export function DemoProvider({ children, defaultTemplate = 'generic', defaultPro
     })
     setActivityLog(prev => [{
       id: Date.now().toString(),
-      type: 'manual',
+      type: 'commit',
       timestamp: new Date(),
-      data: { fieldType: type, value },
+      data: { count: '1' },
     }, ...prev])
   }, [])
 
-  const updateAnswer = useCallback((type: string, value: string) => {
+  const updateAnswer = useCallback((type: Taxonomy, value: string) => {
     setAnswersState(prev => {
-      const updated = {
+      const updated: Record<string, DemoAnswerValue> = {
         ...prev,
         [type]: {
           ...prev[type],
@@ -157,7 +158,7 @@ export function DemoProvider({ children, defaultTemplate = 'generic', defaultPro
     })
   }, [])
 
-  const deleteAnswer = useCallback((type: string) => {
+  const deleteAnswer = useCallback((type: Taxonomy) => {
     setAnswersState(prev => {
       const { [type]: _, ...rest } = prev
       demoStorage.setAnswers(rest)

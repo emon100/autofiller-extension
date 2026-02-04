@@ -68,7 +68,7 @@ export function groupProductsByPlan(products: Product[]): Plan[] {
   }
 
   // 一次性购买：月付/年付价格相同
-  for (const plan of planMap.values()) {
+  for (const plan of Array.from(planMap.values())) {
     if (!plan.isSubscription) {
       plan.yearlyPrice ||= plan.monthlyPrice;
       plan.yearlyPriceId ||= plan.monthlyPriceId;
