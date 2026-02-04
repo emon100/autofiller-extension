@@ -351,7 +351,7 @@ export function CookiePreferencesButton({ className = '' }: { className?: string
   return (
     <button
       onClick={handleClick}
-      className={`text-sm text-gray-500 hover:text-gray-700 hover:underline ${className}`}
+      className={className || 'text-gray-600 hover:text-gray-900'}
     >
       Cookie Settings
     </button>
