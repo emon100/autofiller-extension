@@ -125,12 +125,24 @@ export interface CandidateType {
   reasons: string[]
 }
 
+/**
+ * Describes the source/method used to determine a fill value
+ */
+export type FillMethod = 'rule' | 'llm' | 'history' | 'transform'
+
+export interface FillSource {
+  method: FillMethod
+  confidence: number
+  reason?: string  // e.g., "Matched by autocomplete attribute"
+}
+
 export interface FillResult {
   success: boolean
   element: HTMLElement
   previousValue: string
   newValue: string
   error?: string
+  source?: FillSource
 }
 
 export interface FillPlan {

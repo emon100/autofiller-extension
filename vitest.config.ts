@@ -6,6 +6,7 @@ export default defineConfig({
     environment: 'happy-dom',
     globals: true,
     include: ['tests/**/*.test.ts'],
+    watch: false,  // Don't run in watch mode by default
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

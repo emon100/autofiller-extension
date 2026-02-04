@@ -1,4 +1,4 @@
-import { scanFields, detectFormSections } from '@/scanner'
+import { scanFields, detectFormSections, findAddButtonForSection, clickAddButtonAndWait } from '@/scanner'
 import { parseField, parseFieldsBatch } from '@/parser'
 import { transformValue } from '@/transformer'
 import { fillField, createFillSnapshot, restoreSnapshot, FillSnapshot, executeFillPlanAnimated } from '@/executor'
@@ -6,10 +6,15 @@ import { Recorder, generateId } from '@/recorder'
 import { storage, AnswerStorage, ObservationStorage, SiteSettingsStorage, experienceStorage } from '@/storage'
 import { BadgeManager } from '@/ui/BadgeManager'
 import { FloatingWidget, DetectedField, FillAnimationState, showToast } from '@/ui'
+import { visibilityController } from '@/ui/WidgetVisibility'
 import { FieldContext, AnswerValue, Taxonomy, SENSITIVE_TYPES, FillResult, FillPlan, CandidateType, PendingObservation, ExperienceGroupType, DEFAULT_FILL_ANIMATION_CONFIG, FillAnimationConfig } from '@/types'
 import { FillDebugInfo, createEmptyDebugInfo, saveDebugLog } from '@/utils/logger'
+import { llmService } from '@/services/LLMService'
 
 const CONFIDENCE_THRESHOLD = 0.75
+
+// Debounce delay for mutation observer (ms)
+const MUTATION_DEBOUNCE_DELAY = 300
 
 interface FillHistoryEntry {
   field: FieldContext
@@ -34,6 +39,17 @@ export class AutoFiller {
   private pendingFormSubmit: HTMLFormElement | null = null
   private isSubmittingProgrammatically = false
   private userInputListeners: WeakMap<HTMLElement, () => void> = new WeakMap()
+
+  // Dynamic form monitoring
+  private mutationObserver: MutationObserver | null = null
+  private processedFields: WeakSet<HTMLElement> = new WeakSet()
+  private mutationDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  private pendingMutationNodes: Set<Node> = new Set()
+  private dynamicFillEnabled = true
+
+  // Auto-add configuration
+  private autoAddEnabled = true
+  private maxAutoAddClicks = 5  // Prevent infinite loops
 
   constructor() {
     this.recorder = new Recorder()
@@ -164,7 +180,275 @@ export class AutoFiller {
       this.recorder.start()
     }
 
-    this.floatingWidget.show()
+    // Start dynamic form monitoring if autofill is enabled
+    if (settings.autofillEnabled) {
+      this.startDynamicFormMonitoring()
+    }
+
+    // Smart widget visibility - only show when relevant
+    await this.initializeWidgetVisibility()
+  }
+
+  /**
+   * Initialize widget visibility with smart detection
+   * Only shows the widget when the page appears to be a job application
+   */
+  private async initializeWidgetVisibility(): Promise<void> {
+    // Small delay to let page content load
+    await new Promise(resolve => setTimeout(resolve, 300))
+
+    const decision = await visibilityController.shouldShowWidget()
+
+    console.log(`[AutoFiller] Widget visibility: ${decision.shouldShow ? 'SHOW' : 'HIDE'}`)
+    console.log(`[AutoFiller]   Reason: ${decision.reason}`)
+    console.log(`[AutoFiller]   Form fields: ${decision.formFieldCount}`)
+    console.log(`[AutoFiller]   Confidence: ${(decision.confidence * 100).toFixed(0)}%`)
+    console.log(`[AutoFiller]   Mode: ${decision.suggestedMode}`)
+
+    if (decision.shouldShow) {
+      this.floatingWidget.show()
+
+      // If minimal mode, we could show a smaller indicator
+      // For now, full widget is shown in both cases
+      if (decision.suggestedMode === 'minimal') {
+        // Future: could show a smaller, less intrusive indicator
+        console.log('[AutoFiller] Using minimal mode (future: smaller indicator)')
+      }
+    } else {
+      // Widget not shown, but we can still listen for form focus events
+      this.setupLazyWidgetActivation()
+    }
+  }
+
+  /**
+   * Setup lazy activation - show widget when user interacts with a form field
+   */
+  private setupLazyWidgetActivation(): void {
+    const handleFormFocus = async (e: FocusEvent) => {
+      const target = e.target as HTMLElement
+      if (!target) return
+
+      // Check if the focused element is a form field
+      const isFormField = (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLSelectElement ||
+        target instanceof HTMLTextAreaElement
+      )
+
+      if (!isFormField) return
+
+      // Re-evaluate visibility
+      visibilityController.invalidateCache()
+      const decision = await visibilityController.shouldShowWidget()
+
+      if (decision.shouldShow && decision.formFieldCount >= 3) {
+        console.log('[AutoFiller] Form interaction detected, showing widget')
+        this.floatingWidget.show()
+        // Remove listener after showing
+        document.removeEventListener('focusin', handleFormFocus)
+      }
+    }
+
+    document.addEventListener('focusin', handleFormFocus)
+
+    // Also listen for significant DOM changes that might add forms
+    const observer = new MutationObserver(async () => {
+      visibilityController.invalidateCache()
+      const decision = await visibilityController.shouldShowWidget()
+
+      if (decision.shouldShow && decision.formFieldCount >= 5) {
+        console.log('[AutoFiller] Form detected via DOM change, showing widget')
+        this.floatingWidget.show()
+        observer.disconnect()
+        document.removeEventListener('focusin', handleFormFocus)
+      }
+    })
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    })
+
+    // Cleanup after 30 seconds to avoid memory leaks
+    setTimeout(() => {
+      observer.disconnect()
+      document.removeEventListener('focusin', handleFormFocus)
+    }, 30000)
+  }
+
+  /**
+   * Start monitoring DOM for dynamically added form fields
+   * Uses MutationObserver with debouncing to efficiently detect new fields
+   */
+  private startDynamicFormMonitoring(): void {
+    if (this.mutationObserver) return
+
+    this.mutationObserver = new MutationObserver((mutations) => {
+      // Collect all added nodes that might contain form fields
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            this.pendingMutationNodes.add(node)
+          }
+        }
+      }
+
+      // Debounce the processing
+      if (this.pendingMutationNodes.size > 0) {
+        this.scheduleMutationProcessing()
+      }
+    })
+
+    this.mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    })
+
+    console.log('[AutoFiller] Dynamic form monitoring started')
+  }
+
+  /**
+   * Stop monitoring DOM for dynamic form changes
+   */
+  private stopDynamicFormMonitoring(): void {
+    if (this.mutationObserver) {
+      this.mutationObserver.disconnect()
+      this.mutationObserver = null
+    }
+    if (this.mutationDebounceTimer) {
+      clearTimeout(this.mutationDebounceTimer)
+      this.mutationDebounceTimer = null
+    }
+    this.pendingMutationNodes.clear()
+    console.log('[AutoFiller] Dynamic form monitoring stopped')
+  }
+
+  /**
+   * Schedule debounced processing of mutation nodes
+   */
+  private scheduleMutationProcessing(): void {
+    if (this.mutationDebounceTimer) {
+      clearTimeout(this.mutationDebounceTimer)
+    }
+
+    this.mutationDebounceTimer = setTimeout(() => {
+      this.processPendingMutations()
+    }, MUTATION_DEBOUNCE_DELAY)
+  }
+
+  /**
+   * Process accumulated mutation nodes and fill any new form fields
+   */
+  private async processPendingMutations(): Promise<void> {
+    if (!this.dynamicFillEnabled) {
+      this.pendingMutationNodes.clear()
+      return
+    }
+
+    const settings = await this.siteSettingsStorage.get(this.siteKey)
+    if (!settings?.autofillEnabled) {
+      this.pendingMutationNodes.clear()
+      return
+    }
+
+    const nodesToProcess = Array.from(this.pendingMutationNodes)
+    this.pendingMutationNodes.clear()
+
+    // Collect all new form fields from added nodes
+    const newFields: FieldContext[] = []
+
+    for (const node of nodesToProcess) {
+      if (!(node instanceof HTMLElement)) continue
+
+      // Scan for form fields within the added node
+      const fields = scanFields(node)
+
+      for (const field of fields) {
+        // Skip already processed fields
+        if (this.processedFields.has(field.element)) continue
+
+        // Skip fields that already have values (user might have filled them)
+        const currentValue = this.getFieldValue(field.element)
+        if (currentValue) continue
+
+        newFields.push(field)
+        this.processedFields.add(field.element)
+      }
+    }
+
+    if (newFields.length === 0) return
+
+    console.log(`[AutoFiller] Detected ${newFields.length} new form fields, processing...`)
+
+    // Fill the new fields
+    await this.fillNewFields(newFields)
+  }
+
+  /**
+   * Fill newly detected form fields
+   */
+  private async fillNewFields(fields: FieldContext[]): Promise<void> {
+    const { plans, suggestions, sensitiveFields } = await this.createFillPlansWithDebug(fields)
+
+    // Fill high-confidence fields
+    for (const plan of plans) {
+      const snapshot = createFillSnapshot(plan.field.element)
+      const result = await fillField(plan.field, plan.answer.value)
+
+      if (result.success) {
+        this.fillHistory.push({
+          field: plan.field,
+          snapshot,
+          answerId: plan.answer.id,
+          timestamp: Date.now(),
+        })
+        this.markAsFilledByProgram(plan.field.element)
+        this.badgeManager.showBadge(plan.field, {
+          type: 'filled',
+          answerId: plan.answer.id,
+          canUndo: true,
+        })
+      }
+
+      await this.yieldToMainThread()
+    }
+
+    // Show suggestions for low-confidence fields
+    for (const { field, candidates } of suggestions) {
+      this.badgeManager.showBadge(field, {
+        type: 'suggest',
+        candidates,
+      })
+    }
+
+    // Show sensitive field badges
+    for (const { field, candidates } of sensitiveFields) {
+      this.badgeManager.showBadge(field, {
+        type: 'sensitive',
+        candidates,
+      })
+    }
+
+    if (plans.length > 0) {
+      console.log(`[AutoFiller] Filled ${plans.length} new fields dynamically`)
+      showToast(`Auto-filled ${plans.length} new field(s)`, 'success')
+    }
+  }
+
+  /**
+   * Enable or disable dynamic form filling
+   */
+  setDynamicFillEnabled(enabled: boolean): void {
+    this.dynamicFillEnabled = enabled
+    console.log(`[AutoFiller] Dynamic fill ${enabled ? 'enabled' : 'disabled'}`)
+  }
+
+  /**
+   * Clear the processed fields cache (useful for re-scanning)
+   */
+  clearProcessedFieldsCache(): void {
+    this.processedFields = new WeakSet()
+    console.log('[AutoFiller] Processed fields cache cleared')
   }
 
   private async detectFieldsForWidget(): Promise<DetectedField[]> {
@@ -326,10 +610,12 @@ export class AutoFiller {
 
   async enableAutofill(): Promise<void> {
     await this.siteSettingsStorage.update(this.siteKey, { autofillEnabled: true })
+    this.startDynamicFormMonitoring()
   }
 
   async disableAutofill(): Promise<void> {
     await this.siteSettingsStorage.update(this.siteKey, { autofillEnabled: false })
+    this.stopDynamicFormMonitoring()
   }
 
   async fill(): Promise<FillResult[]> {
@@ -378,6 +664,11 @@ export class AutoFiller {
 
     const fields = scanFields(document.body)
     debug.fieldsScanned = fields.length
+
+    // Mark all scanned fields as processed for dynamic monitoring
+    for (const field of fields) {
+      this.processedFields.add(field.element)
+    }
 
     // Thinking stage
     if (animated && onProgress) {
@@ -501,7 +792,219 @@ export class AutoFiller {
     this.notifyFilled(debug.fillResults)
 
     await saveDebugLog('fill', debug)
+
+    // Check if we should auto-add more entries
+    if (this.autoAddEnabled && !animated) {
+      await this.tryAutoAddAndFill()
+    }
+
     return { results, debug }
+  }
+
+  /**
+   * Check if more experience entries are available and auto-click add buttons to fill them
+   */
+  private async tryAutoAddAndFill(): Promise<void> {
+    const sectionTypes: ExperienceGroupType[] = ['WORK', 'EDUCATION', 'PROJECT']
+
+    for (const sectionType of sectionTypes) {
+      let clickCount = 0
+
+      while (clickCount < this.maxAutoAddClicks) {
+        const shouldAdd = await this.shouldAddMoreEntries(sectionType)
+        if (!shouldAdd) break
+
+        const addButton = findAddButtonForSection(sectionType)
+        if (!addButton) {
+          console.log(`[AutoFiller] No add button found for ${sectionType}`)
+          break
+        }
+
+        console.log(`[AutoFiller] Clicking add button for ${sectionType}: "${addButton.context}"`)
+
+        const success = await clickAddButtonAndWait(addButton)
+        if (!success) {
+          console.log(`[AutoFiller] Add button click did not produce new fields`)
+          break
+        }
+
+        clickCount++
+
+        // Small delay to let DOM settle
+        await new Promise(resolve => setTimeout(resolve, 200))
+
+        // Fill the newly added fields
+        await this.fillNewlyAddedSection(sectionType)
+      }
+
+      if (clickCount > 0) {
+        console.log(`[AutoFiller] Added and filled ${clickCount} ${sectionType} entries`)
+      }
+    }
+  }
+
+  /**
+   * Check if we should add more entries for a section type using LLM
+   */
+  private async shouldAddMoreEntries(sectionType: ExperienceGroupType): Promise<boolean> {
+    // Get count of user's stored experiences
+    const storedCount = await experienceStorage.getCountByGroupType(sectionType)
+    if (storedCount === 0) return false
+
+    // Count current form sections of this type
+    const currentSectionCount = this.countFormSections(sectionType)
+
+    // Find the add button to get its context
+    const addButton = findAddButtonForSection(sectionType)
+    if (!addButton) return false
+
+    // Get field labels for context
+    const fields = scanFields(document.body)
+    const fieldLabels = fields
+      .filter(f => this.isSectionRelevant(f, sectionType))
+      .map(f => f.labelText)
+      .filter(Boolean)
+      .slice(0, 10)
+
+    // Get surrounding section context
+    const sectionContext = addButton.element.closest('section, fieldset, [class*="section"]')?.textContent?.slice(0, 200) || ''
+
+    // Ask LLM for decision
+    const decision = await llmService.shouldAddMoreEntries({
+      sectionType,
+      currentFormCount: currentSectionCount,
+      storedExperienceCount: storedCount,
+      buttonText: addButton.context,
+      sectionContext: sectionContext.replace(/\s+/g, ' ').trim(),
+      existingFieldLabels: fieldLabels,
+    })
+
+    console.log(`[AutoFiller] LLM decision for ${sectionType}: ${decision.shouldAdd ? 'ADD' : 'SKIP'} (${decision.confidence.toFixed(2)}) - ${decision.reason}`)
+
+    return decision.shouldAdd && decision.confidence >= 0.6
+  }
+
+  /**
+   * Check if a field is relevant to a section type
+   */
+  private isSectionRelevant(field: FieldContext, sectionType: ExperienceGroupType): boolean {
+    const text = (field.labelText + ' ' + field.sectionTitle).toLowerCase()
+
+    if (sectionType === 'WORK') {
+      return /company|employer|job|title|position|work|experience|职位|公司|工作/.test(text)
+    } else if (sectionType === 'EDUCATION') {
+      return /school|university|college|degree|education|学校|学历|教育/.test(text)
+    } else if (sectionType === 'PROJECT') {
+      return /project|项目/.test(text)
+    }
+    return false
+  }
+
+  /**
+   * Count how many form sections of a given type exist
+   */
+  private countFormSections(sectionType: ExperienceGroupType): number {
+    const fields = scanFields(document.body)
+
+    // Count sections by looking at field names/labels
+    let sectionCount = 0
+    const seenSections = new Set<string>()
+
+    for (const field of fields) {
+      const sectionKey = field.sectionTitle || '_default'
+      if (seenSections.has(sectionKey)) continue
+
+      // Check if this section likely contains the relevant type
+      const lowerLabel = field.labelText.toLowerCase()
+      const lowerSection = field.sectionTitle.toLowerCase()
+
+      let isRelevant = false
+      if (sectionType === 'WORK') {
+        isRelevant = /company|employer|job|title|position|work|experience|职位|公司|工作/.test(lowerLabel + lowerSection)
+      } else if (sectionType === 'EDUCATION') {
+        isRelevant = /school|university|college|degree|education|学校|学历|教育/.test(lowerLabel + lowerSection)
+      } else if (sectionType === 'PROJECT') {
+        isRelevant = /project|项目/.test(lowerLabel + lowerSection)
+      }
+
+      if (isRelevant) {
+        seenSections.add(sectionKey)
+        sectionCount++
+      }
+    }
+
+    // At minimum return 1 if there are any relevant keywords found
+    return Math.max(sectionCount, seenSections.size > 0 ? 1 : 0)
+  }
+
+  /**
+   * Fill fields in a newly added section
+   */
+  private async fillNewlyAddedSection(sectionType: ExperienceGroupType): Promise<void> {
+    // Re-scan to find new fields
+    const allFields = scanFields(document.body)
+
+    // Find fields that haven't been processed yet
+    const newFields = allFields.filter(f => !this.processedFields.has(f.element))
+
+    if (newFields.length === 0) {
+      console.log(`[AutoFiller] No new fields found after add button click`)
+      return
+    }
+
+    console.log(`[AutoFiller] Found ${newFields.length} new fields to fill`)
+
+    // Mark them as processed
+    for (const field of newFields) {
+      this.processedFields.add(field.element)
+    }
+
+    // Create fill plans for new fields
+    const { plans, suggestions, sensitiveFields } = await this.createFillPlansWithDebug(newFields)
+
+    // Execute fills
+    for (const plan of plans) {
+      const snapshot = createFillSnapshot(plan.field.element)
+      const result = await fillField(plan.field, plan.answer.value)
+
+      if (result.success) {
+        this.fillHistory.push({
+          field: plan.field,
+          snapshot,
+          answerId: plan.answer.id,
+          timestamp: Date.now(),
+        })
+        this.markAsFilledByProgram(plan.field.element)
+        this.badgeManager.showBadge(plan.field, {
+          type: 'filled',
+          answerId: plan.answer.id,
+          canUndo: true,
+        })
+      }
+
+      await this.yieldToMainThread()
+    }
+
+    // Show badges for suggestions and sensitive fields
+    for (const { field, candidates } of suggestions) {
+      this.badgeManager.showBadge(field, { type: 'suggest', candidates })
+    }
+
+    for (const { field, candidates } of sensitiveFields) {
+      this.badgeManager.showBadge(field, { type: 'sensitive', candidates })
+    }
+
+    if (plans.length > 0) {
+      showToast(`Filled ${plans.length} fields in new ${sectionType.toLowerCase()} entry`, 'success')
+    }
+  }
+
+  /**
+   * Enable or disable auto-add functionality
+   */
+  setAutoAddEnabled(enabled: boolean): void {
+    this.autoAddEnabled = enabled
+    console.log(`[AutoFiller] Auto-add ${enabled ? 'enabled' : 'disabled'}`)
   }
 
   private async createFillPlansWithDebug(fields: FieldContext[]): Promise<{
@@ -830,6 +1333,7 @@ export class AutoFiller {
     this.recorder.stop()
     this.badgeManager.hideAll()
     this.floatingWidget.hide()
+    this.stopDynamicFormMonitoring()
   }
 }
 

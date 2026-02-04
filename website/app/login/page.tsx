@@ -129,7 +129,7 @@ export default function LoginPage() {
       setError(translateAuthError(error.message));
     } else {
       setOtpStage('sent');
-      setMessage('登录链接已发送到您的邮箱，请点击链接或输入邮件中的验证码');
+      setMessage('验证码已发送到您的邮箱');
       setCooldown(60);
     }
     setLoading(false);
@@ -207,7 +207,7 @@ export default function LoginPage() {
           {authMode === 'login' && (
             <div className="mb-4 flex items-center gap-4 text-sm">
               <span className="text-gray-600">登录方式:</span>
-              {([{ method: 'password', icon: KeyRound, label: '密码' }, { method: 'otp', icon: Mail, label: '邮箱链接' }] as const).map(({ method, icon: Icon, label }) => (
+              {([{ method: 'password', icon: KeyRound, label: '密码' }, { method: 'otp', icon: Mail, label: '验证码' }] as const).map(({ method, icon: Icon, label }) => (
                 <label key={method} className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="radio"
@@ -260,10 +260,9 @@ export default function LoginPage() {
             {loginMethod === 'otp' && authMode === 'login' && otpStage !== 'idle' && (
               <div>
                 <div className="flex items-center justify-between">
-                  <label htmlFor="otpCode" className="block text-sm font-medium text-gray-700">验证码（邮件中6位数字）</label>
+                  <label htmlFor="otpCode" className="block text-sm font-medium text-gray-700">验证码</label>
                   <button type="button" onClick={() => { resetOtpState(); setEmail(''); }} className="text-xs text-blue-600 hover:underline">换个邮箱</button>
                 </div>
-                <p className="text-xs text-gray-500 mb-2">或直接点击邮件中的登录链接</p>
                 <div className="mt-1 flex gap-2">
                   <input
                     ref={otpInputRef}
@@ -293,7 +292,7 @@ export default function LoginPage() {
               className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loginMethod === 'otp' && authMode === 'login' ? (otpStage === 'idle' ? '发送登录链接' : '验证登录') : authMode === 'signup' ? '注册' : '登录'}
+              {loginMethod === 'otp' && authMode === 'login' ? (otpStage === 'idle' ? '发送验证码' : '验证登录') : authMode === 'signup' ? '注册' : '登录'}
             </button>
           </form>
 
