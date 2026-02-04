@@ -196,7 +196,7 @@ export const SYNONYM_BOOL_TEMPLATE: DemoFormTemplate = {
 export const MINI_DEMO_TEMPLATE: DemoFormTemplate = {
   id: 'mini',
   title: 'Quick Demo',
-  subtitle: 'Try AutoFiller',
+  subtitle: 'Try OneFillr',
   fields: [
     { name: 'fullName', label: 'Full Name', type: 'text', taxonomy: Taxonomy.FULL_NAME, required: true },
     { name: 'email', label: 'Email', type: 'email', taxonomy: Taxonomy.EMAIL, required: true },

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "AutoFiller",
+  "name": "OneFillr",
   "version": "1.0.0",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmyW5+cRoT9SytA9z3pnuMLg/j+xARz+ewsrK6cIwqq+1+XZEqsr3Sh2BJ6FoI7GLl57JkyS0wblQQ/bLQ48C022M19uOTb8ZMpE9NnLNNQO97Ah+TgETFOVLhJO6GikwM3qsIPK9BvLrSb8VtXc2F1mCCPyziXeM4RglEI0TQ4htlx5jvEqyL2cjcY/KNSjibgeiWYmRDonwHNeg8b/i1sin68EoTBp0Zr+emiHtj7uBLOYEA0Q57r33uBOcmu7uV0tiwzsm97hOkRC0n8KAAnNTXuvDVyohpbUFyUnOXWGBAsr8TjPMyvYLoEAU2OTPh9jGwgnbnWMKIt4auhr9+QIDAQAB",
   "description": "Smart form auto-filler for job applications",
@@ -17,7 +17,7 @@
     "<all_urls>"
   ],
   "action": {
-    "default_title": "AutoFiller - Click to Fill",
+    "default_title": "OneFillr - Click to Fill",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

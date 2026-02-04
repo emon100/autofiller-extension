@@ -192,7 +192,7 @@ export default function AccountSettings({ user }: AccountSettingsProps) {
         <h3 className="font-semibold text-gray-900">扩展同步</h3>
         <p className="mt-2 text-sm text-gray-600">将您的账户与 Chrome 扩展同步：</p>
         <ol className="mt-4 list-inside list-decimal space-y-2 text-sm text-gray-600">
-          <li>打开 AutoFiller 扩展</li>
+          <li>打开 OneFillr 扩展</li>
           <li>进入设置</li>
           <li>点击"登录同步"</li>
           <li>使用与此处相同的账户登录</li>

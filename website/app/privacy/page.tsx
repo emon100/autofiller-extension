@@ -3,8 +3,8 @@ import { Zap, ArrowLeft } from 'lucide-react';
 import Footer from '@/components/landing/Footer';
 
 export const metadata = {
-  title: 'Privacy Policy | AutoFiller',
-  description: 'Learn how AutoFiller collects, uses, and protects your personal information.',
+  title: 'Privacy Policy | OneFillr',
+  description: 'Learn how OneFillr collects, uses, and protects your personal information.',
 };
 
 export default function PrivacyPolicyPage() {
@@ -14,7 +14,7 @@ export default function PrivacyPolicyPage() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 border-b">
         <Link href="/" className="flex items-center gap-2">
           <Zap className="h-8 w-8 text-blue-600" />
-          <span className="text-xl font-bold">AutoFiller</span>
+          <span className="text-xl font-bold">OneFillr</span>
         </Link>
         <Link
           href="/"
@@ -33,7 +33,7 @@ export default function PrivacyPolicyPage() {
         <div className="prose prose-gray max-w-none">
           <h2>Introduction</h2>
           <p>
-            AutoFiller ("we", "our", or "us") is committed to protecting your privacy. This Privacy
+            OneFillr ("we", "our", or "us") is committed to protecting your privacy. This Privacy
             Policy explains how we collect, use, disclose, and safeguard your information when you
             use our Chrome extension and website (collectively, the "Service").
           </p>
@@ -52,7 +52,7 @@ export default function PrivacyPolicyPage() {
               email address and any profile information you choose to provide.
             </li>
             <li>
-              <strong>Form Data:</strong> The AutoFiller extension stores information you enter
+              <strong>Form Data:</strong> The OneFillr extension stores information you enter
               into job application forms (such as your name, email, phone number, education,
               and work experience) locally on your device to enable auto-filling functionality.
             </li>
@@ -85,7 +85,7 @@ export default function PrivacyPolicyPage() {
 
           <h3>Data Stored Locally</h3>
           <p>
-            <strong>Important:</strong> The AutoFiller Chrome extension stores your form data
+            <strong>Important:</strong> The OneFillr Chrome extension stores your form data
             (personal information for job applications) locally on your device using Chrome's
             storage API. This data is:
           </p>

@@ -2,14 +2,15 @@ import type { Metadata } from 'next';
 import Script from "next/script";
 import { Inter } from 'next/font/google';
 import CookieConsent from '@/components/CookieConsent';
+import { I18nProvider } from '@/lib/i18n';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'AutoFiller - Job Application Autofill Chrome Extension',
+  title: 'OneFillr - Job Application Autofill Chrome Extension',
   description:
-    'Save hours on job applications. Fill any application form in seconds with AutoFiller - the smart Chrome extension for job seekers.',
+    'Save hours on job applications. Fill any application form in seconds with OneFillr - the smart Chrome extension for job seekers.',
   keywords: [
     'job application autofill',
     'chrome extension',
@@ -19,23 +20,23 @@ export const metadata: Metadata = {
     'lever autofill',
     'workday autofill',
   ],
-  authors: [{ name: 'AutoFiller Team' }],
+  authors: [{ name: 'OneFillr Team' }],
   icons: {
     icon: '/icon.svg',
     apple: '/icon.svg',
   },
   openGraph: {
-    title: 'AutoFiller - Job Application Autofill Chrome Extension',
+    title: 'OneFillr - Job Application Autofill Chrome Extension',
     description:
       'Save hours on job applications. Fill any application form in seconds.',
     url: 'https://www.onefil.help',
-    siteName: 'AutoFiller',
+    siteName: 'OneFillr',
     locale: 'en_US',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AutoFiller - Job Application Autofill',
+    title: 'OneFillr - Job Application Autofill',
     description:
       'Save hours on job applications. Fill any application form in seconds.',
   },
@@ -84,8 +85,10 @@ export default function RootLayout({
         </Script>
       </head>
       <body className={inter.className}>
-        {children}
-        <CookieConsent />
+        <I18nProvider>
+          {children}
+          <CookieConsent />
+        </I18nProvider>
       </body>
     </html>
   );

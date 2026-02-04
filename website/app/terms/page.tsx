@@ -3,8 +3,8 @@ import { Zap, ArrowLeft } from 'lucide-react';
 import Footer from '@/components/landing/Footer';
 
 export const metadata = {
-  title: 'Terms of Service | AutoFiller',
-  description: 'Read the terms and conditions for using AutoFiller services.',
+  title: 'Terms of Service | OneFillr',
+  description: 'Read the terms and conditions for using OneFillr services.',
 };
 
 export default function TermsOfServicePage() {
@@ -14,7 +14,7 @@ export default function TermsOfServicePage() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 border-b">
         <Link href="/" className="flex items-center gap-2">
           <Zap className="h-8 w-8 text-blue-600" />
-          <span className="text-xl font-bold">AutoFiller</span>
+          <span className="text-xl font-bold">OneFillr</span>
         </Link>
         <Link
           href="/"
@@ -33,19 +33,19 @@ export default function TermsOfServicePage() {
         <div className="prose prose-gray max-w-none">
           <h2>1. Agreement to Terms</h2>
           <p>
-            By accessing or using AutoFiller's services, including our Chrome extension and website
+            By accessing or using OneFillr's services, including our Chrome extension and website
             (collectively, the "Service"), you agree to be bound by these Terms of Service
             ("Terms"). If you do not agree to these Terms, please do not use the Service.
           </p>
           <p>
-            These Terms constitute a legally binding agreement between you and AutoFiller ("we",
+            These Terms constitute a legally binding agreement between you and OneFillr ("we",
             "our", or "us"). We may update these Terms from time to time, and your continued use
             of the Service constitutes acceptance of any changes.
           </p>
 
           <h2>2. Description of Service</h2>
           <p>
-            AutoFiller is a Chrome browser extension and related services that help users
+            OneFillr is a Chrome browser extension and related services that help users
             automatically fill job application forms. The Service includes:
           </p>
           <ul>
@@ -179,7 +179,7 @@ export default function TermsOfServicePage() {
 
           <h3>8.1 Our Intellectual Property</h3>
           <p>
-            The Service, including its design, features, code, and content, is owned by AutoFiller
+            The Service, including its design, features, code, and content, is owned by OneFillr
             and protected by intellectual property laws. You may not copy, modify, or distribute
             any part of the Service without our written permission.
           </p>
@@ -215,7 +215,7 @@ export default function TermsOfServicePage() {
 
           <h3>10.2 No Employment Guarantee</h3>
           <p>
-            AutoFiller is a tool to assist with job applications. We do not guarantee that using
+            OneFillr is a tool to assist with job applications. We do not guarantee that using
             our Service will result in job interviews, offers, or employment.
           </p>
 
@@ -243,7 +243,7 @@ export default function TermsOfServicePage() {
 
           <h2>12. Indemnification</h2>
           <p>
-            You agree to indemnify and hold harmless AutoFiller and its officers, directors,
+            You agree to indemnify and hold harmless OneFillr and its officers, directors,
             employees, and agents from any claims, damages, losses, or expenses (including legal
             fees) arising from:
           </p>
@@ -294,14 +294,14 @@ export default function TermsOfServicePage() {
 
           <h3>14.2 Governing Law</h3>
           <p>
-            These Terms are governed by the laws of the jurisdiction where AutoFiller is
+            These Terms are governed by the laws of the jurisdiction where OneFillr is
             incorporated, without regard to conflict of law principles.
           </p>
 
           <h3>14.3 Jurisdiction</h3>
           <p>
             Any disputes arising from these Terms or the Service shall be resolved in the courts
-            of the jurisdiction where AutoFiller is incorporated, unless otherwise required by
+            of the jurisdiction where OneFillr is incorporated, unless otherwise required by
             applicable consumer protection laws.
           </p>
 
@@ -310,7 +310,7 @@ export default function TermsOfServicePage() {
           <h3>15.1 Entire Agreement</h3>
           <p>
             These Terms, together with our Privacy Policy and Cookie Policy, constitute the entire
-            agreement between you and AutoFiller regarding the Service.
+            agreement between you and OneFillr regarding the Service.
           </p>
 
           <h3>15.2 Severability</h3>

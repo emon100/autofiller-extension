@@ -2,17 +2,47 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Zap, User, Menu, X, LogOut, Play } from 'lucide-react';
+import { ArrowRight, Zap, User, Menu, X, LogOut, Shield, Database, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import MiniDemo from './MiniDemo';
+import { useI18n } from '@/lib/i18n';
+import HeroDemo from './HeroDemo';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 export default function Hero() {
+  const { t } = useI18n();
   const [user, setUser] = useState<{ email: string } | null>(null);
-  const [loading, setLoading] = useState(false); // 改为false，立即渲染
+  const [loading, setLoading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboardMenuOpen, setDashboardMenuOpen] = useState(false);
+  const [currentFormTypeIndex, setCurrentFormTypeIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // Form types from translation
+  const FORM_TYPES = [
+    t('hero.formTypes.jobApplications'),
+    t('hero.formTypes.internshipForms'),
+    t('hero.formTypes.graduatePrograms'),
+    t('hero.formTypes.visaApplications'),
+    t('hero.formTypes.scholarshipForms'),
+    t('hero.formTypes.universityAdmissions'),
+    t('hero.formTypes.companyProfiles'),
+    t('hero.formTypes.backgroundChecks'),
+  ];
 
   const supabase = createClient();
+
+  // 表单类型滚动动画
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setCurrentFormTypeIndex((prev) => (prev + 1) % FORM_TYPES.length);
+        setIsAnimating(false);
+      }, 300);
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -24,7 +54,6 @@ export default function Hero() {
   useEffect(() => {
     const supabase = createClient();
 
-    // 异步检查登录状态，不阻塞渲染
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         setUser({ email: user.email || '' });
@@ -34,7 +63,6 @@ export default function Hero() {
       setLoading(false);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session?.user) {
@@ -54,20 +82,21 @@ export default function Hero() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-2">
           <Zap className="h-8 w-8 text-blue-600" />
-          <span className="text-xl font-bold">AutoFiller</span>
+          <span className="text-xl font-bold">OneFillr</span>
         </div>
 
         {/* Desktop Navigation */}
         <div className="hidden items-center gap-8 md:flex">
           <Link href="#features" className="text-gray-600 hover:text-gray-900">
-            Features
+            {t('nav.features')}
           </Link>
           <Link href="#pricing" className="text-gray-600 hover:text-gray-900">
-            Pricing
+            {t('nav.pricing')}
           </Link>
           <Link href="#faq" className="text-gray-600 hover:text-gray-900">
-            FAQ
+            {t('nav.faq')}
           </Link>
+          <LanguageSwitcher />
           {loading ? (
             <span className="text-gray-400">...</span>
           ) : user ? (
@@ -81,10 +110,9 @@ export default function Hero() {
                 className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
               >
                 <User className="h-4 w-4" />
-                Dashboard
+                {t('nav.dashboard')}
               </Link>
 
-              {/* Dropdown Menu - pt-2 creates invisible hover bridge */}
               {dashboardMenuOpen && (
                 <div className="absolute right-0 top-full w-48 pt-2">
                   <div className="rounded-lg border border-gray-200 bg-white shadow-lg">
@@ -94,7 +122,7 @@ export default function Hero() {
                         className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
                         <LogOut className="h-4 w-4" />
-                        Sign Out
+                        {t('common.logout')}
                       </button>
                     </div>
                   </div>
@@ -107,13 +135,13 @@ export default function Hero() {
                 href="/login"
                 className="text-gray-600 hover:text-gray-900"
               >
-                Login
+                {t('common.login')}
               </Link>
               <Link
                 href="/pricing"
                 className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
-                Get Started
+                {t('nav.getStarted')}
               </Link>
             </>
           )}
@@ -137,24 +165,25 @@ export default function Hero() {
               className="text-gray-600 hover:text-gray-900"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Features
+              {t('nav.features')}
             </Link>
             <Link
               href="#pricing"
               className="text-gray-600 hover:text-gray-900"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Pricing
+              {t('nav.pricing')}
             </Link>
             <Link
               href="#faq"
               className="text-gray-600 hover:text-gray-900"
               onClick={() => setMobileMenuOpen(false)}
             >
-              FAQ
+              {t('nav.faq')}
             </Link>
+            <LanguageSwitcher />
             {loading ? (
-              <span className="text-gray-400">Loading...</span>
+              <span className="text-gray-400">{t('common.loading')}</span>
             ) : user ? (
               <>
                 <Link
@@ -163,14 +192,14 @@ export default function Hero() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <User className="h-4 w-4" />
-                  Dashboard
+                  {t('nav.dashboard')}
                 </Link>
                 <button
                   onClick={handleSignOut}
                   className="flex items-center gap-2 text-left text-gray-600 hover:text-gray-900"
                 >
                   <LogOut className="h-4 w-4" />
-                  Sign Out
+                  {t('common.logout')}
                 </button>
               </>
             ) : (
@@ -180,14 +209,14 @@ export default function Hero() {
                   className="text-gray-600 hover:text-gray-900"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Login
+                  {t('common.login')}
                 </Link>
                 <Link
                   href="/pricing"
                   className="rounded-lg bg-blue-600 px-4 py-2 text-center text-white hover:bg-blue-700"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Get Started
+                  {t('nav.getStarted')}
                 </Link>
               </>
             )}
@@ -199,46 +228,73 @@ export default function Hero() {
       <div className="mx-auto max-w-7xl px-6 py-24 text-center">
         <div className="mx-auto max-w-3xl">
           <div className="mb-6 inline-flex items-center rounded-full bg-blue-100 px-4 py-2 text-sm text-blue-700">
-            <Zap className="mr-2 h-4 w-4" />
-            Trusted by 10,000+ job seekers
+            <Shield className="mr-2 h-4 w-4" />
+            {t('hero.badge')}
           </div>
 
           <h1 className="mb-6 text-5xl font-bold tracking-tight text-gray-900 md:text-6xl">
-            Fill Job Applications{' '}
-            <span className="text-blue-600">10x Faster</span>
+            {t('hero.titleFill')}{' '}
+            <span className="relative inline-block min-w-[280px] md:min-w-[360px]">
+              <span
+                className={`inline-block transition-all duration-300 ${
+                  isAnimating
+                    ? 'opacity-0 translate-y-4'
+                    : 'opacity-100 translate-y-0'
+                }`}
+              >
+                {FORM_TYPES[currentFormTypeIndex]}
+              </span>
+            </span>
+            <br />
+            <span className="text-blue-600">{t('hero.title10x')}</span>
           </h1>
 
-          <p className="mb-10 text-xl text-gray-600">
-            Stop typing the same information over and over. AutoFiller learns your
-            profile once and fills any job application form in seconds.
+          <p className="mb-8 text-xl text-gray-600">
+            {t('hero.subtitle')}
           </p>
 
+          {/* Privacy Trust Badges */}
+          <div className="mb-8 flex flex-wrap items-center justify-center gap-4 text-sm">
+            <div className="flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-green-700">
+              <Database className="h-4 w-4" />
+              <span>{t('hero.trustBadges.localStorage')}</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-full bg-purple-50 px-4 py-2 text-purple-700">
+              <Lock className="h-4 w-4" />
+              <span>{t('hero.trustBadges.aiPrivacy')}</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-blue-700">
+              <Zap className="h-4 w-4" />
+              <span>{t('hero.trustBadges.import')}</span>
+            </div>
+          </div>
+
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <a
-              href="https://chrome.google.com/webstore"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/download"
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-8 py-4 text-lg font-semibold text-white shadow-lg hover:bg-blue-700"
             >
-              Add to Chrome - It&apos;s Free
+              {t('hero.ctaChrome')}
               <ArrowRight className="h-5 w-5" />
-            </a>
-            <Link
-              href="#how-it-works"
+            </Link>
+            <button
+              onClick={() => {
+                document.getElementById('hero-demo')?.scrollIntoView({ behavior: 'smooth' });
+              }}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-8 py-4 text-lg font-semibold text-gray-700 hover:bg-gray-50"
             >
-              See How It Works
-            </Link>
+              {t('hero.ctaHowItWorks')}
+            </button>
           </div>
 
           <p className="mt-4 text-sm text-gray-500">
-            20 free fills included. No credit card required.
+            {t('hero.freeCredits')}
           </p>
         </div>
 
-        {/* Interactive Demo */}
-        <div className="relative mx-auto mt-16 max-w-4xl">
-          <MiniDemo />
+        {/* Animated Demo */}
+        <div id="hero-demo" className="relative mx-auto mt-16 max-w-4xl">
+          <HeroDemo />
         </div>
       </div>
     </section>
