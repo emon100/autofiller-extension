@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Zap } from 'lucide-react';
+import { CookiePreferencesButton } from '@/components/CookieConsent';
 
 export default function Footer() {
   return (
@@ -33,6 +34,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/demo" className="text-gray-600 hover:text-gray-900">
+                  Try Demo
+                </Link>
+              </li>
+              <li>
                 <a
                   href="https://chrome.google.com/webstore"
                   target="_blank"
@@ -58,6 +64,14 @@ export default function Footer() {
                 <Link href="/terms" className="text-gray-600 hover:text-gray-900">
                   Terms of Service
                 </Link>
+              </li>
+              <li>
+                <Link href="/cookies" className="text-gray-600 hover:text-gray-900">
+                  Cookie Policy
+                </Link>
+              </li>
+              <li>
+                <CookiePreferencesButton className="text-gray-600 hover:text-gray-900" />
               </li>
             </ul>
           </div>

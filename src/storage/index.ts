@@ -1,5 +1,6 @@
 import { AnswerValue, Observation, SiteSettings, Taxonomy, PendingObservation, ExperienceEntry, AuthState, CreditsInfo } from '@/types'
 import { ExperienceStorage, experienceStorage } from './experienceStorage'
+import { knowledgeNormalizer } from '@/services/KnowledgeNormalizer'
 
 export { ExperienceStorage, experienceStorage }
 
@@ -64,9 +65,15 @@ async function setStorage<T>(key: string, value: T): Promise<void> {
 }
 
 export class AnswerStorage {
-  async save(answer: AnswerValue): Promise<void> {
+  /**
+   * Save an answer with optional normalization
+   * @param answer The answer to save
+   * @param normalize Whether to normalize the value before saving (default: true)
+   */
+  async save(answer: AnswerValue, normalize = true): Promise<void> {
+    const toSave = normalize ? await knowledgeNormalizer.normalizeAnswer(answer) : answer
     const answers = await this.getAllMap()
-    answers[answer.id] = answer
+    answers[toSave.id] = toSave
     await setStorage(STORAGE_KEYS.ANSWERS, answers)
   }
 
@@ -151,6 +158,29 @@ export class ObservationStorage {
     return Object.values(observations)
       .filter(o => o.questionKeyId === questionKeyId)
       .sort((a, b) => b.timestamp - a.timestamp)
+  }
+
+  /**
+   * Get relevant historical examples for few-shot learning
+   * Returns high-confidence observations grouped by taxonomy type
+   */
+  async getRelevantExamples(limit: number = 5): Promise<Array<{
+    questionKeyId: string
+    answerId: string
+    confidence: number
+    siteKey: string
+  }>> {
+    const observations = await this.getAllMap()
+    return Object.values(observations)
+      .filter(o => o.confidence >= 0.8)  // Only high-confidence examples
+      .sort((a, b) => b.confidence - a.confidence)  // Highest confidence first
+      .slice(0, limit)
+      .map(o => ({
+        questionKeyId: o.questionKeyId,
+        answerId: o.answerId,
+        confidence: o.confidence,
+        siteKey: o.siteKey,
+      }))
   }
 
   async delete(id: string): Promise<void> {

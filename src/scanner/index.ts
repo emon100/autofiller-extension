@@ -4,6 +4,9 @@ import { ScanLog, logScan } from '@/utils/logger'
 // Export section detection utilities
 export * from './sectionDetector'
 
+// Export add button detection utilities
+export * from './addButtonDetector'
+
 const INPUT_SELECTORS = [
   'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"])',
   'select',

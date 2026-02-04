@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Zap, User, Menu, X, LogOut } from 'lucide-react';
+import { ArrowRight, Zap, User, Menu, X, LogOut, Play } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import MiniDemo from './MiniDemo';
 
 export default function Hero() {
   const [user, setUser] = useState<{ email: string } | null>(null);
@@ -235,13 +236,9 @@ export default function Hero() {
           </p>
         </div>
 
-        {/* Demo Image Placeholder */}
+        {/* Interactive Demo */}
         <div className="relative mx-auto mt-16 max-w-4xl">
-          <div className="aspect-video rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 shadow-2xl">
-            <div className="flex h-full items-center justify-center text-gray-400">
-              <span className="text-lg">Demo Video / Screenshot</span>
-            </div>
-          </div>
+          <MiniDemo />
         </div>
       </div>
     </section>

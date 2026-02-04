@@ -1,5 +1,6 @@
 import { FieldContext, CandidateType, Taxonomy, IFieldParser } from '@/types'
 import { collectAncestorContext } from '@/scanner'
+import { parseJSONSafe } from '@/utils/jsonRepair'
 
 interface LLMConfig {
   enabled: boolean
@@ -28,6 +29,33 @@ interface FieldMetadata {
 interface BatchClassificationResult {
   index: number
   type: string
+  confidence: number
+}
+
+/**
+ * Context about already-classified fields in the same form
+ */
+export interface FilledFieldContext {
+  type: Taxonomy
+  labelText: string
+  value?: string  // Optional: scrubbed value if available
+}
+
+/**
+ * Page-level context to help LLM understand form type
+ */
+export interface PageContext {
+  title: string
+  urlPath: string
+  keywords: string[]
+}
+
+/**
+ * Historical example for few-shot learning
+ */
+export interface FewShotExample {
+  labelText: string
+  type: Taxonomy
   confidence: number
 }
 
@@ -154,8 +182,18 @@ export class LLMParser implements IFieldParser {
   /**
    * Batch parse multiple fields - sends fields in batches of BATCH_SIZE
    * Returns a Map from field index to candidates
+   *
+   * @param contexts - Array of field contexts to classify
+   * @param filledFields - Optional array of already-classified fields for context
+   * @param pageContext - Optional page-level context (title, URL keywords)
+   * @param fewShotExamples - Optional historical examples for few-shot learning
    */
-  async parseBatch(contexts: FieldContext[]): Promise<Map<number, CandidateType[]>> {
+  async parseBatch(
+    contexts: FieldContext[],
+    filledFields?: FilledFieldContext[],
+    pageContext?: PageContext,
+    fewShotExamples?: FewShotExample[]
+  ): Promise<Map<number, CandidateType[]>> {
     const config = await this.ensureConfigLoaded()
     const results = new Map<number, CandidateType[]>()
 
@@ -198,7 +236,7 @@ export class LLMParser implements IFieldParser {
       console.log(`[LLMParser] Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} fields)`)
 
       try {
-        const batchResults = await this.processSingleBatch(batch)
+        const batchResults = await this.processSingleBatch(batch, filledFields, pageContext, fewShotExamples)
 
         // Store results and update cache
         for (const [fieldIndex, candidates] of batchResults) {
@@ -224,7 +262,10 @@ export class LLMParser implements IFieldParser {
   }
 
   private async processSingleBatch(
-    batch: Array<{ index: number; context: FieldContext }>
+    batch: Array<{ index: number; context: FieldContext }>,
+    filledFields?: FilledFieldContext[],
+    pageContext?: PageContext,
+    fewShotExamples?: FewShotExample[]
   ): Promise<Map<number, CandidateType[]>> {
     const results = new Map<number, CandidateType[]>()
 
@@ -234,8 +275,8 @@ export class LLMParser implements IFieldParser {
       return this.scrubPII(metadata)
     })
 
-    // Build batch prompt
-    const prompt = this.buildBatchPrompt(metadataList)
+    // Build batch prompt with multi-faceted context
+    const prompt = this.buildBatchPrompt(metadataList, filledFields, pageContext, fewShotExamples)
 
     // Call LLM
     const config = this.config!
@@ -382,17 +423,62 @@ export class LLMParser implements IFieldParser {
     }
   }
 
-  private buildBatchPrompt(metadataList: FieldMetadata[]): string {
+  private buildBatchPrompt(
+    metadataList: FieldMetadata[],
+    filledFields?: FilledFieldContext[],
+    pageContext?: PageContext,
+    fewShotExamples?: FewShotExample[]
+  ): string {
     const taxonomyList = this.buildTaxonomyList()
     const fieldsDescription = metadataList
       .map(metadata => `[Field ${metadata.index}]\n${this.formatMetadataContext(metadata)}`)
       .join('\n\n')
 
+    // Build multi-faceted context sections
+    const contextSections: string[] = []
+
+    // Page Context
+    if (pageContext) {
+      const pageSection = [
+        '## Page Context',
+        `- Title: ${pageContext.title}`,
+        `- URL Path: ${pageContext.urlPath}`,
+        pageContext.keywords.length > 0 ? `- Keywords: ${pageContext.keywords.join(', ')}` : '',
+      ].filter(Boolean).join('\n')
+      contextSections.push(pageSection)
+    }
+
+    // Form State Context (already-filled fields)
+    if (filledFields && filledFields.length > 0) {
+      const filledSection = [
+        '## Form State (already classified fields)',
+        ...filledFields.slice(0, 10).map(f =>
+          `- "${f.labelText}" → ${f.type}${f.value ? ` (value: ${f.value})` : ''}`
+        ),
+      ].join('\n')
+      contextSections.push(filledSection)
+    }
+
+    // Few-shot examples from history
+    if (fewShotExamples && fewShotExamples.length > 0) {
+      const exampleSection = [
+        '## Past Examples (from user history)',
+        ...fewShotExamples.map(ex =>
+          `- Label "${ex.labelText}" → ${ex.type} (confidence: ${ex.confidence.toFixed(2)})`
+        ),
+      ].join('\n')
+      contextSections.push(exampleSection)
+    }
+
+    const contextBlock = contextSections.length > 0
+      ? `${contextSections.join('\n\n')}\n\n`
+      : ''
+
     return `Classify these ${metadataList.length} form fields. Available types:
 
 ${taxonomyList}
 
-Fields to classify:
+${contextBlock}Fields to classify:
 
 ${fieldsDescription}
 
@@ -403,7 +489,9 @@ Rules:
 - Use UNKNOWN with confidence 0 if uncertain
 - Each field must have an entry in the response
 - Confidence should reflect how certain you are about the classification
-- Pay attention to the "Ancestor text" - it often contains the question being asked`
+- Pay attention to the "Ancestor text" - it often contains the question being asked
+- Use the Page Context and Form State to understand field relationships
+- Learn from Past Examples to match similar field patterns`
   }
 
   private buildSinglePrompt(metadata: FieldMetadata): string {
@@ -642,57 +730,42 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
   }
 
   private parseSingleResponse(content: string): CandidateType[] {
-    try {
-      console.log('[LLMParser] Raw single response:', content)
-      const jsonMatch = content.match(/\{[^}]+\}/)
-      if (!jsonMatch) {
-        console.log('[LLMParser] No JSON found in response')
-        return []
-      }
+    console.log('[LLMParser] Raw single response:', content)
+    const parsed = parseJSONSafe<{ type?: string; confidence?: number }>(content, {})
 
-      const parsed = JSON.parse(jsonMatch[0])
-      const type = parsed.type as Taxonomy
-      const confidence = Math.min(Math.max(parsed.confidence || 0.5, 0), 1)
-
-      if (!Object.values(Taxonomy).includes(type) || type === Taxonomy.UNKNOWN) {
-        return []
-      }
-
-      return [{
-        type,
-        score: confidence * 0.85,
-        reasons: [`LLM classification (${confidence.toFixed(2)} confidence)`],
-      }]
-    } catch (error) {
-      console.error('[LLMParser] Parse error:', error)
+    if (!parsed.type) {
+      console.log('[LLMParser] No type found in response')
       return []
     }
+
+    const type = parsed.type as Taxonomy
+    const confidence = Math.min(Math.max(parsed.confidence || 0.5, 0), 1)
+
+    if (!Object.values(Taxonomy).includes(type) || type === Taxonomy.UNKNOWN) {
+      return []
+    }
+
+    return [{
+      type,
+      score: confidence * 0.85,
+      reasons: [`LLM classification (${confidence.toFixed(2)} confidence)`],
+    }]
   }
 
   private parseBatchResponse(content: string): BatchClassificationResult[] {
-    try {
-      console.log('[LLMParser] Raw batch response:', content)
+    console.log('[LLMParser] Raw batch response:', content)
 
-      // Try to find JSON array in response
-      const arrayMatch = content.match(/\[[\s\S]*\]/)
-      if (!arrayMatch) {
-        console.log('[LLMParser] No JSON array found in response')
-        return []
-      }
+    // Use JSON repair for robust parsing
+    const parsed = parseJSONSafe<BatchClassificationResult[] | Record<string, unknown>>(content, [])
 
-      const parsed = JSON.parse(arrayMatch[0]) as BatchClassificationResult[]
-
-      if (!Array.isArray(parsed)) {
-        console.log('[LLMParser] Parsed result is not an array')
-        return []
-      }
-
+    // Handle case where parseJSONSafe returns an object instead of array
+    if (Array.isArray(parsed)) {
       console.log(`[LLMParser] Parsed ${parsed.length} classifications`)
       return parsed
-    } catch (error) {
-      console.error('[LLMParser] Batch parse error:', error)
-      return []
     }
+
+    console.log('[LLMParser] Parsed result is not an array')
+    return []
   }
 
   /**

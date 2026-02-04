@@ -1,5 +1,5 @@
-import { FieldContext, AnswerValue } from '@/types'
-import { BadgeState, getBadgeColor, getBadgeIcon, getBadgeTooltip } from './Badge'
+import { FieldContext, AnswerValue, FillSource } from '@/types'
+import { BadgeState, getBadgeColor, getBadgeIcon, getBadgeTooltip, FILL_METHOD_LABELS } from './Badge'
 
 const BADGE_CLASS = 'autofiller-badge'
 const BADGE_DROPDOWN_CLASS = 'autofiller-badge-dropdown'
@@ -96,11 +96,11 @@ export class BadgeManager {
     }
 
     if (state.type === 'suggest' || state.type === 'sensitive') {
-      badge.onclick = () => this.showDropdown(badge, state.candidates, field)
+      badge.onclick = () => this.showDropdown(badge, state.candidates, field, state.sources)
     }
   }
 
-  private showDropdown(badge: HTMLElement, candidates: AnswerValue[], field: FieldContext): void {
+  private showDropdown(badge: HTMLElement, candidates: AnswerValue[], field: FieldContext, sources?: Map<string, FillSource>): void {
     const existingDropdown = badge.querySelector(`.${BADGE_DROPDOWN_CLASS}`)
     if (existingDropdown) {
       existingDropdown.remove()
@@ -114,12 +114,25 @@ export class BadgeManager {
       const item = document.createElement('button')
       item.className = 'autofiller-badge-dropdown-item'
       item.textContent = candidate.display || candidate.value
-      item.title = `${candidate.type}: ${candidate.value}`
+
+      // Build tooltip with source info
+      const source = sources?.get(candidate.id)
+      let tooltipText = `${candidate.type}: ${candidate.value}`
+      if (source) {
+        const method = FILL_METHOD_LABELS[source.method]
+        const confidence = `${Math.round(source.confidence * 100)}%`
+        tooltipText += `\n(${method}, ${confidence})`
+        if (source.reason) {
+          tooltipText += `\n${source.reason}`
+        }
+      }
+      item.title = tooltipText
+
       item.onclick = (e) => {
         e.stopPropagation()
         this.callbacks.onCandidateSelect?.(field, candidate)
         dropdown.remove()
-        this.updateBadge(field, { type: 'filled', answerId: candidate.id, canUndo: true })
+        this.updateBadge(field, { type: 'filled', answerId: candidate.id, canUndo: true, source })
       }
       dropdown.appendChild(item)
     }

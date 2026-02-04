@@ -7,6 +7,7 @@ import {
   ParsedProfile,
   ExtractedAnswer,
 } from '@/types'
+import { llmService, CleanedProfileData } from '@/services/LLMService'
 
 // Shared month abbreviation to number mapping
 const MONTH_MAP: Record<string, string> = {
@@ -61,31 +62,59 @@ export class LinkedInParser {
 
   /**
    * Convert LinkedIn profile to ParsedProfile format for storage
+   * Optionally uses LLM to clean and normalize the data
    */
-  toParsedProfile(profile: LinkedInProfile): ParsedProfile {
+  async toParsedProfile(profile: LinkedInProfile, useLLMCleaning = true): Promise<ParsedProfile> {
+    // Try LLM cleaning first
+    let cleanedData: CleanedProfileData | null = null
+    if (useLLMCleaning) {
+      try {
+        cleanedData = await llmService.cleanLinkedInProfile(profile)
+        console.log('[LinkedInParser] LLM cleaned profile data:', cleanedData)
+      } catch (error) {
+        console.warn('[LinkedInParser] LLM cleaning failed, using basic parsing:', error)
+      }
+    }
+
     const singleAnswers: ExtractedAnswer[] = []
     const experiences: ExperienceEntry[] = []
 
+    // Use cleaned data if available, otherwise fall back to original
+    const fullName = cleanedData?.fullName || profile.fullName
+    const firstName = cleanedData?.firstName
+    const lastName = cleanedData?.lastName
+
     // Build single answers from profile fields
-    if (profile.fullName) {
-      singleAnswers.push({ type: Taxonomy.FULL_NAME, value: profile.fullName, confidence: 0.95 })
-      const nameParts = this.splitName(profile.fullName)
-      if (nameParts.firstName) {
-        singleAnswers.push({ type: Taxonomy.FIRST_NAME, value: nameParts.firstName, confidence: 0.9 })
+    if (fullName) {
+      singleAnswers.push({ type: Taxonomy.FULL_NAME, value: fullName, confidence: 0.95 })
+
+      if (firstName) {
+        singleAnswers.push({ type: Taxonomy.FIRST_NAME, value: firstName, confidence: 0.9 })
+      } else {
+        const nameParts = this.splitName(fullName)
+        if (nameParts.firstName) {
+          singleAnswers.push({ type: Taxonomy.FIRST_NAME, value: nameParts.firstName, confidence: 0.85 })
+        }
       }
-      if (nameParts.lastName) {
-        singleAnswers.push({ type: Taxonomy.LAST_NAME, value: nameParts.lastName, confidence: 0.9 })
+
+      if (lastName) {
+        singleAnswers.push({ type: Taxonomy.LAST_NAME, value: lastName, confidence: 0.9 })
+      } else {
+        const nameParts = this.splitName(fullName)
+        if (nameParts.lastName) {
+          singleAnswers.push({ type: Taxonomy.LAST_NAME, value: nameParts.lastName, confidence: 0.85 })
+        }
       }
     }
 
     // Map remaining fields to taxonomy types with confidence
     const fieldMappings: Array<[Taxonomy, string | undefined, number]> = [
-      [Taxonomy.EMAIL, profile.email, 0.95],
-      [Taxonomy.PHONE, profile.phone, 0.95],
-      [Taxonomy.LOCATION, profile.location, 0.9],
+      [Taxonomy.EMAIL, cleanedData?.email || profile.email, 0.95],
+      [Taxonomy.PHONE, cleanedData?.phone || profile.phone, 0.95],
+      [Taxonomy.LOCATION, cleanedData?.location || profile.location, 0.9],
       [Taxonomy.LINKEDIN, profile.linkedinUrl, 0.99],
       [Taxonomy.SUMMARY, profile.about, 0.9],
-      [Taxonomy.SKILLS, profile.skills.length > 0 ? profile.skills.join(', ') : undefined, 0.9],
+      [Taxonomy.SKILLS, (cleanedData?.skills || profile.skills).length > 0 ? (cleanedData?.skills || profile.skills).join(', ') : undefined, 0.9],
     ]
 
     for (const [type, value, confidence] of fieldMappings) {
@@ -94,20 +123,32 @@ export class LinkedInParser {
       }
     }
 
-    // Extract city from location if available
-    if (profile.location) {
-      const city = this.extractCityFromLocation(profile.location)
-      if (city) {
-        singleAnswers.push({ type: Taxonomy.CITY, value: city, confidence: 0.8 })
+    // Extract city from location
+    const city = cleanedData?.city || this.extractCityFromLocation(cleanedData?.location || profile.location || '')
+    if (city) {
+      singleAnswers.push({ type: Taxonomy.CITY, value: city, confidence: 0.8 })
+    }
+
+    // Convert work experiences
+    if (cleanedData?.workExperiences?.length) {
+      for (let i = 0; i < cleanedData.workExperiences.length; i++) {
+        experiences.push(this.cleanedWorkToExperienceEntry(cleanedData.workExperiences[i], i))
+      }
+    } else {
+      for (let i = 0; i < profile.workExperiences.length; i++) {
+        experiences.push(this.workToExperienceEntry(profile.workExperiences[i], i))
       }
     }
 
-    // Convert work experiences and education
-    for (let i = 0; i < profile.workExperiences.length; i++) {
-      experiences.push(this.workToExperienceEntry(profile.workExperiences[i], i))
-    }
-    for (let i = 0; i < profile.educations.length; i++) {
-      experiences.push(this.educationToExperienceEntry(profile.educations[i], i))
+    // Convert education
+    if (cleanedData?.educations?.length) {
+      for (let i = 0; i < cleanedData.educations.length; i++) {
+        experiences.push(this.cleanedEducationToExperienceEntry(cleanedData.educations[i], i))
+      }
+    } else {
+      for (let i = 0; i < profile.educations.length; i++) {
+        experiences.push(this.educationToExperienceEntry(profile.educations[i], i))
+      }
     }
 
     return {
@@ -115,6 +156,53 @@ export class LinkedInParser {
       extractedAt: Date.now(),
       singleAnswers,
       experiences,
+    }
+  }
+
+  private cleanedWorkToExperienceEntry(work: CleanedProfileData['workExperiences'][0], index: number): ExperienceEntry {
+    const now = Date.now()
+    const fields = this.buildFields([
+      [Taxonomy.COMPANY_NAME, work.company],
+      [Taxonomy.JOB_TITLE, work.title],
+      [Taxonomy.LOCATION, work.location],
+      [Taxonomy.START_DATE, work.startDate],
+      [Taxonomy.END_DATE, work.endDate],
+      [Taxonomy.JOB_DESCRIPTION, work.description],
+    ])
+
+    return {
+      id: `linkedin-work-${now}-${index}`,
+      groupType: 'WORK',
+      priority: index,
+      startDate: work.startDate,
+      endDate: work.endDate,
+      fields,
+      createdAt: now,
+      updatedAt: now,
+    }
+  }
+
+  private cleanedEducationToExperienceEntry(edu: CleanedProfileData['educations'][0], index: number): ExperienceEntry {
+    const now = Date.now()
+    const fields = this.buildFields([
+      [Taxonomy.SCHOOL, edu.school],
+      [Taxonomy.DEGREE, edu.degree],
+      [Taxonomy.MAJOR, edu.major],
+      [Taxonomy.START_DATE, edu.startDate],
+      [Taxonomy.END_DATE, edu.endDate],
+      [Taxonomy.GRAD_DATE, edu.endDate !== 'present' ? edu.endDate : undefined],
+      [Taxonomy.GPA, edu.gpa],
+    ])
+
+    return {
+      id: `linkedin-edu-${now}-${index}`,
+      groupType: 'EDUCATION',
+      priority: index,
+      startDate: edu.startDate,
+      endDate: edu.endDate,
+      fields,
+      createdAt: now,
+      updatedAt: now,
     }
   }
 

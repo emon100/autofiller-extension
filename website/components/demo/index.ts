@@ -1,0 +1,12 @@
+// Demo components barrel export
+export { DemoProvider, useDemoContext } from './DemoContext'
+export { DemoForm } from './DemoForm'
+export { DemoField } from './DemoField'
+export { DemoBadge, FieldBadgeWrapper } from './DemoBadge'
+export { DemoWidget } from './DemoWidget'
+export { DemoToastContainer, showDemoToast, removeDemoToast } from './DemoToast'
+export { ProfileSelector } from './ProfileSelector'
+export { FormTemplateSelector } from './FormTemplateSelector'
+export { SavedAnswersPanel } from './SavedAnswersPanel'
+export { ActivityLog } from './ActivityLog'
+export { default as DemoPage } from './DemoPage'
