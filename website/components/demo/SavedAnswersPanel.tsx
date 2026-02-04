@@ -3,9 +3,10 @@
 import React, { useState } from 'react'
 import { Trash2, Database, Plus, Edit2, Check, X, Download, Upload, ChevronDown, ChevronRight } from 'lucide-react'
 import { useDemoContext } from './DemoContext'
+import { Taxonomy } from '@/lib/demo/types'
 
 // 字段类型分类
-const FIELD_CATEGORIES = {
+const FIELD_CATEGORIES: Record<string, { label: string; icon: string; types: string[] }> = {
   personal: {
     label: '个人信息',
     icon: '👤',
@@ -31,7 +32,7 @@ const FIELD_CATEGORIES = {
 export function SavedAnswersPanel() {
   const { answers, updateAnswer, deleteAnswer, clearAllAnswers, addAnswer } = useDemoContext()
   const [expandedCategories, setExpandedCategories] = useState<string[]>(['personal', 'professional'])
-  const [editingType, setEditingType] = useState<string | null>(null)
+  const [editingType, setEditingType] = useState<Taxonomy | null>(null)
   const [editValue, setEditValue] = useState('')
   const [isAddingNew, setIsAddingNew] = useState(false)
   const [newType, setNewType] = useState('')
@@ -42,8 +43,8 @@ export function SavedAnswersPanel() {
   // 将答案分组到各类别
   const categorizedAnswers = Object.entries(FIELD_CATEGORIES).map(([key, category]) => {
     const categoryAnswers = answerList.filter(a =>
-      category.types.includes(a.type) ||
-      (key === 'other' && !Object.values(FIELD_CATEGORIES).some(c => c.types.includes(a.type)))
+      category.types.includes(a.type as string) ||
+      (key === 'other' && !Object.values(FIELD_CATEGORIES).some(c => c.types.includes(a.type as string)))
     )
     return { key, ...category, answers: categoryAnswers }
   }).filter(c => c.answers.length > 0 || c.key !== 'other')
@@ -54,7 +55,7 @@ export function SavedAnswersPanel() {
     )
   }
 
-  const startEditing = (type: string, value: string) => {
+  const startEditing = (type: Taxonomy, value: string) => {
     setEditingType(type)
     setEditValue(value)
   }
@@ -74,7 +75,8 @@ export function SavedAnswersPanel() {
 
   const handleAddNew = () => {
     if (newType && newValue) {
-      addAnswer(newType.toUpperCase().replace(/\s+/g, '_'), newValue)
+      const taxonomyType = newType.toUpperCase().replace(/\s+/g, '_') as Taxonomy
+      addAnswer(taxonomyType, newValue)
       setNewType('')
       setNewValue('')
       setIsAddingNew(false)
