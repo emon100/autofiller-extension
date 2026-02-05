@@ -98,7 +98,7 @@ export async function POST(request: Request) {
         ? [{
             role: 'user' as const,
             content: [
-              { type: 'image' as const, image: imageBase64, mimeType: mimeType || 'image/png' },
+              { type: 'image' as const, image: `data:${mimeType || 'image/png'};base64,${imageBase64}` },
               { type: 'text' as const, text: prompt },
             ],
           }]
