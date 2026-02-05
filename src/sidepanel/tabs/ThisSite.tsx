@@ -47,46 +47,24 @@ export default function ThisSite() {
     }
   }
 
-  async function toggleRecording() {
+  async function toggleSetting(settingKey: 'recordEnabled' | 'autofillEnabled') {
     if (!siteKey) return
-    
-    const result = await chrome.storage.local.get('siteSettings')
-    const allSettings = result.siteSettings || {}
-    
-    const current = allSettings[siteKey] || {
-      siteKey,
-      recordEnabled: true,
-      autofillEnabled: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }
-    
-    current.recordEnabled = !current.recordEnabled
-    current.updatedAt = Date.now()
-    allSettings[siteKey] = current
-    
-    await chrome.storage.local.set({ siteSettings: allSettings })
-    setSettings(current)
-  }
 
-  async function toggleAutofill() {
-    if (!siteKey) return
-    
     const result = await chrome.storage.local.get('siteSettings')
     const allSettings = result.siteSettings || {}
-    
+
     const current = allSettings[siteKey] || {
       siteKey,
       recordEnabled: true,
-      autofillEnabled: true,
+      autofillEnabled: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }
-    
-    current.autofillEnabled = !current.autofillEnabled
+
+    current[settingKey] = !current[settingKey]
     current.updatedAt = Date.now()
     allSettings[siteKey] = current
-    
+
     await chrome.storage.local.set({ siteSettings: allSettings })
     setSettings(current)
   }
@@ -126,7 +104,7 @@ export default function ThisSite() {
   }
 
   const recordEnabled = settings?.recordEnabled ?? true
-  const autofillEnabled = settings?.autofillEnabled ?? true
+  const autofillEnabled = settings?.autofillEnabled ?? false // Default OFF for security
 
   return (
     <div className="space-y-3">
@@ -147,7 +125,7 @@ export default function ThisSite() {
               <p className="text-sm font-medium text-gray-700">Record Mode</p>
               <p className="text-xs text-gray-500">Learn inputs</p>
             </div>
-            <ToggleSwitch enabled={recordEnabled} onToggle={toggleRecording} />
+            <ToggleSwitch enabled={recordEnabled} onToggle={() => toggleSetting('recordEnabled')} />
           </div>
           
           <div className="flex items-center justify-between p-2 bg-white rounded-lg">
@@ -155,7 +133,7 @@ export default function ThisSite() {
               <p className="text-sm font-medium text-gray-700">Auto-Fill</p>
               <p className="text-xs text-gray-500">Fill automatically</p>
             </div>
-            <ToggleSwitch enabled={autofillEnabled} onToggle={toggleAutofill} />
+            <ToggleSwitch enabled={autofillEnabled} onToggle={() => toggleSetting('autofillEnabled')} />
           </div>
         </div>
       </div>

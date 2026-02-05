@@ -4,6 +4,13 @@ import { generateText } from 'ai';
 import { gateway } from '@ai-sdk/gateway';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 
+// CORS headers for browser extension
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
 // LLM Configuration
 const LLM_PROVIDER = (process.env.LLM_PROVIDER || 'vercel') as 'vercel' | 'openrouter';
 const LLM_MODEL = process.env.LLM_MODEL || 'openai/gpt-4o-mini';
@@ -33,14 +40,14 @@ export async function POST(request: Request) {
   // Auth
   const authHeader = request.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
   }
 
   const adminClient = createAdminClient();
   const { data: { user }, error: authError } = await adminClient.auth.getUser(authHeader.slice(7));
 
   if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
   }
 
   // Parse & validate input
@@ -48,12 +55,12 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400, headers: corsHeaders });
   }
 
   const { fields } = body;
   if (!Array.isArray(fields) || fields.length === 0 || fields.length > MAX_FIELDS) {
-    return NextResponse.json({ error: `fields must be array with 1-${MAX_FIELDS} items` }, { status: 400 });
+    return NextResponse.json({ error: `fields must be array with 1-${MAX_FIELDS} items` }, { status: 400, headers: corsHeaders });
   }
 
   const supabase = adminClient;
@@ -75,7 +82,7 @@ export async function POST(request: Request) {
       .rpc('deduct_credits', { p_user_id: user.id, p_amount: LLM_CREDIT_COST });
 
     if (deductError) {
-      return NextResponse.json({ error: 'Payment processing failed' }, { status: 500 });
+      return NextResponse.json({ error: 'Payment processing failed' }, { status: 500, headers: corsHeaders });
     }
 
     if (deductResult === -1) {
@@ -89,7 +96,7 @@ export async function POST(request: Request) {
         error: 'Insufficient credits',
         balance: credits?.balance || 0,
         required: LLM_CREDIT_COST,
-      }, { status: 402 });
+      }, { status: 402, headers: corsHeaders });
     }
 
     creditsDeducted = true;
@@ -114,7 +121,7 @@ export async function POST(request: Request) {
       success: true,
       results: llmResponse,
       creditsUsed: hasUnlimitedPlan ? 0 : LLM_CREDIT_COST,
-    });
+    }, { headers: corsHeaders });
 
   } catch {
     // Refund on failure
@@ -132,7 +139,7 @@ export async function POST(request: Request) {
       }).then(() => {});
     }
 
-    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 503 });
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 503, headers: corsHeaders });
   }
 }
 
@@ -238,7 +245,12 @@ Rules:
   }
 }
 
+// Handle preflight requests
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
+
 // Health check (no sensitive info exposed)
 export async function GET() {
-  return NextResponse.json({ status: 'ok' });
+  return NextResponse.json({ status: 'ok' }, { headers: corsHeaders });
 }

@@ -73,8 +73,8 @@ export function isZh(): boolean {
 export const messages = {
   // App
   'app.title': {
-    en: 'AutoFiller',
-    zh: 'AutoFiller',
+    en: 'OneFillr',
+    zh: 'OneFillr',
   },
 
   // Language Settings
@@ -703,6 +703,28 @@ export const messages = {
   'debug.noMatch': {
     en: 'No matching fields found. Check console for debug details.',
     zh: '未找到匹配的字段。请查看控制台了解详情。',
+  },
+
+  // Login prompts
+  'toast.loginForAi': {
+    en: 'Sign in to try AI-enhanced filling for better accuracy!',
+    zh: '登录即可试用 AI 增强填充，获得更高准确率！',
+  },
+  'toast.loginAction': {
+    en: 'Sign In',
+    zh: '登录',
+  },
+  'toast.enableAutofillPrompt': {
+    en: 'Enable auto-fill for this site? Next time fields will fill automatically.',
+    zh: '是否为此网站启用自动填充？下次将自动填写表单。',
+  },
+  'toast.enableAutofillAction': {
+    en: 'Enable',
+    zh: '启用',
+  },
+  'toast.autofillEnabled': {
+    en: 'Auto-fill enabled for this site!',
+    zh: '已为此网站启用自动填充！',
   },
 } as const
 

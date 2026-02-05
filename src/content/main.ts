@@ -12,18 +12,51 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true
   }
 
+  // Check if LinkedIn profile page is loaded and ready to parse
+  if (message.action === 'checkLinkedInReady') {
+    import('@/profileParser/LinkedInParser').then(({ LinkedInParser }) => {
+      try {
+        if (!LinkedInParser.isLinkedInProfile()) {
+          sendResponse({ ready: false, reason: 'not_linkedin' })
+          return
+        }
+        // Check if key elements are loaded (name, experience section)
+        const nameEl = document.querySelector('h1.text-heading-xlarge, h1[class*="text-heading"]')
+        const experienceSection = document.querySelector('#experience')
+        const isReady = !!(nameEl?.textContent?.trim())
+        sendResponse({
+          ready: isReady,
+          reason: isReady ? 'loaded' : 'loading',
+          hasExperience: !!experienceSection
+        })
+      } catch (err) {
+        sendResponse({ ready: false, reason: 'error', error: String(err) })
+      }
+    }).catch(err => {
+      sendResponse({ ready: false, reason: 'error', error: String(err) })
+    })
+    return true
+  }
+
   // Handle LinkedIn import trigger from side panel
   if (message.action === 'parseLinkedInProfile') {
-    import('@/profileParser/LinkedInParser').then(({ LinkedInParser }) => {
-      if (!LinkedInParser.isLinkedInProfile()) {
-        sendResponse({ success: false, error: 'Not a LinkedIn profile page' })
-        return
+    const useLLMCleaning = message.useLLMCleaning ?? false // Default to local processing
+    import('@/profileParser/LinkedInParser').then(async ({ LinkedInParser }) => {
+      try {
+        if (!LinkedInParser.isLinkedInProfile()) {
+          sendResponse({ success: false, error: 'Not a LinkedIn profile page' })
+          return
+        }
+        const parser = new LinkedInParser()
+        const profile = parser.parse(document)
+        const parsedProfile = await parser.toParsedProfile(profile, useLLMCleaning)
+        sendResponse({ success: true, profile: parsedProfile })
+      } catch (err) {
+        console.error('[AutoFiller] LinkedIn parse error:', err)
+        sendResponse({ success: false, error: err instanceof Error ? err.message : String(err) })
       }
-      const parser = new LinkedInParser()
-      const profile = parser.parse(document)
-      const parsedProfile = parser.toParsedProfile(profile)
-      sendResponse({ success: true, profile: parsedProfile })
     }).catch(err => {
+      console.error('[AutoFiller] LinkedIn import error:', err)
       sendResponse({ success: false, error: String(err) })
     })
     return true

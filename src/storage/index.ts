@@ -224,7 +224,7 @@ export class SiteSettingsStorage {
     const newSettings: SiteSettings = {
       siteKey,
       recordEnabled: true,
-      autofillEnabled: true,
+      autofillEnabled: false, // Default OFF for security - prevents data leakage on malicious forms
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }

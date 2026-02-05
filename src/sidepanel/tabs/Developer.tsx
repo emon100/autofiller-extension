@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Database, Trash2, Download, Upload, CheckCircle, AlertTriangle, User, Building2, GraduationCap, MessageSquare, Send, Bot, Loader2, Clock, XCircle, Sparkles, Play, RotateCcw } from 'lucide-react'
+import { Database, Trash2, Download, Upload, CheckCircle, AlertTriangle, User, Building2, GraduationCap, MessageSquare, Send, Bot, Loader2, Clock, XCircle, Sparkles, Play, RotateCcw, Cloud, Key, RefreshCw } from 'lucide-react'
 import { Taxonomy, AnswerValue, SENSITIVE_TYPES, FillAnimationConfig, DEFAULT_FILL_ANIMATION_CONFIG } from '@/types'
 import { saveLLMLog, getLLMLogs, clearLLMLogs, LLMLogEntry, logLLMRequest, logLLMResponse, logLLMError } from '@/utils/logger'
+import { storage } from '@/storage'
+
+const API_BASE_URL = 'https://www.onefil.help/api'
 
 // Test profiles for development
 const TEST_PROFILES = {
@@ -82,6 +85,7 @@ type ProfileKey = keyof typeof TEST_PROFILES
 
 interface LLMConfig {
   enabled: boolean
+  useCustomApi: boolean  // If true, use custom API; if false, use backend API
   provider: 'openai' | 'anthropic' | 'dashscope' | 'deepseek' | 'zhipu' | 'custom'
   apiKey: string
   endpoint?: string
@@ -109,6 +113,9 @@ export default function Developer() {
   const [animationConfig, setAnimationConfig] = useState<FillAnimationConfig>(DEFAULT_FILL_ANIMATION_CONFIG)
   const [animationTesting, setAnimationTesting] = useState(false)
 
+  // User auth state for backend API
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
   // Demo animation states
   const [animationStage, setAnimationStage] = useState<'idle' | 'scanning' | 'thinking' | 'filling' | 'done'>('idle')
   const [demoInputs, setDemoInputs] = useState([
@@ -122,14 +129,36 @@ export default function Developer() {
     loadLLMConfig()
     loadLLMLogs()
     loadAnimationConfig()
+    checkLoginStatus()
   }, [])
+
+  async function checkLoginStatus() {
+    try {
+      const token = await storage.auth.getAccessToken()
+      setIsLoggedIn(!!token)
+    } catch {
+      setIsLoggedIn(false)
+    }
+  }
 
   async function loadLLMConfig() {
     try {
       const result = await chrome.storage.local.get('llmConfig')
-      setLLMConfig(result.llmConfig || null)
+      // Default to backend API (useCustomApi: false)
+      const defaultConfig: LLMConfig = {
+        enabled: true,
+        useCustomApi: false,
+        provider: 'openai',
+        apiKey: '',
+      }
+      setLLMConfig(result.llmConfig ? { ...defaultConfig, ...result.llmConfig } : defaultConfig)
     } catch {
-      setLLMConfig(null)
+      setLLMConfig({
+        enabled: true,
+        useCustomApi: false,
+        provider: 'openai',
+        apiKey: '',
+      })
     }
   }
 
@@ -259,15 +288,31 @@ export default function Developer() {
   }
 
   async function sendChatMessage() {
-    if (!chatInput.trim() || !llmConfig?.apiKey || chatLoading) return
+    if (!chatInput.trim() || chatLoading) return
+
+    // Check if using backend API or custom API
+    const useBackendApi = !llmConfig?.useCustomApi
+
+    // Validation based on API type
+    if (useBackendApi) {
+      if (!isLoggedIn) {
+        showMessage('error', 'Please login to test backend API')
+        return
+      }
+    } else {
+      if (!llmConfig?.apiKey) {
+        showMessage('error', 'Please configure API key first')
+        return
+      }
+    }
 
     const userMessage = chatInput.trim()
     setChatInput('')
     setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
     setChatLoading(true)
 
-    const provider = llmConfig.provider
-    const model = llmConfig.model || 'gpt-4o-mini'
+    const provider = useBackendApi ? 'backend' : llmConfig!.provider
+    const model = useBackendApi ? 'AI Gateway' : (llmConfig!.model || 'gpt-4o-mini')
     const startTime = Date.now()
 
     // Log request
@@ -277,81 +322,133 @@ export default function Developer() {
       provider,
       model,
       prompt: userMessage,
-      endpoint: provider === 'custom' ? llmConfig.endpoint : undefined,
+      endpoint: useBackendApi ? API_BASE_URL : (llmConfig!.provider === 'custom' ? llmConfig!.endpoint : undefined),
     })
 
     try {
-      let endpoint: string
-      let headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      }
-      let body: object
-
-      // Provider endpoint mapping
-      const PROVIDER_ENDPOINTS: Record<string, string> = {
-        openai: 'https://api.openai.com/v1/chat/completions',
-        dashscope: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-        deepseek: 'https://api.deepseek.com/v1/chat/completions',
-        zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-        anthropic: 'https://api.anthropic.com/v1/messages',
-      }
-
-      if (provider === 'anthropic') {
-        endpoint = PROVIDER_ENDPOINTS.anthropic
-        headers['x-api-key'] = llmConfig.apiKey
-        headers['anthropic-version'] = '2023-06-01'
-        body = {
-          model,
-          max_tokens: 500,
-          messages: [{ role: 'user', content: userMessage }],
-        }
-      } else if (provider === 'custom') {
-        // Custom endpoint (OpenAI compatible)
-        endpoint = llmConfig.endpoint || ''
-        if (!endpoint) throw new Error('Custom endpoint URL not configured')
-        headers['Authorization'] = `Bearer ${llmConfig.apiKey}`
-        body = {
-          model,
-          messages: [{ role: 'user', content: userMessage }],
-          max_tokens: 500,
-        }
-        // Debug log for custom endpoint
-        console.log('[LLM Test] Custom endpoint request:', {
-          endpoint,
-          hasAuthHeader: !!headers['Authorization'],
-          model,
-        })
-      } else {
-        // OpenAI compatible providers: openai, dashscope, deepseek, zhipu
-        endpoint = PROVIDER_ENDPOINTS[provider] || PROVIDER_ENDPOINTS.openai
-        headers['Authorization'] = `Bearer ${llmConfig.apiKey}`
-        body = {
-          model,
-          messages: [{ role: 'user', content: userMessage }],
-          max_tokens: 500,
-        }
-      }
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      })
-
-      const latencyMs = Date.now() - startTime
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`API Error ${response.status}: ${errorText}`)
-      }
-
-      const data = await response.json()
       let assistantMessage: string
+      let latencyMs: number
+      let tokenUsage: { promptTokens?: number; completionTokens?: number; totalTokens?: number } | undefined
 
-      if (provider === 'anthropic') {
-        assistantMessage = data.content?.[0]?.text || 'No response'
+      if (useBackendApi) {
+        // Call backend API for testing
+        const token = await storage.auth.getAccessToken()
+        if (!token) throw new Error('Not logged in')
+
+        const response = await fetch(`${API_BASE_URL}/llm/classify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            fields: [{
+              index: 0,
+              labelText: 'Test field',
+              name: 'test',
+              id: 'test',
+              type: 'text',
+              placeholder: userMessage, // Use user message as context for testing
+              surroundingText: userMessage,
+            }],
+          }),
+        })
+
+        latencyMs = Date.now() - startTime
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          if (response.status === 402) {
+            throw new Error(`Insufficient credits: ${errorData.balance || 0} remaining`)
+          }
+          throw new Error(`Backend API error ${response.status}: ${errorData.error || 'Unknown'}`)
+        }
+
+        const data = await response.json()
+        if (!data.success) {
+          throw new Error(data.error || 'Request failed')
+        }
+
+        assistantMessage = `✅ Backend API test successful!\n\nCredits used: ${data.creditsUsed}\nResults: ${JSON.stringify(data.results, null, 2)}`
       } else {
-        assistantMessage = data.choices?.[0]?.message?.content || 'No response'
+        // Call custom API
+        let endpoint: string
+        let headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
+        let body: object
+
+        // Provider endpoint mapping
+        const PROVIDER_ENDPOINTS: Record<string, string> = {
+          openai: 'https://api.openai.com/v1/chat/completions',
+          dashscope: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+          deepseek: 'https://api.deepseek.com/v1/chat/completions',
+          zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+          anthropic: 'https://api.anthropic.com/v1/messages',
+        }
+
+        if (provider === 'anthropic') {
+          endpoint = PROVIDER_ENDPOINTS.anthropic
+          headers['x-api-key'] = llmConfig!.apiKey
+          headers['anthropic-version'] = '2023-06-01'
+          body = {
+            model,
+            max_tokens: 500,
+            messages: [{ role: 'user', content: userMessage }],
+          }
+        } else if (provider === 'custom') {
+          // Custom endpoint (OpenAI compatible)
+          endpoint = llmConfig!.endpoint || ''
+          if (!endpoint) throw new Error('Custom endpoint URL not configured')
+          headers['Authorization'] = `Bearer ${llmConfig!.apiKey}`
+          body = {
+            model,
+            messages: [{ role: 'user', content: userMessage }],
+            max_tokens: 500,
+          }
+          // Debug log for custom endpoint
+          console.log('[LLM Test] Custom endpoint request:', {
+            endpoint,
+            hasAuthHeader: !!headers['Authorization'],
+            model,
+          })
+        } else {
+          // OpenAI compatible providers: openai, dashscope, deepseek, zhipu
+          endpoint = PROVIDER_ENDPOINTS[provider] || PROVIDER_ENDPOINTS.openai
+          headers['Authorization'] = `Bearer ${llmConfig!.apiKey}`
+          body = {
+            model,
+            messages: [{ role: 'user', content: userMessage }],
+            max_tokens: 500,
+          }
+        }
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+        })
+
+        latencyMs = Date.now() - startTime
+
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`API Error ${response.status}: ${errorText}`)
+        }
+
+        const data = await response.json()
+
+        if (provider === 'anthropic') {
+          assistantMessage = data.content?.[0]?.text || 'No response'
+        } else {
+          assistantMessage = data.choices?.[0]?.message?.content || 'No response'
+        }
+
+        tokenUsage = data.usage ? {
+          promptTokens: data.usage.prompt_tokens,
+          completionTokens: data.usage.completion_tokens,
+          totalTokens: data.usage.total_tokens,
+        } : undefined
       }
 
       // Log response
@@ -362,11 +459,7 @@ export default function Developer() {
         model,
         response: assistantMessage,
         latencyMs,
-        tokenUsage: data.usage ? {
-          promptTokens: data.usage.prompt_tokens,
-          completionTokens: data.usage.completion_tokens,
-          totalTokens: data.usage.total_tokens,
-        } : undefined,
+        tokenUsage,
       })
 
       setChatMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }])
@@ -571,74 +664,72 @@ export default function Developer() {
           <h3 className="font-medium text-blue-900">LLM Connection Test</h3>
         </div>
 
-        {!llmConfig?.apiKey ? (
-          <div className="text-xs text-blue-700 bg-blue-100 p-3 rounded-lg">
-            ⚠️ Please configure LLM API key in Settings tab first
-          </div>
-        ) : (
+        {/* Show different UI based on API mode */}
+        {!llmConfig?.useCustomApi ? (
+          // Backend API Mode
           <>
-            <div className="text-xs text-blue-700 mb-3">
-              Provider: <span className="font-medium">{llmConfig.provider}</span> |
-              Model: <span className="font-medium">{llmConfig.model || 'default'}</span>
-              {llmConfig.provider === 'custom' && llmConfig.endpoint && (
-                <>
-                  <br />
-                  Endpoint: <span className="font-medium text-blue-600">{llmConfig.endpoint}</span>
-                </>
-              )}
-              {llmConfig.provider === 'custom' && !llmConfig.endpoint && (
-                <span className="text-red-500 ml-2">⚠️ Endpoint not configured</span>
+            <div className="text-xs text-blue-700 mb-3 flex items-center gap-2">
+              <Cloud className="w-4 h-4" />
+              <span>Using: <span className="font-medium">Backend API (AI Gateway)</span></span>
+              {isLoggedIn ? (
+                <span className="text-green-600 ml-2">✓ Logged in</span>
+              ) : (
+                <span className="text-amber-600 ml-2">⚠️ Login required</span>
               )}
             </div>
 
-            {/* Chat Messages */}
-            {chatMessages.length > 0 && (
-              <div className="bg-white rounded-lg border border-blue-200 p-2 mb-3 max-h-48 overflow-y-auto">
-                {chatMessages.map((msg, idx) => (
-                  <div key={idx} className={`text-xs p-2 rounded mb-1 ${
-                    msg.role === 'user'
-                      ? 'bg-blue-100 text-blue-800 ml-4'
-                      : 'bg-gray-100 text-gray-800 mr-4'
-                  }`}>
-                    <span className="font-medium">{msg.role === 'user' ? 'You' : 'AI'}:</span> {msg.content}
-                  </div>
-                ))}
-                {chatLoading && (
-                  <div className="flex items-center gap-2 text-xs text-blue-600 p-2">
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                    Waiting for response...
-                  </div>
-                )}
+            {!isLoggedIn ? (
+              <div className="text-xs text-amber-700 bg-amber-100 p-3 rounded-lg">
+                Please login in the Settings tab to test backend API
               </div>
-            )}
-
-            {/* Chat Input */}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
-                placeholder="Type a test message..."
-                disabled={chatLoading}
-                className="flex-1 px-3 py-2 text-sm border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+            ) : (
+              <ChatUI
+                chatMessages={chatMessages}
+                chatLoading={chatLoading}
+                chatInput={chatInput}
+                setChatInput={setChatInput}
+                sendChatMessage={sendChatMessage}
+                clearChat={() => setChatMessages([])}
+                placeholder="Enter field context to test classification..."
               />
-              <button
-                onClick={sendChatMessage}
-                disabled={chatLoading || !chatInput.trim()}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
+            )}
+          </>
+        ) : (
+          // Custom API Mode
+          <>
+            {!llmConfig?.apiKey ? (
+              <div className="text-xs text-blue-700 bg-blue-100 p-3 rounded-lg">
+                Please configure Custom LLM API key in Settings tab first
+              </div>
+            ) : (
+              <>
+                <div className="text-xs text-blue-700 mb-3 flex items-center gap-2">
+                  <Key className="w-4 h-4" />
+                  <span>Using: <span className="font-medium">Custom API ({llmConfig.provider})</span></span>
+                </div>
+                <div className="text-xs text-blue-700 mb-3">
+                  Model: <span className="font-medium">{llmConfig.model || 'default'}</span>
+                  {llmConfig.provider === 'custom' && llmConfig.endpoint && (
+                    <>
+                      <br />
+                      Endpoint: <span className="font-medium text-blue-600">{llmConfig.endpoint}</span>
+                    </>
+                  )}
+                  {llmConfig.provider === 'custom' && !llmConfig.endpoint && (
+                    <span className="text-red-500 ml-2">Endpoint not configured</span>
+                  )}
+                </div>
 
-            {chatMessages.length > 0 && (
-              <button
-                onClick={() => setChatMessages([])}
-                className="mt-2 text-xs text-blue-600 hover:text-blue-800"
-              >
-                Clear chat
-              </button>
+                <ChatUI
+                  chatMessages={chatMessages}
+                  chatLoading={chatLoading}
+                  chatInput={chatInput}
+                  setChatInput={setChatInput}
+                  sendChatMessage={sendChatMessage}
+                  clearChat={() => setChatMessages([])}
+                  placeholder="Type a test message..."
+                />
+              </>
             )}
           </>
         )}
@@ -951,6 +1042,46 @@ export default function Developer() {
         </div>
       </div>
 
+      {/* Debug Tools */}
+      <div className="bg-amber-50 rounded-lg border border-amber-200 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <RefreshCw className="w-5 h-5 text-amber-600" />
+          <h3 className="font-medium text-amber-900">Debug Tools</h3>
+        </div>
+
+        <div className="space-y-2">
+          <button
+            onClick={async () => {
+              await chrome.storage.local.remove('onboardingComplete')
+              showMessage('success', 'Onboarding reset. Reload the extension to see it.')
+              // Trigger a storage change event to refresh App.tsx
+              window.location.reload()
+            }}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-amber-700 bg-white border border-amber-300 rounded-lg hover:bg-amber-100 disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Restart Onboarding Flow
+          </button>
+
+          <button
+            onClick={async () => {
+              await chrome.storage.local.remove('userConsent')
+              showMessage('success', 'Consent reset. Reload the extension.')
+              window.location.reload()
+            }}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-amber-700 bg-white border border-amber-300 rounded-lg hover:bg-amber-100 disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Reset Consent Dialog
+          </button>
+        </div>
+        <p className="text-xs text-amber-600 mt-2">
+          Use these to test the first-run experience without clearing all data.
+        </p>
+      </div>
+
       <div className="bg-white rounded-lg border border-red-200 p-4">
         <h3 className="font-medium text-red-900 mb-3">Danger Zone</h3>
 
@@ -978,5 +1109,70 @@ export default function Developer() {
         </p>
       </div>
     </div>
+  )
+}
+
+// Extracted chat UI component to avoid duplication
+interface ChatUIProps {
+  chatMessages: ChatMessage[]
+  chatLoading: boolean
+  chatInput: string
+  setChatInput: (value: string) => void
+  sendChatMessage: () => void
+  clearChat: () => void
+  placeholder: string
+}
+
+function ChatUI({ chatMessages, chatLoading, chatInput, setChatInput, sendChatMessage, clearChat, placeholder }: ChatUIProps) {
+  return (
+    <>
+      {chatMessages.length > 0 && (
+        <div className="bg-white rounded-lg border border-blue-200 p-2 mb-3 max-h-48 overflow-y-auto">
+          {chatMessages.map((msg, idx) => (
+            <div key={idx} className={`text-xs p-2 rounded mb-1 ${
+              msg.role === 'user'
+                ? 'bg-blue-100 text-blue-800 ml-4'
+                : 'bg-gray-100 text-gray-800 mr-4'
+            }`}>
+              <span className="font-medium">{msg.role === 'user' ? 'You' : 'AI'}:</span> {msg.content}
+            </div>
+          ))}
+          {chatLoading && (
+            <div className="flex items-center gap-2 text-xs text-blue-600 p-2">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Waiting for response...
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && sendChatMessage()}
+          placeholder={placeholder}
+          disabled={chatLoading}
+          className="flex-1 px-3 py-2 text-sm border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
+        />
+        <button
+          onClick={sendChatMessage}
+          disabled={chatLoading || !chatInput.trim()}
+          className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+        >
+          <Send className="w-4 h-4" />
+        </button>
+      </div>
+
+      {chatMessages.length > 0 && (
+        <button
+          onClick={clearChat}
+          className="mt-2 text-xs text-blue-600 hover:text-blue-800"
+        >
+          Clear chat
+        </button>
+      )}
+    </>
   )
 }

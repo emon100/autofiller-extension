@@ -23,7 +23,7 @@ function createContextMenus() {
     // Open side panel
     chrome.contextMenus.create({
       id: CONTEXT_MENU_IDS.OPEN_SIDEPANEL,
-      title: 'Open AutoFiller panel',
+      title: 'Open OneFillr panel',
       contexts: ['page'],
     })
   })
@@ -172,11 +172,26 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false })
   }
 
-  // Check consent on install or update
-  if (details.reason === 'install' || details.reason === 'update') {
+  // On fresh install, always open side panel for onboarding
+  if (details.reason === 'install') {
+    try {
+      // Wait a bit for the extension to fully initialize
+      setTimeout(async () => {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+        if (tab?.id && chrome.sidePanel?.open) {
+          await chrome.sidePanel.open({ tabId: tab.id })
+          sidePanelOpenTabs.add(tab.id)
+        }
+      }, 500)
+    } catch (error) {
+      console.log('[AutoFiller] Could not open side panel for onboarding:', error)
+    }
+  }
+
+  // On update, check consent
+  if (details.reason === 'update') {
     const consentValid = await hasValidConsent()
     if (!consentValid) {
-      // Get current window to open side panel
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
         if (tab?.id && chrome.sidePanel?.open) {
