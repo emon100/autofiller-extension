@@ -7,6 +7,9 @@ import ThisSite from './tabs/ThisSite'
 import ActivityLog from './tabs/ActivityLog'
 import Settings from './tabs/Settings'
 import Developer from './tabs/Developer'
+import ConsentModal from './components/ConsentModal'
+import { hasValidConsent } from '@/consent'
+import { t, initLocale } from '@/i18n'
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ')
@@ -14,13 +17,24 @@ function classNames(...classes: string[]) {
 
 export default function App() {
   const [devModeEnabled, setDevModeEnabled] = useState(false)
+  const [consentValid, setConsentValid] = useState<boolean | null>(null)
+  const [localeReady, setLocaleReady] = useState(false)
 
   useEffect(() => {
-    loadDevSettings()
+    async function init() {
+      await initLocale()
+      setLocaleReady(true)
+      await loadDevSettings()
+      await checkConsent()
+    }
+    init()
 
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
       if (changes.devSettings) {
         setDevModeEnabled(changes.devSettings.newValue?.devModeEnabled ?? false)
+      }
+      if (changes.userConsent) {
+        checkConsent()
       }
     }
 
@@ -37,16 +51,51 @@ export default function App() {
     }
   }
 
+  async function checkConsent() {
+    const valid = await hasValidConsent()
+    setConsentValid(valid)
+  }
+
+  function handleConsentAccepted() {
+    setConsentValid(true)
+  }
+
+  function handleConsentDeclined() {
+    // User declined - close the side panel
+    window.close()
+  }
+
   const baseTabs = [
-    { name: 'Saved Answers', icon: Database, component: SavedAnswers },
-    { name: 'Import', icon: Upload, component: ImportProfile },
-    { name: 'This Site', icon: Globe, component: ThisSite },
-    { name: 'Activity', icon: Activity, component: ActivityLog },
-    { name: 'Settings', icon: SettingsIcon, component: Settings },
+    { name: t('tabs.localKnowledge'), icon: Database, component: SavedAnswers },
+    { name: t('tabs.import'), icon: Upload, component: ImportProfile },
+    { name: t('tabs.thisSite'), icon: Globe, component: ThisSite },
+    { name: t('tabs.activity'), icon: Activity, component: ActivityLog },
+    { name: t('tabs.settings'), icon: SettingsIcon, component: Settings },
   ]
 
-  const devTab = { name: 'Developer', icon: Code2, component: Developer }
+  const devTab = { name: t('tabs.developer'), icon: Code2, component: Developer }
   const tabs = devModeEnabled ? [...baseTabs, devTab] : baseTabs
+
+  // Show loading state while checking consent and locale
+  if (consentValid === null || !localeReady) {
+    return (
+      <div className="min-h-screen bg-white w-[360px] max-w-[360px] flex items-center justify-center">
+        <div className="text-gray-400 text-sm">Loading...</div>
+      </div>
+    )
+  }
+
+  // Show consent modal if consent is not valid
+  if (!consentValid) {
+    return (
+      <div className="min-h-screen bg-white w-[360px] max-w-[360px]">
+        <ConsentModal
+          onConsent={handleConsentAccepted}
+          onDecline={handleConsentDeclined}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-white w-[360px] max-w-[360px] overflow-x-hidden">

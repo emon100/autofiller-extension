@@ -1,9 +1,13 @@
 import { FieldContext, CandidateType, Taxonomy, IFieldParser } from '@/types'
 import { collectAncestorContext } from '@/scanner'
 import { parseJSONSafe } from '@/utils/jsonRepair'
+import { storage, isExtensionContextValid } from '@/storage'
+
+const API_BASE_URL = 'https://www.onefil.help/api'
 
 interface LLMConfig {
   enabled: boolean
+  useCustomApi: boolean  // If true, use custom API; if false, use backend API
   provider: 'openai' | 'anthropic' | 'dashscope' | 'deepseek' | 'zhipu' | 'custom'
   apiKey: string
   endpoint?: string
@@ -114,7 +118,8 @@ const DEFAULT_MODELS: Record<string, string> = {
 }
 
 const DEFAULT_CONFIG: LLMConfig = {
-  enabled: false,
+  enabled: true,  // Enabled by default (uses backend API)
+  useCustomApi: false,  // Default to backend API
   provider: 'openai',
   apiKey: '',
   model: 'gpt-4o-mini',
@@ -153,8 +158,26 @@ export class LLMParser implements IFieldParser {
   async parse(context: FieldContext): Promise<CandidateType[]> {
     const config = await this.ensureConfigLoaded()
 
-    if (!config.enabled || !config.apiKey) {
+    if (!config.enabled) {
       return []
+    }
+
+    // If using custom API, require API key
+    if (config.useCustomApi && !config.apiKey) {
+      return []
+    }
+
+    // If using backend API, require user to be logged in (skip in test environment)
+    if (!config.useCustomApi) {
+      if (!isExtensionContextValid()) {
+        // In test environment, skip backend API
+        return []
+      }
+      const token = await storage.auth.getAccessToken()
+      if (!token) {
+        console.log('[LLMParser] Skipped - not logged in for backend API')
+        return []
+      }
     }
 
     const cacheKey = this.getCacheKey(context)
@@ -197,9 +220,28 @@ export class LLMParser implements IFieldParser {
     const config = await this.ensureConfigLoaded()
     const results = new Map<number, CandidateType[]>()
 
-    if (!config.enabled || !config.apiKey) {
-      console.log('[LLMParser] Batch parse skipped - not enabled or no API key')
+    if (!config.enabled) {
+      console.log('[LLMParser] Batch parse skipped - not enabled')
       return results
+    }
+
+    // If using custom API, require API key
+    if (config.useCustomApi && !config.apiKey) {
+      console.log('[LLMParser] Batch parse skipped - custom API enabled but no API key')
+      return results
+    }
+
+    // If using backend API, require user to be logged in (skip in test environment)
+    if (!config.useCustomApi) {
+      if (!isExtensionContextValid()) {
+        console.log('[LLMParser] Batch parse skipped - test environment')
+        return results
+      }
+      const token = await storage.auth.getAccessToken()
+      if (!token) {
+        console.log('[LLMParser] Batch parse skipped - not logged in for backend API')
+        return results
+      }
     }
 
     // Check cache first and collect uncached fields
@@ -268,6 +310,7 @@ export class LLMParser implements IFieldParser {
     fewShotExamples?: FewShotExample[]
   ): Promise<Map<number, CandidateType[]>> {
     const results = new Map<number, CandidateType[]>()
+    const config = this.config!
 
     // Extract and scrub metadata for all fields
     const metadataList = batch.map(({ index, context }) => {
@@ -275,17 +318,19 @@ export class LLMParser implements IFieldParser {
       return this.scrubPII(metadata)
     })
 
-    // Build batch prompt with multi-faceted context
-    const prompt = this.buildBatchPrompt(metadataList, filledFields, pageContext, fewShotExamples)
-
-    // Call LLM
-    const config = this.config!
     let response: BatchClassificationResult[]
 
-    if (config.provider === 'anthropic') {
-      response = await this.callAnthropicBatch(prompt)
+    // Use backend API if not using custom API
+    if (!config.useCustomApi) {
+      response = await this.callBackendAPI(metadataList)
     } else {
-      response = await this.callOpenAICompatibleBatch(prompt)
+      // Use custom API
+      const prompt = this.buildBatchPrompt(metadataList, filledFields, pageContext, fewShotExamples)
+      if (config.provider === 'anthropic') {
+        response = await this.callAnthropicBatch(prompt)
+      } else {
+        response = await this.callOpenAICompatibleBatch(prompt)
+      }
     }
 
     // Map results back to field indices
@@ -637,6 +682,43 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
     const data = await response.json()
     const content = data.content?.[0]?.text || ''
     return this.parseSingleResponse(content)
+  }
+
+  /**
+   * Call backend API for classification (uses user's credits)
+   */
+  private async callBackendAPI(fields: FieldMetadata[]): Promise<BatchClassificationResult[]> {
+    const token = await storage.auth.getAccessToken()
+    if (!token) {
+      throw new Error('Not logged in')
+    }
+
+    console.log(`[LLMParser] Calling backend API for ${fields.length} fields`)
+
+    const response = await fetch(`${API_BASE_URL}/llm/classify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ fields }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      if (response.status === 402) {
+        throw new Error(`Insufficient credits: ${errorData.balance || 0} remaining`)
+      }
+      throw new Error(`Backend API error ${response.status}: ${errorData.error || 'Unknown'}`)
+    }
+
+    const data = await response.json()
+    if (!data.success || !Array.isArray(data.results)) {
+      throw new Error('Invalid backend response')
+    }
+
+    console.log(`[LLMParser] Backend API success, used ${data.creditsUsed} credits`)
+    return data.results as BatchClassificationResult[]
   }
 
   private async callOpenAICompatibleBatch(prompt: string): Promise<BatchClassificationResult[]> {

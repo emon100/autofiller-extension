@@ -1,3 +1,5 @@
+import { hasValidConsent } from '@/consent'
+
 // Track side panel state per tab
 const sidePanelOpenTabs = new Set<number>()
 
@@ -160,7 +162,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false
 })
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('[AutoFiller] Extension installed')
 
   // Create context menus
@@ -168,6 +170,23 @@ chrome.runtime.onInstalled.addListener(() => {
 
   if (chrome.sidePanel?.setPanelBehavior) {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false })
+  }
+
+  // Check consent on install or update
+  if (details.reason === 'install' || details.reason === 'update') {
+    const consentValid = await hasValidConsent()
+    if (!consentValid) {
+      // Get current window to open side panel
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+        if (tab?.id && chrome.sidePanel?.open) {
+          await chrome.sidePanel.open({ tabId: tab.id })
+          sidePanelOpenTabs.add(tab.id)
+        }
+      } catch (error) {
+        console.log('[AutoFiller] Could not open side panel for consent:', error)
+      }
+    }
   }
 })
 

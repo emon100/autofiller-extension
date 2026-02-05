@@ -1,117 +1,138 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { generateText } from 'ai';
+import { gateway } from '@ai-sdk/gateway';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 
-// LLM Configuration from environment variables
-const LLM_CONFIG = {
-  endpoint: process.env.LLM_API_ENDPOINT || 'https://api.openai.com/v1/chat/completions',
-  apiKey: process.env.LLM_API_KEY || process.env.OPENAI_API_KEY || '',
-  model: process.env.LLM_MODEL || 'gpt-4o-mini',
-  // Cost per classification batch (can be configured)
-  creditCost: parseInt(process.env.LLM_CREDIT_COST || '1', 10),
-};
+// LLM Configuration
+const LLM_PROVIDER = (process.env.LLM_PROVIDER || 'vercel') as 'vercel' | 'openrouter';
+const LLM_MODEL = process.env.LLM_MODEL || 'openai/gpt-4o-mini';
+const LLM_CREDIT_COST = parseInt(process.env.LLM_CREDIT_COST || '1', 10);
 
-// LLM proxy endpoint - handles classification requests and billing
+// Security limits
+const MAX_FIELDS = 50;
+const MAX_FIELD_TEXT_LENGTH = 200;
+
+const getModel = () =>
+  LLM_PROVIDER === 'openrouter'
+    ? createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY || '' })(LLM_MODEL)
+    : gateway(LLM_MODEL);
+
+// Sanitize input to prevent prompt injection
+function sanitize(input: string | undefined, maxLen = MAX_FIELD_TEXT_LENGTH): string {
+  if (!input) return '';
+  return input
+    .replace(/ignore\s+(?:all\s+)?previous\s+instructions?/gi, '')
+    .replace(/(system|assistant|user)\s*:/gi, '')
+    .slice(0, maxLen)
+    .trim();
+}
+
+// LLM proxy endpoint
 export async function POST(request: Request) {
-  // Authenticate user via Bearer token
+  // Auth
   const authHeader = request.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const token = authHeader.slice(7);
   const adminClient = createAdminClient();
-  const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
+  const { data: { user }, error: authError } = await adminClient.auth.getUser(authHeader.slice(7));
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Parse & validate input
+  let body: { fields?: unknown };
   try {
-    const body = await request.json();
-    const { fields } = body;
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
-    if (!fields || !Array.isArray(fields)) {
-      return NextResponse.json({ error: 'Invalid request: fields required' }, { status: 400 });
+  const { fields } = body;
+  if (!Array.isArray(fields) || fields.length === 0 || fields.length > MAX_FIELDS) {
+    return NextResponse.json({ error: `fields must be array with 1-${MAX_FIELDS} items` }, { status: 400 });
+  }
+
+  const supabase = adminClient;
+
+  // Check subscription
+  const { data: subscription } = await supabase
+    .from('subscriptions')
+    .select('status')
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+    .single();
+
+  const hasUnlimitedPlan = !!subscription;
+  let creditsDeducted = false;
+
+  // Deduct credits first (atomic)
+  if (!hasUnlimitedPlan) {
+    const { data: deductResult, error: deductError } = await supabase
+      .rpc('deduct_credits', { p_user_id: user.id, p_amount: LLM_CREDIT_COST });
+
+    if (deductError) {
+      return NextResponse.json({ error: 'Payment processing failed' }, { status: 500 });
     }
 
-    // Check credits before processing
-    const supabase = adminClient;
-
-    // Check for active subscription (unlimited)
-    const { data: subscription } = await supabase
-      .from('subscriptions')
-      .select('status')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .single();
-
-    const hasUnlimitedPlan = !!subscription;
-    const creditCost = LLM_CONFIG.creditCost;
-
-    if (!hasUnlimitedPlan) {
-      // Get current balance
-      const { data: credits, error: creditsError } = await supabase
+    if (deductResult === -1) {
+      const { data: credits } = await supabase
         .from('credits')
         .select('balance')
         .eq('user_id', user.id)
         .single();
 
-      if (creditsError || !credits) {
-        return NextResponse.json({ error: 'Failed to check credits' }, { status: 500 });
-      }
-
-      if (credits.balance < creditCost) {
-        return NextResponse.json({
-          error: 'Insufficient credits',
-          balance: credits.balance,
-          required: creditCost,
-        }, { status: 402 });
-      }
-
-      // Deduct credits
-      const newBalance = credits.balance - creditCost;
-
-      const { error: updateError } = await supabase
-        .from('credits')
-        .update({
-          balance: newBalance,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id);
-
-      if (updateError) {
-        return NextResponse.json({ error: 'Failed to deduct credits' }, { status: 500 });
-      }
-
-      // Log transaction
-      await supabase.from('credit_transactions').insert({
-        user_id: user.id,
-        amount: -creditCost,
-        type: 'llm_classification',
-        description: `LLM classification for ${fields.length} field(s)`,
-        metadata: {
-          model: LLM_CONFIG.model,
-          field_count: fields.length,
-          endpoint: LLM_CONFIG.endpoint,
-        },
-      });
+      return NextResponse.json({
+        error: 'Insufficient credits',
+        balance: credits?.balance || 0,
+        required: LLM_CREDIT_COST,
+      }, { status: 402 });
     }
 
-    // Call the LLM API
-    const llmResponse = await callLLM(fields);
+    creditsDeducted = true;
+  }
+
+  // Call LLM
+  try {
+    const llmResponse = await callLLM(fields as FieldMetadata[]);
+
+    if (creditsDeducted) {
+      // Log transaction (ignore failures)
+      supabase.from('credit_transactions').insert({
+        user_id: user.id,
+        amount: -LLM_CREDIT_COST,
+        type: 'llm_classification',
+        description: `LLM classification for ${fields.length} field(s)`,
+        metadata: { model: LLM_MODEL, field_count: fields.length },
+      }).then(() => {});
+    }
 
     return NextResponse.json({
       success: true,
       results: llmResponse,
-      creditsUsed: hasUnlimitedPlan ? 0 : creditCost,
+      creditsUsed: hasUnlimitedPlan ? 0 : LLM_CREDIT_COST,
     });
 
-  } catch (error) {
-    console.error('LLM proxy error:', error);
-    return NextResponse.json({
-      error: 'LLM request failed',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    }, { status: 500 });
+  } catch {
+    // Refund on failure
+    if (creditsDeducted) {
+      const { error: refundError } = await supabase.rpc('refund_credits', { p_user_id: user.id, p_amount: LLM_CREDIT_COST });
+      if (refundError) {
+        console.error('CRITICAL: Refund failed', { userId: user.id, amount: LLM_CREDIT_COST });
+      }
+
+      supabase.from('credit_transactions').insert({
+        user_id: user.id,
+        amount: LLM_CREDIT_COST,
+        type: 'refund',
+        description: 'Refund for failed LLM request',
+      }).then(() => {});
+    }
+
+    return NextResponse.json({ error: 'Service temporarily unavailable' }, { status: 503 });
   }
 }
 
@@ -170,20 +191,15 @@ const TAXONOMY_LIST = `
 `.trim();
 
 async function callLLM(fields: FieldMetadata[]): Promise<ClassificationResult[]> {
-  if (!LLM_CONFIG.apiKey) {
-    throw new Error('LLM API key not configured');
-  }
-
-  // Build prompt
   const fieldsDescription = fields.map(field => {
     const parts: string[] = [];
-    if (field.labelText) parts.push(`Label: ${field.labelText}`);
-    if (field.name) parts.push(`Name: ${field.name}`);
-    if (field.id) parts.push(`ID: ${field.id}`);
-    if (field.type) parts.push(`Type: ${field.type}`);
-    if (field.placeholder) parts.push(`Placeholder: ${field.placeholder}`);
-    if (field.options?.length) parts.push(`Options: ${field.options.slice(0, 5).join(', ')}`);
-    if (field.surroundingText) parts.push(`Context: ${field.surroundingText.slice(0, 100)}`);
+    if (field.labelText) parts.push(`Label: ${sanitize(field.labelText)}`);
+    if (field.name) parts.push(`Name: ${sanitize(field.name, 100)}`);
+    if (field.id) parts.push(`ID: ${sanitize(field.id, 100)}`);
+    if (field.type) parts.push(`Type: ${sanitize(field.type, 50)}`);
+    if (field.placeholder) parts.push(`Placeholder: ${sanitize(field.placeholder)}`);
+    if (field.options?.length) parts.push(`Options: ${field.options.slice(0, 5).map(o => sanitize(o, 50)).join(', ')}`);
+    if (field.surroundingText) parts.push(`Context: ${sanitize(field.surroundingText, 100)}`);
     return `[Field ${field.index}]\n${parts.join('\n')}`;
   }).join('\n\n');
 
@@ -202,47 +218,27 @@ Rules:
 - Use UNKNOWN with confidence 0 if uncertain
 - Each field must have an entry in the response`;
 
-  // Call OpenAI-compatible API
-  const response = await fetch(LLM_CONFIG.endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${LLM_CONFIG.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: LLM_CONFIG.model,
-      messages: [
-        { role: 'system', content: 'You are a form field classifier. Respond only with valid JSON array.' },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0,
-      max_tokens: 1000,
-    }),
+  const { text } = await generateText({
+    model: getModel(),
+    system: 'You are a form field classifier. Respond only with valid JSON array.',
+    prompt,
+    temperature: 0,
+    maxOutputTokens: 1000,
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`LLM API error (${response.status}): ${errorText}`);
-  }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || '';
-
-  // Parse response
-  const arrayMatch = content.match(/\[[\s\S]*\]/);
+  const arrayMatch = text.match(/\[[\s\S]*\]/);
   if (!arrayMatch) {
-    throw new Error('Invalid LLM response format');
+    throw new Error('Invalid response format');
   }
 
-  return JSON.parse(arrayMatch[0]) as ClassificationResult[];
+  try {
+    return JSON.parse(arrayMatch[0]) as ClassificationResult[];
+  } catch {
+    throw new Error('Failed to parse response');
+  }
 }
 
-// Health check endpoint to verify LLM configuration
+// Health check (no sensitive info exposed)
 export async function GET() {
-  return NextResponse.json({
-    configured: !!LLM_CONFIG.apiKey,
-    endpoint: LLM_CONFIG.endpoint,
-    model: LLM_CONFIG.model,
-    creditCost: LLM_CONFIG.creditCost,
-  });
+  return NextResponse.json({ status: 'ok' });
 }

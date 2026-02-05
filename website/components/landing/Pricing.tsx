@@ -16,39 +16,14 @@ interface Product {
   features: string[] | null;
 }
 
-function groupProductsForDisplay(products: Product[], t: (key: string, params?: Record<string, string | number>) => string) {
-  const plans: {
-    name: string;
-    price: string;
-    priceNote: string;
-    description: string;
-    features: string[];
-    cta: string;
-    href: string;
-    highlighted: boolean;
-  }[] = [];
-
-  for (const product of products) {
-    // 只显示月付价格
-    if (product.billing_cycle === 'year') continue;
-
-    const planName = product.name.split(' ')[0];
-    const priceInDollars = product.price_amount / 100;
-    const isSubscription = product.type === 'subscription';
-
-    plans.push({
-      name: planName,
-      price: `$${priceInDollars}`,
-      priceNote: isSubscription ? t('pricing.perMonth') : t('pricing.oneTime'),
-      description: product.description || (isSubscription ? 'For power users' : 'For active job seekers'),
-      features: product.features || [],
-      cta: isSubscription ? t('pricing.subscription') : t('pricing.purchase'),
-      href: '/pricing',
-      highlighted: planName.toLowerCase() === 'unlimited',
-    });
-  }
-
-  return plans;
+interface Plan {
+  name: string;
+  price: string;
+  priceNote: string;
+  description: string;
+  features: string[];
+  cta: string;
+  highlighted: boolean;
 }
 
 export default function Pricing() {
@@ -67,35 +42,42 @@ export default function Pricing() {
   }, []);
 
   const freePlanFeatures = tArray('pricing.free.features');
+  const defaultFeatures = ['20 form fills', 'All ATS platforms supported', 'Local data storage', 'Basic field recognition'];
 
-  const freePlan = {
+  const freePlan: Plan = {
     name: t('pricing.free.name'),
     price: '$0',
     priceNote: '',
     description: t('pricing.free.description'),
-    features: freePlanFeatures.length > 0 ? freePlanFeatures : ['20 form fills', 'All ATS platforms supported', 'Local data storage', 'Basic field recognition'],
+    features: freePlanFeatures.length > 0 ? freePlanFeatures : defaultFeatures,
     cta: t('pricing.free.cta'),
-    href: '/download',
     highlighted: false,
   };
 
-  const dbPlans = groupProductsForDisplay(products, t);
-  // Update all plan hrefs to /download for non-subscription plans
-  const plans = [freePlan, ...dbPlans.map(plan => ({
-    ...plan,
-    href: '/download',
-  }))];
+  const dbPlans: Plan[] = products
+    .filter(p => p.billing_cycle !== 'year')
+    .map(product => {
+      const planName = product.name.split(' ')[0];
+      const isSubscription = product.type === 'subscription';
+      return {
+        name: planName,
+        price: `$${product.price_amount / 100}`,
+        priceNote: isSubscription ? t('pricing.perMonth') : t('pricing.oneTime'),
+        description: product.description || (isSubscription ? 'For power users' : 'For active job seekers'),
+        features: product.features || [],
+        cta: isSubscription ? t('pricing.subscription') : t('pricing.purchase'),
+        highlighted: planName.toLowerCase() === 'unlimited',
+      };
+    });
+
+  const plans = [freePlan, ...dbPlans];
 
   return (
     <section id="pricing" className="bg-white py-24">
       <div className="mx-auto max-w-7xl px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            {t('pricing.title')}
-          </h2>
-          <p className="mt-4 text-lg text-gray-600">
-            {t('pricing.subtitle')}
-          </p>
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">{t('pricing.title')}</h2>
+          <p className="mt-4 text-lg text-gray-600">{t('pricing.subtitle')}</p>
         </div>
 
         {loading ? (
@@ -127,7 +109,7 @@ export default function Pricing() {
                   ))}
                 </ul>
                 <Link
-                  href={plan.href}
+                  href="/download"
                   className={`mt-8 block w-full rounded-lg py-3 text-center font-semibold ${
                     plan.highlighted ? 'bg-blue-600 text-white hover:bg-blue-700' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
