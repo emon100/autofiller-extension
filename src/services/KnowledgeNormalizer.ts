@@ -101,6 +101,12 @@ export class KnowledgeNormalizer {
   private config: LLMConfig | null = null
   private configLoaded = false
 
+  /**
+   * Whether to use LLM for normalization (sends user data to LLM)
+   * Default: false - only use local rules to protect user privacy
+   */
+  private useLLMForNormalization = false
+
   constructor() {
     this.initConfig()
   }
@@ -108,6 +114,14 @@ export class KnowledgeNormalizer {
   private async initConfig(): Promise<void> {
     this.config = await loadLLMConfig()
     this.configLoaded = true
+
+    // Check if user explicitly opted in to LLM normalization
+    try {
+      const result = await chrome.storage.local.get('useLLMNormalization')
+      this.useLLMForNormalization = result.useLLMNormalization === true
+    } catch {
+      this.useLLMForNormalization = false
+    }
   }
 
   private async ensureConfigLoaded(): Promise<LLMConfig | null> {
@@ -118,8 +132,12 @@ export class KnowledgeNormalizer {
     return this.config
   }
 
-  private isLLMAvailable(): boolean {
-    return !!(this.config?.enabled && this.config?.apiKey)
+  /**
+   * Check if LLM normalization is available AND user has opted in
+   * By default, we don't send user data to LLM for privacy
+   */
+  private isLLMNormalizationEnabled(): boolean {
+    return this.useLLMForNormalization && !!(this.config?.enabled && this.config?.apiKey)
   }
 
   // --------------------------------------------------------------------------
@@ -133,7 +151,7 @@ export class KnowledgeNormalizer {
   async normalizeDegree(degree: string): Promise<NormalizationResult<DegreeInfo>> {
     await this.ensureConfigLoaded()
 
-    if (this.isLLMAvailable()) {
+    if (this.isLLMNormalizationEnabled()) {
       try {
         const result = await this.llmNormalizeDegree(degree)
         if (result.confidence >= 0.7) return result
@@ -151,7 +169,7 @@ export class KnowledgeNormalizer {
   async normalizeMajor(major: string): Promise<NormalizationResult<string>> {
     await this.ensureConfigLoaded()
 
-    if (this.isLLMAvailable()) {
+    if (this.isLLMNormalizationEnabled()) {
       try {
         const result = await this.llmNormalize('major', major, `
 Standardize this field of study/major to a common format.
@@ -173,7 +191,7 @@ Standardize this field of study/major to a common format.
   async normalizeSkill(skill: string): Promise<NormalizationResult<SkillInfo>> {
     await this.ensureConfigLoaded()
 
-    if (this.isLLMAvailable()) {
+    if (this.isLLMNormalizationEnabled()) {
       try {
         const result = await this.llmNormalizeSkill(skill)
         if (result.confidence >= 0.7) return result
@@ -194,7 +212,7 @@ Standardize this field of study/major to a common format.
 
     // Batch normalize with LLM if available
     await this.ensureConfigLoaded()
-    if (this.isLLMAvailable() && skills.length > 0) {
+    if (this.isLLMNormalizationEnabled() && skills.length > 0) {
       try {
         const batchResult = await this.llmNormalizeSkillsBatch(skills)
         for (const info of batchResult) {
@@ -229,7 +247,7 @@ Standardize this field of study/major to a common format.
   async normalizeCompany(company: string): Promise<NormalizationResult<string>> {
     await this.ensureConfigLoaded()
 
-    if (this.isLLMAvailable()) {
+    if (this.isLLMNormalizationEnabled()) {
       try {
         const result = await this.llmNormalize('company', company, `
 Clean and standardize this company name:
@@ -252,7 +270,7 @@ Clean and standardize this company name:
   async normalizeLocation(location: string): Promise<NormalizationResult<AddressComponents>> {
     await this.ensureConfigLoaded()
 
-    if (this.isLLMAvailable()) {
+    if (this.isLLMNormalizationEnabled()) {
       try {
         const result = await this.llmNormalizeLocation(location)
         if (result.confidence >= 0.6) return result
@@ -270,7 +288,7 @@ Clean and standardize this company name:
   async normalizeWorkAuth(auth: string): Promise<NormalizationResult<{ standard: string; needsSponsorship: boolean }>> {
     await this.ensureConfigLoaded()
 
-    if (this.isLLMAvailable()) {
+    if (this.isLLMNormalizationEnabled()) {
       try {
         const result = await this.llmNormalizeWorkAuth(auth)
         if (result.confidence >= 0.7) return result
@@ -812,7 +830,29 @@ Return JSON only:
   resetConfig(): void {
     this.configLoaded = false
     this.config = null
+    this.useLLMForNormalization = false
     resetLLMConfigCache()
+  }
+
+  /**
+   * Enable or disable LLM normalization
+   * When enabled, user data (degree, company, etc.) will be sent to LLM for better normalization
+   * When disabled (default), only local rules are used - no user data sent to LLM
+   */
+  async setLLMNormalization(enabled: boolean): Promise<void> {
+    this.useLLMForNormalization = enabled
+    try {
+      await chrome.storage.local.set({ useLLMNormalization: enabled })
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  /**
+   * Check if LLM normalization is currently enabled
+   */
+  isLLMNormalizationActive(): boolean {
+    return this.useLLMForNormalization
   }
 }
 

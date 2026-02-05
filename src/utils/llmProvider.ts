@@ -55,6 +55,18 @@ export const PII_PATTERNS = {
   email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
   phone: /[\+]?[(]?[0-9]{1,3}[)]?[-\s\.]?[(]?[0-9]{1,3}[)]?[-\s\.]?[0-9]{4,6}/g,
   ssn: /\d{3}[-\s]?\d{2}[-\s]?\d{4}/g,
+  // Credit card numbers (with or without separators)
+  creditCard: /\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}/g,
+  // US addresses (street addresses)
+  address: /\d+\s+[\w\s]+(?:street|st|avenue|ave|road|rd|drive|dr|lane|ln|way|court|ct|boulevard|blvd)/gi,
+  // US ZIP codes
+  zipCode: /\b\d{5}(?:-\d{4})?\b/g,
+  // Chinese ID numbers (18 digits)
+  chineseId: /\d{6}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]/g,
+  // Passport numbers (common formats)
+  passport: /[A-Z]{1,2}\d{6,9}/gi,
+  // IP addresses
+  ipAddress: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
 }
 
 export function scrubPII(text: string): string {
@@ -62,6 +74,12 @@ export function scrubPII(text: string): string {
     .replace(PII_PATTERNS.email, '[EMAIL]')
     .replace(PII_PATTERNS.phone, '[PHONE]')
     .replace(PII_PATTERNS.ssn, '[SSN]')
+    .replace(PII_PATTERNS.creditCard, '[CREDIT_CARD]')
+    .replace(PII_PATTERNS.address, '[ADDRESS]')
+    .replace(PII_PATTERNS.zipCode, '[ZIP]')
+    .replace(PII_PATTERNS.chineseId, '[ID_NUMBER]')
+    .replace(PII_PATTERNS.passport, '[PASSPORT]')
+    .replace(PII_PATTERNS.ipAddress, '[IP]')
 }
 
 // ============================================================================
