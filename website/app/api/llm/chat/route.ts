@@ -91,25 +91,18 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Build messages
-    const messages: Array<{ role: 'user'; content: string | Array<{ type: string; text?: string; image?: string; mimeType?: string }> }> = []
-
-    if (imageBase64) {
-      messages.push({
-        role: 'user',
-        content: [
-          { type: 'image', image: imageBase64, mimeType: mimeType || 'image/png' },
-          { type: 'text', text: prompt },
-        ],
-      })
-    } else {
-      messages.push({ role: 'user', content: prompt })
-    }
-
     const { text } = await generateText({
       model: getModel(),
       system: systemPrompt || undefined,
-      messages,
+      messages: imageBase64
+        ? [{
+            role: 'user' as const,
+            content: [
+              { type: 'image' as const, image: imageBase64, mimeType: mimeType || 'image/png' },
+              { type: 'text' as const, text: prompt },
+            ],
+          }]
+        : [{ role: 'user' as const, content: prompt }],
       temperature,
       maxOutputTokens: Math.min(maxTokens, 4000),
     });
