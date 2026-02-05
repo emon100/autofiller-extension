@@ -11,7 +11,7 @@ interface ConsentModalProps {
 const PRIVACY_POLICY_URL = 'https://www.onefil.help/privacy'
 
 export default function ConsentModal({ onConsent, onDecline }: ConsentModalProps) {
-  const [llmDataSharing, setLlmDataSharing] = useState(false)
+  const [llmDataSharing, setLlmDataSharing] = useState(true)
   const [acknowledgedPolicy, setAcknowledgedPolicy] = useState(false)
   const [saving, setSaving] = useState(false)
 

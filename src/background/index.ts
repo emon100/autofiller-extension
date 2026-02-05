@@ -73,31 +73,20 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 })
 
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!tab.id) return
-
-  try {
-    if (chrome.sidePanel?.open) {
-      await chrome.sidePanel.open({ tabId: tab.id })
-      sidePanelOpenTabs.add(tab.id)
-    }
-  } catch (error) {
-    console.error('Failed to open side panel:', error)
-  }
-})
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'openSidePanel') {
     const tabId = sender.tab?.id
-    if (!tabId) {
-      sendResponse({ success: false, error: 'No tab ID' })
-      return true
-    }
+    const windowId = sender.tab?.windowId
 
     if (chrome.sidePanel?.open) {
-      chrome.sidePanel.open({ tabId })
+      const openOptions = tabId ? { tabId } : windowId ? { windowId } : null
+      if (!openOptions) {
+        sendResponse({ success: false, error: 'No tab or window ID' })
+        return true
+      }
+      chrome.sidePanel.open(openOptions)
         .then(() => {
-          sidePanelOpenTabs.add(tabId)
+          if (tabId) sidePanelOpenTabs.add(tabId)
           sendResponse({ success: true })
         })
         .catch((err) => {
@@ -169,23 +158,12 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   createContextMenus()
 
   if (chrome.sidePanel?.setPanelBehavior) {
-    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false })
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
   }
 
-  // On fresh install, always open side panel for onboarding
+  // On fresh install, open welcome page to guide user
   if (details.reason === 'install') {
-    try {
-      // Wait a bit for the extension to fully initialize
-      setTimeout(async () => {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-        if (tab?.id && chrome.sidePanel?.open) {
-          await chrome.sidePanel.open({ tabId: tab.id })
-          sidePanelOpenTabs.add(tab.id)
-        }
-      }, 500)
-    } catch (error) {
-      console.log('[AutoFiller] Could not open side panel for onboarding:', error)
-    }
+    chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') })
   }
 
   // On update, check consent

@@ -1,7 +1,10 @@
 // LLM helper functions for profile parsing
 
+const API_BASE_URL = 'https://www.onefil.help/api'
+
 export interface LLMConfig {
   enabled: boolean
+  useCustomApi?: boolean
   provider: 'openai' | 'anthropic' | 'dashscope' | 'deepseek' | 'zhipu' | 'custom'
   apiKey: string
   endpoint?: string
@@ -10,7 +13,8 @@ export interface LLMConfig {
 }
 
 const DEFAULT_LLM_CONFIG: LLMConfig = {
-  enabled: false,
+  enabled: true,
+  useCustomApi: false,
   provider: 'openai',
   apiKey: '',
   model: 'gpt-4o-mini',
@@ -44,13 +48,35 @@ export async function getLLMConfig(): Promise<LLMConfig> {
 
 export async function isLLMEnabled(): Promise<boolean> {
   const config = await getLLMConfig()
-  return config.enabled && !!config.apiKey
+  if (!config.enabled) return false
+
+  // Backend API mode: check if user is logged in
+  if (!config.useCustomApi) {
+    try {
+      const { storage } = await import('@/storage')
+      const authState = await storage.auth.getAuthState()
+      return !!(authState && authState.expiresAt > Date.now())
+    } catch {
+      return false
+    }
+  }
+
+  // Custom API mode: check if API key is configured
+  return !!config.apiKey
 }
 
 interface LLMCallOptions {
   systemPrompt?: string
   maxTokens?: number
   temperature?: number
+}
+
+/** Get config and verify LLM is enabled; throws if not */
+async function requireEnabledConfig(): Promise<LLMConfig> {
+  const config = await getLLMConfig()
+  const enabled = await isLLMEnabled()
+  if (!enabled) throw new Error('LLM is not configured or enabled')
+  return config
 }
 
 /**
@@ -60,24 +86,20 @@ export async function callLLMWithText(
   prompt: string,
   options: LLMCallOptions = {}
 ): Promise<string> {
-  const config = await getLLMConfig()
-
-  if (!config.enabled || !config.apiKey) {
-    throw new Error('LLM is not configured or enabled')
-  }
-
+  const config = await requireEnabledConfig()
   const { systemPrompt, maxTokens = 2000, temperature = 0 } = options
 
+  if (!config.useCustomApi) {
+    return callBackendLLM({ prompt, systemPrompt, maxTokens, temperature })
+  }
   if (config.provider === 'anthropic') {
     return callAnthropicText(config, prompt, systemPrompt, maxTokens, temperature)
   }
-
   return callOpenAICompatibleText(config, prompt, systemPrompt, maxTokens, temperature)
 }
 
 /**
  * Call LLM with image (base64) and return raw response content
- * Used for OCR-like tasks on resume images
  */
 export async function callLLMWithImage(
   imageBase64: string,
@@ -85,19 +107,58 @@ export async function callLLMWithImage(
   mimeType: string = 'image/png',
   options: LLMCallOptions = {}
 ): Promise<string> {
-  const config = await getLLMConfig()
-
-  if (!config.enabled || !config.apiKey) {
-    throw new Error('LLM is not configured or enabled')
-  }
-
+  const config = await requireEnabledConfig()
   const { systemPrompt, maxTokens = 4000, temperature = 0 } = options
 
+  if (!config.useCustomApi) {
+    return callBackendLLM({ prompt, systemPrompt, maxTokens, temperature, imageBase64, mimeType })
+  }
   if (config.provider === 'anthropic') {
     return callAnthropicVision(config, imageBase64, prompt, mimeType, systemPrompt, maxTokens, temperature)
   }
-
   return callOpenAIVision(config, imageBase64, prompt, mimeType, systemPrompt, maxTokens, temperature)
+}
+
+/**
+ * Call LLM through backend API gateway
+ */
+async function callBackendLLM(params: {
+  prompt: string
+  systemPrompt?: string
+  maxTokens?: number
+  temperature?: number
+  imageBase64?: string
+  mimeType?: string
+}): Promise<string> {
+  const { storage } = await import('@/storage')
+  const token = await storage.auth.getAccessToken()
+
+  if (!token) {
+    throw new Error('Not authenticated. Please sign in to use AI features.')
+  }
+
+  const response = await fetch(`${API_BASE_URL}/llm/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(params),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    if (response.status === 402) {
+      throw new Error(`Insufficient credits. Balance: ${errorData.balance || 0}`)
+    }
+    if (response.status === 401) {
+      throw new Error('Authentication expired. Please sign in again.')
+    }
+    throw new Error(errorData.error || `Backend API error ${response.status}`)
+  }
+
+  const data = await response.json()
+  return data.text || ''
 }
 
 async function callOpenAICompatibleText(

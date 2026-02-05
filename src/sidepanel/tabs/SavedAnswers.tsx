@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { ChevronDown, User, GraduationCap, AlertTriangle, Search, Pencil, Trash2, X, Check, Briefcase } from 'lucide-react'
+import { ChevronDown, User, GraduationCap, AlertTriangle, Search, Pencil, Trash2, X, Check, Briefcase, AlertCircle, CheckCircle2, Copy } from 'lucide-react'
 import { getTypeLabel } from '@/utils/typeLabels'
+import { t } from '@/i18n'
 import type { AnswerValue, Taxonomy, ExperienceEntry, ExperienceGroupType } from '@/types'
 
 interface CategoryConfig {
@@ -32,6 +33,86 @@ const CATEGORIES: CategoryConfig[] = [
     isSensitive: true,
   },
 ]
+
+const CORE_FIELDS = ['FULL_NAME', 'EMAIL', 'PHONE', 'CITY', 'SCHOOL', 'DEGREE'] as Taxonomy[]
+
+function ProfileCompleteness({ answers }: { answers: AnswerValue[] }) {
+  const filledTypes = new Set(answers.map(a => a.type))
+  const missing = CORE_FIELDS.filter(f => !filledTypes.has(f))
+  const filled = CORE_FIELDS.length - missing.length
+  const percentage = Math.round((filled / CORE_FIELDS.length) * 100)
+
+  // Detect duplicates: types with more than one answer
+  const typeCounts = new Map<string, number>()
+  for (const a of answers) {
+    typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1)
+  }
+  const duplicates = Array.from(typeCounts.entries())
+    .filter(([, count]) => count > 1)
+    .map(([type, count]) => ({ type, count }))
+
+  const isComplete = missing.length === 0
+  const hasDuplicates = duplicates.length > 0
+
+  if (isComplete && !hasDuplicates) {
+    return (
+      <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl mb-3">
+        <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+        <p className="text-xs text-green-700 font-medium">{t('profile.complete')}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2 mb-3">
+      {/* Completeness card */}
+      {!isComplete && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0" />
+              <span className="text-xs font-medium text-blue-800">{t('profile.completeness')}</span>
+            </div>
+            <span className="text-xs font-bold text-blue-700">{percentage}%</span>
+          </div>
+          <div className="h-1.5 bg-blue-200 rounded-full overflow-hidden mb-2">
+            <div
+              className="h-full bg-blue-600 rounded-full transition-all"
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-blue-600 mb-1">{t('profile.missing')}</p>
+          <div className="flex flex-wrap gap-1">
+            {missing.map(type => (
+              <span key={type} className="text-[11px] px-1.5 py-0.5 bg-white/70 text-blue-700 rounded">
+                {getTypeLabel(type)}
+              </span>
+            ))}
+          </div>
+          <p className="text-[11px] text-blue-500 mt-1.5">{t('profile.addInfo')}</p>
+        </div>
+      )}
+
+      {/* Duplicates warning */}
+      {hasDuplicates && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+          <div className="flex items-center gap-2 mb-2">
+            <Copy className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <span className="text-xs font-medium text-amber-800">{t('profile.duplicates')}</span>
+          </div>
+          <div className="flex flex-wrap gap-1 mb-1.5">
+            {duplicates.map(d => (
+              <span key={d.type} className="text-[11px] px-1.5 py-0.5 bg-white/70 text-amber-700 rounded">
+                {getTypeLabel(d.type)} ({t('profile.values', { count: d.count })})
+              </span>
+            ))}
+          </div>
+          <p className="text-[11px] text-amber-600">{t('profile.duplicatesHint')}</p>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function SavedAnswers() {
   const [answers, setAnswers] = useState<AnswerValue[]>([])
@@ -165,6 +246,8 @@ export default function SavedAnswers() {
           />
         </div>
       </div>
+
+      <ProfileCompleteness answers={answers} />
 
       {!hasAnyData ? (
         <div className="text-center py-8">
