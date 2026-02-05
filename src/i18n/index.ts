@@ -726,6 +726,334 @@ export const messages = {
     en: 'Auto-fill enabled for this site!',
     zh: '已为此网站启用自动填充！',
   },
+
+  // Onboarding - General
+  'onboarding.progress': {
+    en: 'Setup Progress',
+    zh: '设置进度',
+  },
+  'onboarding.skip': {
+    en: 'Skip for now',
+    zh: '暂时跳过',
+  },
+  'onboarding.back': {
+    en: 'Back',
+    zh: '返回',
+  },
+  'onboarding.continue': {
+    en: 'Continue',
+    zh: '继续',
+  },
+  'onboarding.skipStep': {
+    en: 'Skip',
+    zh: '跳过',
+  },
+
+  // Onboarding - Privacy Badge
+  'onboarding.privacy.local': {
+    en: 'All data is stored locally on your device. Nothing is sent to any server.',
+    zh: '所有数据存储在您的设备本地，不会发送到任何服务器。',
+  },
+  'onboarding.privacy.localLabel': {
+    en: 'Privacy:',
+    zh: '隐私保护：',
+  },
+  'onboarding.privacy.aiOptional': {
+    en: 'AI processing is optional. You can choose local-only processing.',
+    zh: 'AI 处理是可选的。您可以选择仅本地处理。',
+  },
+  'onboarding.privacy.aiOptionalLabel': {
+    en: 'Privacy:',
+    zh: '隐私提示：',
+  },
+
+  // Onboarding - Welcome Step
+  'onboarding.welcome.title': {
+    en: 'Welcome to OneFillr!',
+    zh: '欢迎使用 OneFillr！',
+  },
+  'onboarding.welcome.subtitle': {
+    en: 'Auto-fill job applications in seconds',
+    zh: '秒速自动填写求职申请',
+  },
+  'onboarding.welcome.demo': {
+    en: 'See how it works:',
+    zh: '看看它是如何工作的：',
+  },
+  'onboarding.welcome.privacyTitle': {
+    en: 'Your Privacy is Protected',
+    zh: '您的隐私受到保护',
+  },
+  'onboarding.welcome.privacyDesc': {
+    en: 'All data stored locally. AI features are optional.',
+    zh: '所有数据本地存储，AI 功能可选开启。',
+  },
+  'onboarding.welcome.getStarted': {
+    en: 'Get Started',
+    zh: '开始使用',
+  },
+
+  // Onboarding - LinkedIn Step
+  'onboarding.linkedin.title': {
+    en: 'Import from LinkedIn',
+    zh: '从 LinkedIn 导入',
+  },
+  'onboarding.linkedin.subtitle': {
+    en: 'The fastest way to set up your profile',
+    zh: '最快的个人资料设置方式',
+  },
+  'onboarding.linkedin.chooseMethod': {
+    en: 'Choose processing method:',
+    zh: '选择处理方式：',
+  },
+  'onboarding.linkedin.localOption': {
+    en: 'Local Processing (Recommended)',
+    zh: '本地处理（推荐）',
+  },
+  'onboarding.linkedin.localDesc': {
+    en: 'All processing happens on your device. No data leaves your browser.',
+    zh: '所有处理在您的设备上完成，数据不会离开浏览器。',
+  },
+  'onboarding.linkedin.aiOption': {
+    en: 'AI-Enhanced Processing',
+    zh: 'AI 增强处理',
+  },
+  'onboarding.linkedin.aiDesc': {
+    en: 'Better accuracy for names and dates.',
+    zh: '姓名和日期识别更准确。',
+  },
+  'onboarding.linkedin.aiWarning': {
+    en: 'Data will be sent to AI service (not stored or used for training)',
+    zh: '数据将发送至 AI 服务（不会被存储或用于训练）',
+  },
+  'onboarding.linkedin.cancel': {
+    en: 'Cancel',
+    zh: '取消',
+  },
+  'onboarding.linkedin.step1': {
+    en: 'Open your LinkedIn profile',
+    zh: '打开您的 LinkedIn 个人主页',
+  },
+  'onboarding.linkedin.open': {
+    en: 'Open',
+    zh: '打开',
+  },
+  'onboarding.linkedin.step2': {
+    en: 'Click Parse when page loaded',
+    zh: '页面加载后点击解析',
+  },
+  'onboarding.linkedin.parsing': {
+    en: 'Parsing...',
+    zh: '解析中...',
+  },
+  'onboarding.linkedin.parse': {
+    en: 'Parse',
+    zh: '解析',
+  },
+  'onboarding.linkedin.error': {
+    en: 'Failed to parse. Make sure you\'re on a LinkedIn profile page.',
+    zh: '解析失败。请确保您在 LinkedIn 个人主页上。',
+  },
+  'onboarding.linkedin.done': {
+    en: 'LinkedIn profile imported!',
+    zh: 'LinkedIn 资料已导入！',
+  },
+
+  // Onboarding - Resume Step
+  'onboarding.resume.title': {
+    en: 'Upload Your Resume',
+    zh: '上传您的简历',
+  },
+  'onboarding.resume.subtitle': {
+    en: 'We\'ll extract your information automatically',
+    zh: '我们将自动提取您的信息',
+  },
+  'onboarding.resume.processing': {
+    en: 'Processing...',
+    zh: '处理中...',
+  },
+  'onboarding.resume.clickUpload': {
+    en: 'Click to upload',
+    zh: '点击上传',
+  },
+  'onboarding.resume.fileTypes': {
+    en: 'PDF, Word, or Image',
+    zh: 'PDF、Word 或图片',
+  },
+  'onboarding.resume.done': {
+    en: 'Resume imported!',
+    zh: '简历已导入！',
+  },
+  'onboarding.resume.loginRequired': {
+    en: 'Sign in to use AI resume parsing',
+    zh: '登录后即可使用 AI 简历解析',
+  },
+  'onboarding.resume.loginDesc': {
+    en: 'Resume parsing requires AI services. Sign in to get started.',
+    zh: '简历解析需要 AI 服务支持。请登录以开始使用。',
+  },
+  'onboarding.resume.loginButton': {
+    en: 'Sign In',
+    zh: '登录',
+  },
+  'onboarding.resume.loggingIn': {
+    en: 'Signing in...',
+    zh: '登录中...',
+  },
+  'onboarding.resume.loginError': {
+    en: 'Login failed. Please try again.',
+    zh: '登录失败，请重试。',
+  },
+  'onboarding.resume.configRequired': {
+    en: 'AI is not configured',
+    zh: 'AI 未配置',
+  },
+  'onboarding.resume.configDesc': {
+    en: 'Please configure LLM settings to enable resume parsing.',
+    zh: '请在设置中配置 LLM 以启用简历解析。',
+  },
+  'onboarding.resume.goSettings': {
+    en: 'Go to Settings',
+    zh: '前往设置',
+  },
+
+  // Onboarding - Practice Step
+  'onboarding.practice.title': {
+    en: 'Enter Your Info',
+    zh: '填写您的信息',
+  },
+  'onboarding.practice.subtitle': {
+    en: 'Fill in your details below. Click a field and choose from browser suggestions to auto-fill.',
+    zh: '在下方填写您的信息。点击输入框，从浏览器建议中选择即可自动填充。',
+  },
+  'onboarding.practice.fullName': {
+    en: 'Full Name',
+    zh: '姓名',
+  },
+  'onboarding.practice.email': {
+    en: 'Email',
+    zh: '邮箱',
+  },
+  'onboarding.practice.phone': {
+    en: 'Phone',
+    zh: '电话',
+  },
+  'onboarding.practice.city': {
+    en: 'City',
+    zh: '城市',
+  },
+  'onboarding.practice.linkedin': {
+    en: 'LinkedIn URL',
+    zh: 'LinkedIn 链接',
+  },
+  'onboarding.practice.school': {
+    en: 'School / University',
+    zh: '学校',
+  },
+  'onboarding.practice.degree': {
+    en: 'Degree',
+    zh: '学位',
+  },
+  'onboarding.practice.major': {
+    en: 'Major / Field of Study',
+    zh: '专业',
+  },
+  'onboarding.practice.placeholder': {
+    en: 'Click and let browser autofill...',
+    zh: '点击并让浏览器自动填充...',
+  },
+  'onboarding.practice.save': {
+    en: 'Save to OneFillr',
+    zh: '保存到 OneFillr',
+  },
+  'onboarding.practice.saved': {
+    en: 'Data saved!',
+    zh: '数据已保存！',
+  },
+  'onboarding.practice.tip': {
+    en: 'Tip: Click a field and select from browser suggestions',
+    zh: '提示：点击字段并从浏览器建议中选择',
+  },
+  'onboarding.practice.animHint': {
+    en: 'Click any field to see browser autofill suggestions',
+    zh: '点击任意输入框，查看浏览器自动填充建议',
+  },
+
+  // Onboarding - Features Step
+  'onboarding.features.title': {
+    en: 'You\'re All Set!',
+    zh: '一切就绪！',
+  },
+  'onboarding.features.subtitle': {
+    en: 'Here\'s what you can do with OneFillr',
+    zh: '以下是 OneFillr 的主要功能',
+  },
+  'onboarding.features.localKnowledge': {
+    en: 'Local Knowledge',
+    zh: '本地知识库',
+  },
+  'onboarding.features.localKnowledgeDesc': {
+    en: 'View and edit your saved answers',
+    zh: '查看和编辑您保存的答案',
+  },
+  'onboarding.features.smartFill': {
+    en: 'Smart Fill',
+    zh: '智能填充',
+  },
+  'onboarding.features.smartFillDesc': {
+    en: 'Click Fill button on any job application',
+    zh: '在任何求职申请页面点击填充按钮',
+  },
+  'onboarding.features.autoLearn': {
+    en: 'Auto Learn',
+    zh: '自动学习',
+  },
+  'onboarding.features.autoLearnDesc': {
+    en: 'We learn from forms you fill manually',
+    zh: '从您手动填写的表单中自动学习',
+  },
+  'onboarding.features.privacyFirst': {
+    en: 'Privacy First',
+    zh: '隐私优先',
+  },
+  'onboarding.features.privacyFirstDesc': {
+    en: 'Your data stays on your device by default',
+    zh: '您的数据默认保存在本地设备上',
+  },
+  'onboarding.features.startUsing': {
+    en: 'Start Using',
+    zh: '开始使用',
+  },
+
+  // Profile Completeness
+  'profile.completeness': {
+    en: 'Profile Completeness',
+    zh: '个人资料完整度',
+  },
+  'profile.complete': {
+    en: 'Profile complete!',
+    zh: '资料已完善！',
+  },
+  'profile.missing': {
+    en: 'Missing fields:',
+    zh: '缺失字段：',
+  },
+  'profile.addInfo': {
+    en: 'Add your info to enable better auto-filling',
+    zh: '添加您的信息以获得更好的自动填充效果',
+  },
+  'profile.duplicates': {
+    en: 'Duplicate fields found:',
+    zh: '发现重复字段：',
+  },
+  'profile.duplicatesHint': {
+    en: 'Multiple values for the same field may cause conflicts. Consider removing extras.',
+    zh: '同一字段存在多个值可能导致填充冲突，建议删除多余的。',
+  },
+  'profile.values': {
+    en: '{count} values',
+    zh: '{count} 个值',
+  },
 } as const
 
 export type MessageKey = keyof typeof messages

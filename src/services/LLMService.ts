@@ -5,12 +5,7 @@
 
 import { ExperienceGroupType, LinkedInProfile } from '@/types'
 import { parseJSONSafe } from '@/utils/jsonRepair'
-import {
-  LLMConfig,
-  callLLM,
-  loadLLMConfig,
-  resetLLMConfigCache,
-} from '@/utils/llmProvider'
+import { isLLMEnabled, callLLMWithText } from '@/profileParser/llmHelpers'
 
 export interface AddButtonDecision {
   shouldAdd: boolean
@@ -46,17 +41,6 @@ export interface CleanedProfileData {
 }
 
 export class LLMService {
-  private config: LLMConfig | null = null
-  private configLoaded = false
-
-  async ensureConfigLoaded(): Promise<LLMConfig | null> {
-    if (!this.configLoaded) {
-      this.config = await loadLLMConfig()
-      this.configLoaded = true
-    }
-    return this.config
-  }
-
   /**
    * Ask LLM whether to click "Add" button based on context
    */
@@ -68,10 +52,8 @@ export class LLMService {
     sectionContext: string  // Surrounding text/labels
     existingFieldLabels: string[]
   }): Promise<AddButtonDecision> {
-    const config = await this.ensureConfigLoaded()
-
-    if (!config?.enabled || !config.apiKey) {
-      // Fallback to simple comparison
+    const enabled = await isLLMEnabled()
+    if (!enabled) {
       return {
         shouldAdd: context.storedExperienceCount > context.currentFormCount,
         reason: 'LLM not available, using count comparison',
@@ -82,7 +64,10 @@ export class LLMService {
     const prompt = this.buildAddButtonDecisionPrompt(context)
 
     try {
-      const response = await this.callLLMInternal(prompt, 200)
+      const response = await callLLMWithText(prompt, {
+        systemPrompt: 'You are a helpful assistant. Respond with valid JSON only.',
+        maxTokens: 200,
+      })
       return this.parseAddButtonDecision(response)
     } catch (error) {
       console.error('[LLMService] Add button decision error:', error)
@@ -98,20 +83,19 @@ export class LLMService {
    * Clean and normalize LinkedIn profile data
    */
   async cleanLinkedInProfile(rawProfile: LinkedInProfile): Promise<CleanedProfileData> {
-    const config = await this.ensureConfigLoaded()
-
-    if (!config?.enabled || !config.apiKey) {
-      // Return minimally processed data
+    const enabled = await isLLMEnabled()
+    if (!enabled) {
       return this.basicCleanProfile(rawProfile)
     }
 
     const prompt = this.buildProfileCleaningPrompt(rawProfile)
 
     try {
-      const response = await this.callLLMInternal(prompt, 2000)
+      const response = await callLLMWithText(prompt, {
+        systemPrompt: 'You are a helpful assistant. Respond with valid JSON only.',
+        maxTokens: 2000,
+      })
       const cleaned = this.parseCleanedProfile(response)
-
-      // Merge with original data for any fields LLM missed
       return this.mergeWithOriginal(cleaned, rawProfile)
     } catch (error) {
       console.error('[LLMService] Profile cleaning error:', error)
@@ -317,21 +301,6 @@ Return ONLY valid JSON in this exact format:
     return parts[0]?.trim()
   }
 
-  private async callLLMInternal(prompt: string, maxTokens: number): Promise<string> {
-    if (!this.config) throw new Error('LLM config not loaded')
-    return callLLM(
-      this.config,
-      prompt,
-      'You are a helpful assistant. Respond with valid JSON only.',
-      { maxTokens }
-    )
-  }
-
-  resetConfig(): void {
-    this.configLoaded = false
-    this.config = null
-    resetLLMConfigCache()
-  }
 }
 
 export const llmService = new LLMService()
