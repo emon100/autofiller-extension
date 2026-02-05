@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Tab } from '@headlessui/react'
-import { Database, Globe, Activity, Settings as SettingsIcon, Sparkles, Code2, Upload } from 'lucide-react'
+import { Database, Globe, Activity, Settings as SettingsIcon, Code2, Upload } from 'lucide-react'
 import SavedAnswers from './tabs/SavedAnswers'
 import ImportProfile from './tabs/ImportProfile'
 import ThisSite from './tabs/ThisSite'
@@ -8,6 +8,7 @@ import ActivityLog from './tabs/ActivityLog'
 import Settings from './tabs/Settings'
 import Developer from './tabs/Developer'
 import ConsentModal from './components/ConsentModal'
+import Onboarding from './components/Onboarding'
 import { hasValidConsent } from '@/consent'
 import { t, initLocale } from '@/i18n'
 
@@ -18,6 +19,7 @@ function classNames(...classes: string[]) {
 export default function App() {
   const [devModeEnabled, setDevModeEnabled] = useState(false)
   const [consentValid, setConsentValid] = useState<boolean | null>(null)
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null)
   const [localeReady, setLocaleReady] = useState(false)
 
   useEffect(() => {
@@ -26,6 +28,7 @@ export default function App() {
       setLocaleReady(true)
       await loadDevSettings()
       await checkConsent()
+      await checkOnboarding()
     }
     init()
 
@@ -35,6 +38,9 @@ export default function App() {
       }
       if (changes.userConsent) {
         checkConsent()
+      }
+      if (changes.onboardingComplete) {
+        setOnboardingComplete(changes.onboardingComplete.newValue ?? false)
       }
     }
 
@@ -56,6 +62,15 @@ export default function App() {
     setConsentValid(valid)
   }
 
+  async function checkOnboarding() {
+    try {
+      const result = await chrome.storage.local.get('onboardingComplete')
+      setOnboardingComplete(result.onboardingComplete ?? false)
+    } catch {
+      setOnboardingComplete(false)
+    }
+  }
+
   function handleConsentAccepted() {
     setConsentValid(true)
   }
@@ -63,6 +78,16 @@ export default function App() {
   function handleConsentDeclined() {
     // User declined - close the side panel
     window.close()
+  }
+
+  async function handleOnboardingComplete() {
+    await chrome.storage.local.set({ onboardingComplete: true })
+    setOnboardingComplete(true)
+  }
+
+  async function handleOnboardingSkip() {
+    await chrome.storage.local.set({ onboardingComplete: true })
+    setOnboardingComplete(true)
   }
 
   const baseTabs = [
@@ -77,7 +102,7 @@ export default function App() {
   const tabs = devModeEnabled ? [...baseTabs, devTab] : baseTabs
 
   // Show loading state while checking consent and locale
-  if (consentValid === null || !localeReady) {
+  if (consentValid === null || onboardingComplete === null || !localeReady) {
     return (
       <div className="min-h-screen bg-white w-[360px] max-w-[360px] flex items-center justify-center">
         <div className="text-gray-400 text-sm">Loading...</div>
@@ -97,15 +122,20 @@ export default function App() {
     )
   }
 
+  // Show onboarding for new users
+  if (!onboardingComplete) {
+    return (
+      <div className="min-h-screen bg-white w-[360px] max-w-[360px]">
+        <Onboarding
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white w-[360px] max-w-[360px] overflow-x-hidden">
-      <header className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-        <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-          <Sparkles className="w-4 h-4 text-white" />
-        </div>
-        <span className="font-semibold text-gray-800">AutoFiller</span>
-      </header>
-
       <Tab.Group>
         <Tab.List className="flex border-b border-gray-100 overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => (
@@ -126,7 +156,7 @@ export default function App() {
           ))}
         </Tab.List>
 
-        <Tab.Panels className="max-h-[calc(100vh-100px)] overflow-y-auto custom-scrollbar">
+        <Tab.Panels className="max-h-[calc(100vh-45px)] overflow-y-auto custom-scrollbar">
           {tabs.map((tab) => (
             <Tab.Panel key={tab.name} className="p-3">
               <tab.component />

@@ -7,6 +7,41 @@ export const metadata = {
   description: 'Learn how OneFillr collects, uses, and protects your personal information.',
 };
 
+const THIRD_PARTY_SERVICES = [
+  { name: 'Supabase', purpose: 'Authentication & Database', url: 'https://supabase.com/privacy' },
+  { name: 'Paddle', purpose: 'Payment Processing', url: 'https://www.paddle.com/legal/privacy' },
+  { name: 'Vercel AI Gateway', purpose: 'AI Form Field Classification', url: 'https://vercel.com/legal/privacy-policy' },
+  { name: 'Google Analytics', purpose: 'Website Analytics', url: 'https://policies.google.com/privacy' },
+  { name: 'Vercel', purpose: 'Website Hosting', url: 'https://vercel.com/legal/privacy-policy' },
+];
+
+function ThirdPartyServicesTable() {
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b">
+          <th className="text-left py-2">Service</th>
+          <th className="text-left py-2">Purpose</th>
+          <th className="text-left py-2">Privacy Policy</th>
+        </tr>
+      </thead>
+      <tbody>
+        {THIRD_PARTY_SERVICES.map((service) => (
+          <tr key={service.name} className="border-b">
+            <td className="py-2">{service.name}</td>
+            <td className="py-2">{service.purpose}</td>
+            <td className="py-2">
+              <a href={service.url} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                View
+              </a>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export default function PrivacyPolicyPage() {
   return (
     <main className="min-h-screen bg-white">
@@ -161,53 +196,45 @@ export default function PrivacyPolicyPage() {
 
           <h2>Third-Party Services</h2>
           <p>Our Service uses the following third-party services:</p>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left py-2">Service</th>
-                <th className="text-left py-2">Purpose</th>
-                <th className="text-left py-2">Privacy Policy</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b">
-                <td className="py-2">Supabase</td>
-                <td className="py-2">Authentication & Database</td>
-                <td className="py-2">
-                  <a href="https://supabase.com/privacy" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
-                    View
-                  </a>
-                </td>
-              </tr>
-              <tr className="border-b">
-                <td className="py-2">Paddle</td>
-                <td className="py-2">Payment Processing</td>
-                <td className="py-2">
-                  <a href="https://www.paddle.com/legal/privacy" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
-                    View
-                  </a>
-                </td>
-              </tr>
-              <tr className="border-b">
-                <td className="py-2">Google Analytics</td>
-                <td className="py-2">Website Analytics</td>
-                <td className="py-2">
-                  <a href="https://policies.google.com/privacy" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
-                    View
-                  </a>
-                </td>
-              </tr>
-              <tr className="border-b">
-                <td className="py-2">Vercel</td>
-                <td className="py-2">Website Hosting</td>
-                <td className="py-2">
-                  <a href="https://vercel.com/legal/privacy-policy" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
-                    View
-                  </a>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <ThirdPartyServicesTable />
+
+          <h2>AI-Powered Features</h2>
+          <p>
+            OneFillr uses artificial intelligence to enhance form field recognition and profile data
+            processing. When you use AI-powered features, the following applies:
+          </p>
+
+          <h3>Form Field Classification</h3>
+          <p>
+            When auto-filling forms, our extension may send form field metadata (such as field labels,
+            names, and types) to our AI service to better identify complex or non-standard form fields.
+            This data:
+          </p>
+          <ul>
+            <li>Does NOT include your personal answers or filled values</li>
+            <li>Is processed through Vercel AI Gateway with Zero Data Retention (ZDR)</li>
+            <li>Is NOT stored or used for AI model training</li>
+            <li>Is transmitted securely via encrypted connections</li>
+          </ul>
+
+          <h3>LinkedIn Profile Processing</h3>
+          <p>
+            When you import your LinkedIn profile, you may choose to use AI-assisted data cleaning
+            to normalize and structure your information. If you opt-in to this feature:
+          </p>
+          <ul>
+            <li>Your profile data (name, work history, education) is sent to our AI service</li>
+            <li>Processing occurs in real-time with no data retention</li>
+            <li>You will be asked for explicit consent before any AI processing</li>
+            <li>A local-only processing option is available if you prefer not to use AI</li>
+          </ul>
+
+          <h3>Data Processing Locations</h3>
+          <p>
+            AI processing may occur in data centers located in the United States. Vercel is certified
+            under the EU-US Data Privacy Framework (DPF), ensuring adequate protection for data
+            transfers from the EU/EEA.
+          </p>
 
           <h2>Data Retention</h2>
           <p>

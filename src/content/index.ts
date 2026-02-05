@@ -68,6 +68,7 @@ export class AutoFiller {
       onSave: () => this.detectFieldsForWidget(),
       onFill: (animated, onProgress) => this.fillAndReturnCount(animated, onProgress),
       onConfirm: (fields) => this.handleConfirmAndSubmit(fields),
+      getSiteKey: () => this.siteKey,
     })
 
     this.setupRecorderCallbacks()

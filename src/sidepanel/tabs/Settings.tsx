@@ -299,7 +299,7 @@ export default function Settings() {
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <h3 className="font-medium text-gray-900 mb-2">{t('settings.about')}</h3>
         <p className="text-xs text-gray-500">
-          AutoFiller v1.0.0
+          OneFillr v1.0.0
         </p>
         <p className="text-xs text-gray-500 mt-1">
           {t('settings.aboutDesc')}

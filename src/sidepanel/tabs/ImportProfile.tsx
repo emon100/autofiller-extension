@@ -1,16 +1,20 @@
-import { useState, useRef } from 'react'
-import { Upload, Linkedin, CheckCircle2, AlertCircle, Loader2, ExternalLink, RefreshCw } from 'lucide-react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { Upload, Linkedin, CheckCircle2, AlertCircle, Loader2, ExternalLink, RefreshCw, Shield, Sparkles, HardDrive } from 'lucide-react'
 import { ResumeParser, resumeParser } from '@/profileParser'
 import { storage } from '@/storage'
 import type { ParsedProfile, AnswerValue, ExperienceEntry } from '@/types'
 
-type ImportStatus = 'idle' | 'parsing' | 'previewing' | 'importing' | 'success' | 'error'
+type ImportStatus = 'idle' | 'checking' | 'parsing' | 'previewing' | 'importing' | 'success' | 'error' | 'consent'
 type ImportMode = 'resume' | 'linkedin'
 
 interface ImportResult {
   answersAdded: number
   answersSkipped: number
   experiencesAdded: number
+}
+
+function isLinkedInProfileUrl(url: string): boolean {
+  return /linkedin\.com\/in\//.test(url)
 }
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -25,7 +29,93 @@ export default function ImportProfile(): React.ReactElement {
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [linkedinUrl, setLinkedinUrl] = useState('')
   const [linkedinOpened, setLinkedinOpened] = useState(false)
+  const [linkedinPageReady, setLinkedinPageReady] = useState(false)
+  const [activeTabLinkedIn, setActiveTabLinkedIn] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Check if the current active tab is a LinkedIn profile page
+  const checkActiveTab = useCallback(async () => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      if (tab?.url && isLinkedInProfileUrl(tab.url)) {
+        setActiveTabLinkedIn(tab.url)
+        if (!linkedinUrl) {
+          setLinkedinUrl(tab.url)
+        }
+      } else {
+        setActiveTabLinkedIn(null)
+        setLinkedinPageReady(false)
+      }
+    } catch {
+      setActiveTabLinkedIn(null)
+    }
+  }, [linkedinUrl])
+
+  // Check if the LinkedIn page is fully loaded
+  const checkLinkedInPageReady = useCallback(async (): Promise<boolean> => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      if (!tab?.id || !tab.url || !isLinkedInProfileUrl(tab.url)) {
+        return false
+      }
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'checkLinkedInReady' })
+      return response?.ready === true
+    } catch {
+      return false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (mode === 'linkedin' && status === 'idle') {
+      checkActiveTab()
+    }
+  }, [mode, status, checkActiveTab])
+
+  // Auto-check LinkedIn page ready status after opening
+  useEffect(() => {
+    // Only start checking when linkedinOpened becomes true and we're in idle state
+    if (!linkedinOpened) return
+    // Don't restart if already checking or in another state
+    if (status !== 'idle') return
+    // Don't restart if already marked as ready
+    if (linkedinPageReady) return
+
+    setStatus('checking')
+
+    let cancelled = false
+    let attempts = 0
+    const maxAttempts = 30 // 30 seconds max
+
+    const pollPageReady = async () => {
+      if (cancelled) return
+
+      const ready = await checkLinkedInPageReady()
+      if (cancelled) return
+
+      if (ready) {
+        setLinkedinPageReady(true)
+        setStatus('idle')
+        return
+      }
+
+      attempts++
+      if (attempts < maxAttempts) {
+        setTimeout(pollPageReady, 1000)
+      } else {
+        // Timeout - allow user to try anyway
+        setStatus('idle')
+      }
+    }
+
+    // Start polling after a short delay to let the page start loading
+    const timer = setTimeout(pollPageReady, 1500)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedinOpened, checkLinkedInPageReady])
 
   function showError(message: string): void {
     setError(message)
@@ -72,7 +162,14 @@ export default function ImportProfile(): React.ReactElement {
     setError(null)
   }
 
-  async function parseLinkedInPage(): Promise<void> {
+  // Show consent dialog before parsing
+  function handleParseClick(): void {
+    setStatus('consent')
+    setError(null)
+  }
+
+  // Proceed with parsing after consent
+  async function parseLinkedInPage(useAI: boolean): Promise<void> {
     setStatus('parsing')
     setError(null)
 
@@ -80,7 +177,10 @@ export default function ImportProfile(): React.ReactElement {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
       if (!tab?.id) throw new Error('No active tab found')
 
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'parseLinkedInProfile' })
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        action: 'parseLinkedInProfile',
+        useLLMCleaning: useAI
+      })
       if (!response?.success) throw new Error(response?.error || 'Failed to parse LinkedIn profile')
 
       setParsedProfile(response.profile)
@@ -144,6 +244,8 @@ export default function ImportProfile(): React.ReactElement {
     setParsedProfile(null)
     setImportResult(null)
     setLinkedinOpened(false)
+    setLinkedinPageReady(false)
+    setActiveTabLinkedIn(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -157,7 +259,7 @@ export default function ImportProfile(): React.ReactElement {
         <p className="text-sm text-gray-500">Import from resume or LinkedIn</p>
       </div>
 
-      {status === 'idle' && (
+      {(status === 'idle' || status === 'checking') && (
         <div className="space-y-4">
           <div className="flex rounded-lg bg-gray-100 p-1">
             <ModeTab label="Resume" active={mode === 'resume'} onClick={() => setMode('resume')} />
@@ -187,38 +289,146 @@ export default function ImportProfile(): React.ReactElement {
               <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl">
                 <Linkedin className="w-6 h-6 text-blue-600 flex-shrink-0" />
                 <p className="text-xs text-blue-700">
-                  Enter your LinkedIn profile URL, open it, then click "Parse" to import.
+                  {activeTabLinkedIn
+                    ? 'LinkedIn profile detected! Click Parse to import.'
+                    : 'Enter your LinkedIn profile URL, open it, then click "Parse" to import.'}
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  value={linkedinUrl}
-                  onChange={(e) => setLinkedinUrl(e.target.value)}
-                  placeholder="linkedin.com/in/yourname"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-
-                {error && <p className="text-xs text-red-600">{error}</p>}
-
-                {!linkedinOpened ? (
-                  <ActionButton color="blue" icon={ExternalLink} onClick={openLinkedInProfile}>
-                    Open LinkedIn Profile
-                  </ActionButton>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-xs text-green-600 text-center">
-                      LinkedIn profile opened. Make sure you're on the profile page, then click Parse.
+              {activeTabLinkedIn && !linkedinOpened ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                    <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <p className="text-xs text-green-700 truncate">
+                      {activeTabLinkedIn}
                     </p>
-                    <ActionButton color="green" icon={RefreshCw} onClick={parseLinkedInPage}>
-                      Parse LinkedIn Profile
-                    </ActionButton>
                   </div>
-                )}
-              </div>
+                  <ActionButton color="green" icon={RefreshCw} onClick={handleParseClick}>
+                    Parse LinkedIn Profile
+                  </ActionButton>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={linkedinUrl}
+                    onChange={(e) => setLinkedinUrl(e.target.value)}
+                    placeholder="linkedin.com/in/yourname"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+
+                  {error && <p className="text-xs text-red-600">{error}</p>}
+
+                  {!linkedinOpened ? (
+                    <ActionButton color="blue" icon={ExternalLink} onClick={openLinkedInProfile}>
+                      Open LinkedIn Profile
+                    </ActionButton>
+                  ) : (
+                    <div className="space-y-2">
+                      {status === 'checking' ? (
+                        <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                          <Loader2 className="w-4 h-4 text-blue-600 animate-spin flex-shrink-0" />
+                          <p className="text-xs text-blue-700">
+                            Waiting for LinkedIn page to load...
+                          </p>
+                        </div>
+                      ) : linkedinPageReady ? (
+                        <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                          <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+                          <p className="text-xs text-green-700">
+                            LinkedIn page loaded. Ready to parse!
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-amber-600 text-center">
+                          Make sure you're on a LinkedIn profile page.
+                        </p>
+                      )}
+                      <ActionButton color="green" icon={RefreshCw} onClick={handleParseClick}>
+                        Parse LinkedIn Profile
+                      </ActionButton>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
+        </div>
+      )}
+
+      {status === 'consent' && (
+        <div className="space-y-4">
+          <div className="text-center">
+            <Shield className="w-10 h-10 text-blue-500 mx-auto mb-2" />
+            <h3 className="text-base font-semibold text-gray-800">Choose Processing Method</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              How would you like to process your LinkedIn profile?
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {/* AI Processing Option */}
+            <button
+              onClick={() => parseLinkedInPage(true)}
+              className="w-full p-3 border-2 border-blue-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors text-left"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Sparkles className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-800">AI-Enhanced Processing</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Better accuracy for names, dates, and formatting
+                  </p>
+                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-xs text-amber-700">
+                      <strong>Note:</strong> Your profile data will be sent to our AI service for processing.
+                      Data is NOT stored or used for training.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </button>
+
+            {/* Local Processing Option */}
+            <button
+              onClick={() => parseLinkedInPage(false)}
+              className="w-full p-3 border-2 border-gray-200 rounded-xl hover:border-gray-400 hover:bg-gray-50/50 transition-colors text-left"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <HardDrive className="w-5 h-5 text-gray-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-800">Local Processing Only</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    All processing happens on your device
+                  </p>
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-xs text-green-700">
+                      <strong>Privacy:</strong> No data leaves your browser.
+                      Results may be less accurate for complex profiles.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <button
+            onClick={() => setStatus('idle')}
+            className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+          >
+            Cancel
+          </button>
+
+          <p className="text-xs text-gray-400 text-center">
+            By continuing, you agree to our{' '}
+            <a href="https://www.onefil.help/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              Privacy Policy
+            </a>
+          </p>
         </div>
       )}
 

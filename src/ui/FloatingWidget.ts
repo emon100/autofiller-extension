@@ -1,7 +1,8 @@
 import { WIDGET_STYLES } from './styles'
 import { showToast } from './Toast'
 import { TAXONOMY_OPTIONS } from '@/utils/typeLabels'
-import { isExtensionContextValid, ExtensionContextInvalidatedError } from '@/storage'
+import { isExtensionContextValid, ExtensionContextInvalidatedError, AuthStorage } from '@/storage'
+import { t } from '@/i18n'
 import type { FillDebugInfo } from '@/utils/logger'
 import type { FillAnimationStage } from '@/types'
 
@@ -34,6 +35,7 @@ export interface FloatingWidgetCallbacks {
   onSave?: () => DetectedField[] | Promise<DetectedField[]>
   onFill?: (animated?: boolean, onProgress?: (state: FillAnimationState) => void) => Promise<FillResult>
   onConfirm?: (fields: DetectedField[]) => Promise<void>
+  getSiteKey?: () => string
 }
 
 const ICONS = {
@@ -54,6 +56,7 @@ export class FloatingWidget {
   private fields: DetectedField[] = []
   private callbacks: FloatingWidgetCallbacks = {}
   private sidePanelOpen = false
+  private isMinimized = false
 
   private position = { right: 24, bottom: 24 }
   private isDragging = false
@@ -78,6 +81,7 @@ export class FloatingWidget {
 
   show(): void {
     if (this.container) return
+    this.checkMinimizedState()
     this.injectStyles()
     this.createContainer()
     this.render()
@@ -199,6 +203,17 @@ export class FloatingWidget {
     const arrowIcon = this.sidePanelOpen ? ICONS.chevronLeft : ICONS.chevronRight
     const buttonText = this.sidePanelOpen ? 'Close Panel' : 'Manage Database'
 
+    // Minimized state - show small button to restore
+    if (this.isMinimized) {
+      return `
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+          <button id="af-btn-restore" class="af-btn-hover" style="width: 40px; height: 40px; background: linear-gradient(to right, #3b82f6, #2563eb); border-radius: 50%; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); display: flex; align-items: center; justify-content: center; color: white; transition: transform 0.15s, box-shadow 0.15s;" title="Show OneFillr">
+            ${ICONS.sparkles}
+          </button>
+        </div>
+      `
+    }
+
     return `
       <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
         <div style="background: white; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; overflow: hidden;">
@@ -214,6 +229,10 @@ export class FloatingWidget {
             <button id="af-btn-fill" class="af-btn-hover" style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: white; background: linear-gradient(to right, #3b82f6, #2563eb); display: flex; align-items: center; gap: 8px;">
               ${ICONS.check}
               <span>Fill</span>
+            </button>
+            <div style="width: 1px; height: 24px; background: #e5e7eb;"></div>
+            <button id="af-btn-minimize" class="af-btn-hover" style="padding: 12px 10px; font-size: 14px; color: #9ca3af; display: flex; align-items: center; transition: color 0.15s;" title="Minimize OneFillr">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
             </button>
           </div>
         </div>
@@ -432,6 +451,8 @@ export class FloatingWidget {
     const doneBtn = document.getElementById('af-btn-done')
     const viewDbLink = document.getElementById('af-link-view-db')
     const closeDbBtn = document.getElementById('af-btn-close-db')
+    const minimizeBtn = document.getElementById('af-btn-minimize')
+    const restoreBtn = document.getElementById('af-btn-restore')
 
     dragHandle?.addEventListener('mousedown', (e) => this.handleMouseDown(e))
     saveBtn?.addEventListener('click', () => this.handleSave())
@@ -442,6 +463,8 @@ export class FloatingWidget {
     doneBtn?.addEventListener('click', () => this.showPhase('widget'))
     viewDbLink?.addEventListener('click', (e) => { e.preventDefault(); this.openSidePanel() })
     closeDbBtn?.addEventListener('click', () => this.showPhase('widget'))
+    minimizeBtn?.addEventListener('click', () => this.minimize())
+    restoreBtn?.addEventListener('click', () => this.restore())
 
     document.querySelectorAll('[data-delete-field]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -560,6 +583,11 @@ export class FloatingWidget {
             this.updateFillAnimationState({ stage: 'done', progress: 100 })
             showToast(`Filled ${count} fields successfully!`, 'success')
 
+            // Check if user is logged in, if not, prompt to login for AI features
+            this.checkAndPromptLogin()
+            // Prompt to enable autofill for this site if not enabled
+            this.checkAndPromptAutofill()
+
             // Return to widget after showing complete state
             setTimeout(() => {
               this.showPhase('widget')
@@ -602,6 +630,11 @@ export class FloatingWidget {
             `
             fillBtn.style.background = 'linear-gradient(to right, #22c55e, #10b981)'
             showToast(`Filled ${count} fields successfully!`, 'success')
+
+            // Check if user is logged in, if not, prompt to login for AI features
+            this.checkAndPromptLogin()
+            // Prompt to enable autofill for this site if not enabled
+            this.checkAndPromptAutofill()
 
             setTimeout(() => {
               fillBtn.innerHTML = originalContent
@@ -666,6 +699,79 @@ export class FloatingWidget {
     }
     
     return 'No matching fields found. Check console for debug details.'
+  }
+
+  private async checkAndPromptLogin(): Promise<void> {
+    try {
+      const authStorage = new AuthStorage()
+      const authState = await authStorage.getAuthState()
+
+      // If user is not logged in, show login prompt after a delay
+      if (!authState?.accessToken) {
+        setTimeout(() => {
+          showToast(t('toast.loginForAi'), 'info', {
+            action: {
+              label: t('toast.loginAction'),
+              onClick: () => {
+                // Open side panel for login
+                chrome.runtime.sendMessage({ action: 'openSidePanel' }).catch(() => {
+                  // Fallback: show hint to click extension icon
+                  showToast(t('toast.sidePanelHint'), 'info')
+                })
+              }
+            }
+          })
+        }, 2000)
+      }
+    } catch {
+      // Ignore errors - don't disrupt the fill success flow
+    }
+  }
+
+  private async checkAndPromptAutofill(): Promise<void> {
+    try {
+      const siteKey = this.callbacks.getSiteKey?.()
+      if (!siteKey) return
+
+      // Check if autofill is already enabled for this site
+      const result = await chrome.storage.local.get('siteSettings')
+      const allSettings = result.siteSettings || {}
+      const siteSettings = allSettings[siteKey]
+
+      // If autofill is already enabled or user has explicitly configured this site, don't prompt
+      if (siteSettings?.autofillEnabled) return
+
+      // Show prompt to enable autofill for this site
+      setTimeout(() => {
+        showToast(t('toast.enableAutofillPrompt'), 'info', {
+          action: {
+            label: t('toast.enableAutofillAction'),
+            onClick: async () => {
+              try {
+                const result = await chrome.storage.local.get('siteSettings')
+                const allSettings = result.siteSettings || {}
+                const current = allSettings[siteKey] || {
+                  siteKey,
+                  recordEnabled: true,
+                  autofillEnabled: false,
+                  createdAt: Date.now(),
+                  updatedAt: Date.now(),
+                }
+                current.autofillEnabled = true
+                current.updatedAt = Date.now()
+                allSettings[siteKey] = current
+                await chrome.storage.local.set({ siteSettings: allSettings })
+                showToast(t('toast.autofillEnabled'), 'success')
+              } catch {
+                showToast('Failed to enable autofill', 'warning')
+              }
+            }
+          }
+        })
+      }, 2500) // Show after login prompt
+    } catch {
+      // Ignore errors - don't disrupt the fill success flow
+    }
   }
 
   private async handleConfirm(): Promise<void> {
@@ -738,6 +844,36 @@ export class FloatingWidget {
   setSidePanelOpen(isOpen: boolean): void {
     this.sidePanelOpen = isOpen
     if (this.container) this.render()
+  }
+
+  private minimize(): void {
+    this.isMinimized = true
+    this.render()
+    // Save minimized state for this session
+    try {
+      sessionStorage.setItem('af-widget-minimized', 'true')
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  private restore(): void {
+    this.isMinimized = false
+    this.render()
+    try {
+      sessionStorage.removeItem('af-widget-minimized')
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  // Check if widget was minimized in this session
+  checkMinimizedState(): void {
+    try {
+      this.isMinimized = sessionStorage.getItem('af-widget-minimized') === 'true'
+    } catch {
+      this.isMinimized = false
+    }
   }
 
   private escapeHtml(text: string): string {
