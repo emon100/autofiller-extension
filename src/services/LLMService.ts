@@ -7,6 +7,12 @@ import { ExperienceGroupType, LinkedInProfile } from '@/types'
 import { parseJSONSafe } from '@/utils/jsonRepair'
 import { isLLMEnabled, callLLMWithText } from '@/profileParser/llmHelpers'
 
+export interface AIFillResult {
+  fieldId: string
+  value: string
+  confidence: number
+}
+
 export interface AddButtonDecision {
   shouldAdd: boolean
   reason: string
@@ -267,6 +273,202 @@ Return ONLY valid JSON in this exact format:
           })),
       skills: cleaned.skills?.length ? cleaned.skills : original.skills,
     }
+  }
+
+  /**
+   * AI SuperFill: use LLM to fill remaining empty fields
+   * Takes user profile context and unfilled field descriptions
+   */
+  async superFillFields(context: {
+    userProfile: Record<string, string>
+    experiences: Array<{ type: string; fields: Record<string, string> }>
+    unfilledFields: Array<{
+      fieldId: string
+      label: string
+      fieldType: string // 'text' | 'textarea' | 'select' | 'checkbox' | 'radio'
+      placeholder?: string
+      options?: string[] // for select/radio
+      sectionTitle?: string
+    }>
+  }): Promise<AIFillResult[]> {
+    const enabled = await isLLMEnabled()
+    if (!enabled) return []
+
+    if (context.unfilledFields.length === 0) return []
+
+    const prompt = this.buildSuperFillPrompt(context)
+
+    try {
+      const response = await callLLMWithText(prompt, {
+        systemPrompt: 'You are a helpful assistant filling out a job application form. Respond with valid JSON only. Be concise and professional.',
+        maxTokens: 2000,
+        temperature: 0.1,
+      })
+      return this.parseSuperFillResponse(response, context.unfilledFields)
+    } catch (error) {
+      console.error('[LLMService] SuperFill error:', error)
+      return []
+    }
+  }
+
+  /**
+   * AI fill a single field using LLM
+   */
+  async fillSingleField(context: {
+    userProfile: Record<string, string>
+    experiences: Array<{ type: string; fields: Record<string, string> }>
+    field: {
+      label: string
+      fieldType: string
+      placeholder?: string
+      options?: string[]
+      sectionTitle?: string
+      surroundingText?: string
+    }
+  }): Promise<string | null> {
+    const enabled = await isLLMEnabled()
+    if (!enabled) return null
+
+    const prompt = this.buildSingleFieldPrompt(context)
+
+    try {
+      const response = await callLLMWithText(prompt, {
+        systemPrompt: 'You are a helpful assistant filling out a job application form. Respond with valid JSON only.',
+        maxTokens: 500,
+        temperature: 0.3,
+      })
+      return this.parseSingleFieldResponse(response)
+    } catch (error) {
+      console.error('[LLMService] Single field fill error:', error)
+      return null
+    }
+  }
+
+  private buildSuperFillPrompt(context: {
+    userProfile: Record<string, string>
+    experiences: Array<{ type: string; fields: Record<string, string> }>
+    unfilledFields: Array<{
+      fieldId: string
+      label: string
+      fieldType: string
+      placeholder?: string
+      options?: string[]
+      sectionTitle?: string
+    }>
+  }): string {
+    const profileStr = Object.entries(context.userProfile)
+      .map(([k, v]) => `  ${k}: ${v}`)
+      .join('\n')
+
+    const expStr = context.experiences
+      .map(e => `  [${e.type}] ${Object.entries(e.fields).map(([k, v]) => `${k}=${v}`).join(', ')}`)
+      .join('\n')
+
+    const fieldsStr = context.unfilledFields
+      .map(f => {
+        let desc = `  - id: "${f.fieldId}", label: "${f.label}", type: ${f.fieldType}`
+        if (f.placeholder) desc += `, placeholder: "${f.placeholder}"`
+        if (f.options?.length) desc += `, options: [${f.options.slice(0, 20).map(o => `"${o}"`).join(', ')}]`
+        if (f.sectionTitle) desc += `, section: "${f.sectionTitle}"`
+        return desc
+      })
+      .join('\n')
+
+    return `Fill out the remaining empty fields in a job application form.
+
+User Profile:
+${profileStr}
+
+Experiences:
+${expStr || '  (none)'}
+
+Unfilled Fields:
+${fieldsStr}
+
+Rules:
+1. For select/radio fields, the value MUST match one of the provided options exactly.
+2. For text fields, provide appropriate professional values based on the user's profile.
+3. For textarea fields (like "Why do you want to work here?"), write a brief, professional, personalized answer (2-3 sentences).
+4. If you cannot determine a reasonable value, set confidence to 0.
+5. For questions about salary, set confidence to 0 (let user decide).
+6. For "How did you hear about us" type questions, use "Online Search" or similar.
+
+Return JSON array:
+[
+  { "fieldId": "...", "value": "...", "confidence": 0.0-1.0 }
+]`
+  }
+
+  private buildSingleFieldPrompt(context: {
+    userProfile: Record<string, string>
+    experiences: Array<{ type: string; fields: Record<string, string> }>
+    field: {
+      label: string
+      fieldType: string
+      placeholder?: string
+      options?: string[]
+      sectionTitle?: string
+      surroundingText?: string
+    }
+  }): string {
+    const profileStr = Object.entries(context.userProfile)
+      .map(([k, v]) => `  ${k}: ${v}`)
+      .join('\n')
+
+    const expStr = context.experiences
+      .map(e => `  [${e.type}] ${Object.entries(e.fields).map(([k, v]) => `${k}=${v}`).join(', ')}`)
+      .join('\n')
+
+    const f = context.field
+    let fieldDesc = `Label: "${f.label}", Type: ${f.fieldType}`
+    if (f.placeholder) fieldDesc += `, Placeholder: "${f.placeholder}"`
+    if (f.options?.length) fieldDesc += `, Options: [${f.options.slice(0, 20).map(o => `"${o}"`).join(', ')}]`
+    if (f.sectionTitle) fieldDesc += `, Section: "${f.sectionTitle}"`
+    if (f.surroundingText) fieldDesc += `, Context: "${f.surroundingText.slice(0, 200)}"`
+
+    return `Fill this single form field in a job application.
+
+User Profile:
+${profileStr}
+
+Experiences:
+${expStr || '  (none)'}
+
+Field: ${fieldDesc}
+
+Rules:
+1. For select/radio, value MUST match one of the options exactly.
+2. For textarea (open-ended questions like "Why are you interested?"), write a professional, personalized answer (2-3 sentences).
+3. Use the user's profile and experience to personalize the answer.
+
+Return JSON:
+{ "value": "...", "confidence": 0.0-1.0 }`
+  }
+
+  private parseSuperFillResponse(
+    response: string,
+    fields: Array<{ fieldId: string }>
+  ): AIFillResult[] {
+    const parsed = parseJSONSafe<AIFillResult[]>(response, [])
+    if (!Array.isArray(parsed)) return []
+
+    // Validate that fieldIds match
+    const validIds = new Set(fields.map(f => f.fieldId))
+    return parsed
+      .filter(r => validIds.has(r.fieldId) && r.value && r.confidence > 0)
+      .map(r => ({
+        fieldId: r.fieldId,
+        value: String(r.value),
+        confidence: Math.max(0, Math.min(1, r.confidence || 0)),
+      }))
+  }
+
+  private parseSingleFieldResponse(response: string): string | null {
+    const parsed = parseJSONSafe<{ value?: string; confidence?: number }>(response, {})
+    if (!parsed.value || (parsed.confidence !== undefined && parsed.confidence < 0.3)) {
+      return null
+    }
+    return String(parsed.value)
   }
 
   private extractFirstName(fullName: string): string {

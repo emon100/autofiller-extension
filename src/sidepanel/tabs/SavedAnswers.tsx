@@ -1,8 +1,22 @@
-import { useState, useEffect } from 'react'
-import { ChevronDown, User, GraduationCap, AlertTriangle, Search, Pencil, Trash2, X, Check, Briefcase, AlertCircle, CheckCircle2, Copy } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { ChevronDown, User, GraduationCap, AlertTriangle, Search, Pencil, Trash2, X, Check, Briefcase, AlertCircle, CheckCircle2, Copy, ArrowRight, UserCircle, Plus, Upload } from 'lucide-react'
+import ProfileImport from '../components/ProfileImport'
 import { getTypeLabel } from '@/utils/typeLabels'
 import { t } from '@/i18n'
+import { profileStorage } from '@/storage'
+import type { Profile } from '@/storage'
 import type { AnswerValue, Taxonomy, ExperienceEntry, ExperienceGroupType } from '@/types'
+
+// Color palette for duplicate groups
+const DUPLICATE_COLORS = [
+  { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', ring: 'ring-red-300' },
+  { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', ring: 'ring-orange-300' },
+  { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', ring: 'ring-yellow-300' },
+  { bg: 'bg-lime-50', border: 'border-lime-200', text: 'text-lime-700', ring: 'ring-lime-300' },
+  { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-700', ring: 'ring-cyan-300' },
+  { bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700', ring: 'ring-violet-300' },
+  { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700', ring: 'ring-pink-300' },
+]
 
 interface CategoryConfig {
   name: string
@@ -36,23 +50,49 @@ const CATEGORIES: CategoryConfig[] = [
 
 const CORE_FIELDS = ['FULL_NAME', 'EMAIL', 'PHONE', 'CITY', 'SCHOOL', 'DEGREE'] as Taxonomy[]
 
-function ProfileCompleteness({ answers }: { answers: AnswerValue[] }) {
+interface ProfileCompletenessProps {
+  answers: AnswerValue[]
+  onSelectAnswer?: (keepId: string, deleteIds: string[]) => Promise<void>
+  onEditAnswer?: (id: string, newValue: string) => Promise<void>
+}
+
+function ProfileCompleteness({ answers, onSelectAnswer, onEditAnswer }: ProfileCompletenessProps) {
+  const [expandedDuplicate, setExpandedDuplicate] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState('')
+
   const filledTypes = new Set(answers.map(a => a.type))
   const missing = CORE_FIELDS.filter(f => !filledTypes.has(f))
-  const filled = CORE_FIELDS.length - missing.length
-  const percentage = Math.round((filled / CORE_FIELDS.length) * 100)
 
   // Detect duplicates: types with more than one answer
-  const typeCounts = new Map<string, number>()
-  for (const a of answers) {
-    typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1)
-  }
-  const duplicates = Array.from(typeCounts.entries())
-    .filter(([, count]) => count > 1)
-    .map(([type, count]) => ({ type, count }))
+  const duplicatesWithAnswers = useMemo(() => {
+    const typeGroups = new Map<string, AnswerValue[]>()
+    for (const a of answers) {
+      const group = typeGroups.get(a.type) || []
+      group.push(a)
+      typeGroups.set(a.type, group)
+    }
+    return Array.from(typeGroups.entries())
+      .filter(([, group]) => group.length > 1)
+      .map(([type, group], index) => ({
+        type,
+        count: group.length,
+        answers: group,
+        colorIndex: index % DUPLICATE_COLORS.length,
+      }))
+  }, [answers])
 
   const isComplete = missing.length === 0
-  const hasDuplicates = duplicates.length > 0
+  const hasDuplicates = duplicatesWithAnswers.length > 0
+
+  async function handleSelectAnswer(keepId: string, duplicateType: string) {
+    if (!onSelectAnswer) return
+    const duplicateInfo = duplicatesWithAnswers.find(d => d.type === duplicateType)
+    if (!duplicateInfo) return
+    const deleteIds = duplicateInfo.answers.filter(a => a.id !== keepId).map(a => a.id)
+    await onSelectAnswer(keepId, deleteIds)
+    setExpandedDuplicate(null)
+  }
 
   if (isComplete && !hasDuplicates) {
     return (
@@ -65,49 +105,121 @@ function ProfileCompleteness({ answers }: { answers: AnswerValue[] }) {
 
   return (
     <div className="space-y-2 mb-3">
-      {/* Completeness card */}
+      {/* Completeness card - soft auto-learn message */}
       {!isComplete && (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0" />
-              <span className="text-xs font-medium text-blue-800">{t('profile.completeness')}</span>
-            </div>
-            <span className="text-xs font-bold text-blue-700">{percentage}%</span>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0" />
+            <span className="text-xs font-medium text-blue-800">{t('profile.autoLearn')}</span>
           </div>
-          <div className="h-1.5 bg-blue-200 rounded-full overflow-hidden mb-2">
-            <div
-              className="h-full bg-blue-600 rounded-full transition-all"
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
-          <p className="text-[11px] text-blue-600 mb-1">{t('profile.missing')}</p>
-          <div className="flex flex-wrap gap-1">
-            {missing.map(type => (
-              <span key={type} className="text-[11px] px-1.5 py-0.5 bg-white/70 text-blue-700 rounded">
-                {getTypeLabel(type)}
-              </span>
-            ))}
-          </div>
-          <p className="text-[11px] text-blue-500 mt-1.5">{t('profile.addInfo')}</p>
+          <p className="text-[11px] text-blue-600 mt-1.5">{t('profile.autoLearnDesc')}</p>
         </div>
       )}
 
-      {/* Duplicates warning */}
+      {/* Duplicates warning with quick fix */}
       {hasDuplicates && (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
           <div className="flex items-center gap-2 mb-2">
             <Copy className="w-4 h-4 text-amber-600 flex-shrink-0" />
             <span className="text-xs font-medium text-amber-800">{t('profile.duplicates')}</span>
           </div>
-          <div className="flex flex-wrap gap-1 mb-1.5">
-            {duplicates.map(d => (
-              <span key={d.type} className="text-[11px] px-1.5 py-0.5 bg-white/70 text-amber-700 rounded">
-                {getTypeLabel(d.type)} ({t('profile.values', { count: d.count })})
-              </span>
-            ))}
+
+          <div className="space-y-2">
+            {duplicatesWithAnswers.map((d) => {
+              const color = DUPLICATE_COLORS[d.colorIndex]
+              const isExpanded = expandedDuplicate === d.type
+
+              return (
+                <div key={d.type} className={`rounded-lg border ${color.border} ${color.bg} overflow-hidden`}>
+                  <button
+                    onClick={() => setExpandedDuplicate(isExpanded ? null : d.type)}
+                    className="w-full px-2.5 py-1.5 flex items-center justify-between text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[11px] font-medium ${color.text}`}>
+                        {getTypeLabel(d.type)}
+                      </span>
+                      <span className={`text-[10px] ${color.text} opacity-70`}>
+                        ({t('profile.values', { count: d.count })})
+                      </span>
+                    </div>
+                    <ArrowRight className={`w-3 h-3 ${color.text} transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                  </button>
+
+                  {isExpanded && (
+                    <div className="px-2.5 pb-2.5 space-y-1.5">
+                      <p className="text-[10px] text-gray-600 mb-1">{t('profile.selectOne')}</p>
+                      {d.answers.map((answer) => (
+                        <div key={answer.id}>
+                          {editingId === answer.id ? (
+                            <div className="flex items-center gap-1.5 p-2 bg-white rounded border border-blue-300">
+                              <input
+                                type="text"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                className="flex-1 min-w-0 px-1.5 py-0.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && onEditAnswer) {
+                                    onEditAnswer(answer.id, editValue)
+                                    setEditingId(null)
+                                  }
+                                  if (e.key === 'Escape') setEditingId(null)
+                                }}
+                              />
+                              <button
+                                onClick={() => {
+                                  if (onEditAnswer) {
+                                    onEditAnswer(answer.id, editValue)
+                                    setEditingId(null)
+                                  }
+                                }}
+                                className="p-1 text-green-600 hover:bg-green-100 rounded"
+                              >
+                                <Check className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="p-1 text-gray-500 hover:bg-gray-100 rounded"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div
+                              className="flex items-center gap-2 p-2 bg-white rounded border border-gray-200 hover:border-blue-300 cursor-pointer group"
+                              onClick={() => handleSelectAnswer(answer.id, d.type)}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-gray-800 truncate">{answer.value}</p>
+                              </div>
+                              <button
+                                className="text-[10px] px-1.5 py-0.5 text-gray-500 hover:text-blue-600 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingId(answer.id)
+                                  setEditValue(answer.value)
+                                }}
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                              <button
+                                className="text-[10px] px-2 py-0.5 bg-blue-600 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                {t('profile.keep')}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
-          <p className="text-[11px] text-amber-600">{t('profile.duplicatesHint')}</p>
+
+          <p className="text-[11px] text-amber-600 mt-2">{t('profile.duplicatesHint')}</p>
         </div>
       )}
     </div>
@@ -121,24 +233,74 @@ export default function SavedAnswers() {
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [editingAnswer, setEditingAnswer] = useState<AnswerValue | null>(null)
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [activeProfileId, setActiveProfileId] = useState('default')
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [newProfileName, setNewProfileName] = useState('')
+  const [creatingProfile, setCreatingProfile] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+
+  useEffect(() => {
+    loadProfiles()
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [activeProfileId])
+
+  async function loadProfiles() {
+    try {
+      await profileStorage.migrateIfNeeded()
+      const allProfiles = await profileStorage.getAll()
+      setProfiles(allProfiles)
+      const active = await profileStorage.getActiveId()
+      setActiveProfileId(active)
+    } catch {
+      setProfiles([])
+    }
+  }
 
   async function loadData() {
     try {
+      const answersKey = profileStorage.getAnswersKey(activeProfileId)
+      const experiencesKey = profileStorage.getExperiencesKey(activeProfileId)
       const [answersResult, experiencesResult] = await Promise.all([
-        chrome.storage.local.get('answers'),
-        chrome.storage.local.get('experiences'),
+        chrome.storage.local.get(answersKey),
+        chrome.storage.local.get(experiencesKey),
       ])
-      setAnswers(Object.values(answersResult.answers || {}))
-      setExperiences(Object.values(experiencesResult.experiences || {}))
+      setAnswers(Object.values(answersResult[answersKey] || {}))
+      setExperiences(Object.values(experiencesResult[experiencesKey] || {}))
     } catch {
       setAnswers([])
       setExperiences([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleSwitchProfile(profileId: string) {
+    await profileStorage.setActiveId(profileId)
+    setActiveProfileId(profileId)
+    setShowProfileMenu(false)
+    setLoading(true)
+  }
+
+  async function handleCreateProfile() {
+    if (!newProfileName.trim()) return
+    const profile = await profileStorage.create(newProfileName.trim())
+    setProfiles(prev => [...prev, profile])
+    setNewProfileName('')
+    setCreatingProfile(false)
+    await handleSwitchProfile(profile.id)
+  }
+
+  async function handleDeleteProfile(profileId: string) {
+    if (profileId === 'default') return
+    if (!confirm(t('profile.deleteConfirm'))) return
+    await profileStorage.delete(profileId)
+    setProfiles(prev => prev.filter(p => p.id !== profileId))
+    if (activeProfileId === profileId) {
+      await handleSwitchProfile('default')
     }
   }
 
@@ -165,49 +327,91 @@ export default function SavedAnswers() {
           a.value.toLowerCase().includes(query)
         )
       })
+      .sort((a, b) => {
+        // Sort by type first so same-type fields are grouped together
+        if (a.type !== b.type) return a.type.localeCompare(b.type)
+        return b.updatedAt - a.updatedAt
+      })
   }
 
   async function handleToggleAutofill(id: string, allowed: boolean) {
-    const result = await chrome.storage.local.get('answers')
-    const storedAnswers = result.answers || {}
+    const key = profileStorage.getAnswersKey(activeProfileId)
+    const result = await chrome.storage.local.get(key)
+    const storedAnswers = result[key] || {}
     if (storedAnswers[id]) {
       storedAnswers[id].autofillAllowed = allowed
       storedAnswers[id].updatedAt = Date.now()
-      await chrome.storage.local.set({ answers: storedAnswers })
+      await chrome.storage.local.set({ [key]: storedAnswers })
       loadData()
     }
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this answer?')) return
-    const result = await chrome.storage.local.get('answers')
-    const storedAnswers = result.answers || {}
+    const key = profileStorage.getAnswersKey(activeProfileId)
+    const result = await chrome.storage.local.get(key)
+    const storedAnswers = result[key] || {}
     delete storedAnswers[id]
-    await chrome.storage.local.set({ answers: storedAnswers })
+    await chrome.storage.local.set({ [key]: storedAnswers })
     loadData()
   }
 
   async function handleDeleteExperience(id: string) {
     if (!confirm('Delete this experience?')) return
-    const result = await chrome.storage.local.get('experiences')
-    const storedExperiences = result.experiences || {}
+    const key = profileStorage.getExperiencesKey(activeProfileId)
+    const result = await chrome.storage.local.get(key)
+    const storedExperiences = result[key] || {}
     delete storedExperiences[id]
-    await chrome.storage.local.set({ experiences: storedExperiences })
+    await chrome.storage.local.set({ [key]: storedExperiences })
     loadData()
   }
 
   async function handleSaveEdit(id: string, newValue: string) {
-    const result = await chrome.storage.local.get('answers')
-    const storedAnswers = result.answers || {}
+    const key = profileStorage.getAnswersKey(activeProfileId)
+    const result = await chrome.storage.local.get(key)
+    const storedAnswers = result[key] || {}
     if (storedAnswers[id]) {
       storedAnswers[id].value = newValue
       storedAnswers[id].display = newValue
       storedAnswers[id].updatedAt = Date.now()
-      await chrome.storage.local.set({ answers: storedAnswers })
+      await chrome.storage.local.set({ [key]: storedAnswers })
       loadData()
     }
     setEditingAnswer(null)
   }
+
+  async function handleSelectAnswer(_keepId: string, deleteIds: string[]) {
+    const key = profileStorage.getAnswersKey(activeProfileId)
+    const result = await chrome.storage.local.get(key)
+    const storedAnswers = result[key] || {}
+    for (const id of deleteIds) {
+      delete storedAnswers[id]
+    }
+    await chrome.storage.local.set({ [key]: storedAnswers })
+    loadData()
+  }
+
+  // Build duplicate color map for answers
+  const duplicateColorMap = useMemo(() => {
+    const typeGroups = new Map<string, AnswerValue[]>()
+    for (const a of answers) {
+      const group = typeGroups.get(a.type) || []
+      group.push(a)
+      typeGroups.set(a.type, group)
+    }
+
+    const colorMap = new Map<string, number>()
+    let colorIndex = 0
+    for (const [, group] of typeGroups) {
+      if (group.length > 1) {
+        for (const a of group) {
+          colorMap.set(a.id, colorIndex % DUPLICATE_COLORS.length)
+        }
+        colorIndex++
+      }
+    }
+    return colorMap
+  }, [answers])
 
   function getExperiencesByType(type: ExperienceGroupType): ExperienceEntry[] {
     return experiences
@@ -234,6 +438,103 @@ export default function SavedAnswers() {
 
   return (
     <div className="space-y-2">
+      {/* Profile Selector */}
+      <div className="relative">
+        <button
+          onClick={() => setShowProfileMenu(!showProfileMenu)}
+          className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <UserCircle className="w-4 h-4 text-blue-500" />
+            <span className="text-sm font-medium text-gray-700">
+              {profiles.find(p => p.id === activeProfileId)?.name || 'Default'}
+            </span>
+          </div>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
+        </button>
+
+        {showProfileMenu && (
+          <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+            {profiles.map((profile) => (
+              <div
+                key={profile.id}
+                className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-blue-50 ${
+                  profile.id === activeProfileId ? 'bg-blue-50' : ''
+                }`}
+                onClick={() => handleSwitchProfile(profile.id)}
+              >
+                <div className="flex items-center gap-2">
+                  <UserCircle className={`w-4 h-4 ${profile.id === activeProfileId ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <span className={`text-sm ${profile.id === activeProfileId ? 'text-blue-700 font-medium' : 'text-gray-700'}`}>
+                    {profile.name}
+                  </span>
+                </div>
+                {profile.id !== 'default' && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteProfile(profile.id) }}
+                    className="p-1 text-gray-400 hover:text-red-500 rounded"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            {creatingProfile ? (
+              <div className="px-3 py-2 border-t border-gray-100">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={newProfileName}
+                    onChange={(e) => setNewProfileName(e.target.value)}
+                    placeholder={t('profile.newName')}
+                    className="flex-1 min-w-0 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCreateProfile()
+                      if (e.key === 'Escape') { setCreatingProfile(false); setNewProfileName('') }
+                    }}
+                  />
+                  <button onClick={handleCreateProfile} className="p-1 text-green-600 hover:bg-green-100 rounded">
+                    <Check className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => { setCreatingProfile(false); setNewProfileName('') }} className="p-1 text-gray-500 hover:bg-gray-100 rounded">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setCreatingProfile(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 border-t border-gray-100"
+              >
+                <Plus className="w-4 h-4" />
+                {t('profile.createNew')}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Import Section */}
+      <div className="border border-gray-200 rounded-xl overflow-hidden">
+        <button
+          onClick={() => setShowImport(!showImport)}
+          className="w-full px-3 py-2 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Upload className="w-4 h-4 text-blue-500" />
+            <span className="text-sm font-medium text-gray-700">{t('tabs.import')}</span>
+          </div>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${!showImport ? '-rotate-90' : ''}`} />
+        </button>
+        {showImport && (
+          <div className="p-3 border-t border-gray-200">
+            <ProfileImport onImportComplete={() => loadData()} />
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center gap-2 mb-3">
         <div className="flex-1 relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -247,7 +548,11 @@ export default function SavedAnswers() {
         </div>
       </div>
 
-      <ProfileCompleteness answers={answers} />
+      <ProfileCompleteness
+        answers={answers}
+        onSelectAnswer={handleSelectAnswer}
+        onEditAnswer={handleSaveEdit}
+      />
 
       {!hasAnyData ? (
         <div className="text-center py-8">
@@ -384,6 +689,7 @@ export default function SavedAnswers() {
                         answer={answer}
                         isSensitive={category.isSensitive}
                         isEditing={editingAnswer?.id === answer.id}
+                        duplicateColorIndex={duplicateColorMap.get(answer.id)}
                         onToggleAutofill={(allowed) => handleToggleAutofill(answer.id, allowed)}
                         onEdit={() => setEditingAnswer(answer)}
                         onDelete={() => handleDelete(answer.id)}
@@ -412,6 +718,7 @@ interface AnswerItemProps {
   answer: AnswerValue
   isSensitive?: boolean
   isEditing: boolean
+  duplicateColorIndex?: number
   onToggleAutofill: (allowed: boolean) => void
   onEdit: () => void
   onDelete: () => void
@@ -419,8 +726,10 @@ interface AnswerItemProps {
   onCancelEdit: () => void
 }
 
-function AnswerItem({ answer, isSensitive, isEditing, onToggleAutofill, onEdit, onDelete, onSaveEdit, onCancelEdit }: AnswerItemProps) {
+function AnswerItem({ answer, isSensitive, isEditing, duplicateColorIndex, onToggleAutofill, onEdit, onDelete, onSaveEdit, onCancelEdit }: AnswerItemProps) {
   const [editValue, setEditValue] = useState(answer.value)
+  const isDuplicate = duplicateColorIndex !== undefined
+  const color = isDuplicate ? DUPLICATE_COLORS[duplicateColorIndex] : null
 
   useEffect(() => {
     setEditValue(answer.value)
@@ -462,9 +771,16 @@ function AnswerItem({ answer, isSensitive, isEditing, onToggleAutofill, onEdit, 
   }
 
   return (
-    <div className="px-3 py-2 hover:bg-gray-50 flex items-center justify-between group">
+    <div className={`px-3 py-2 hover:bg-gray-50 flex items-center justify-between group ${isDuplicate ? `${color!.bg} border-l-4 ${color!.border}` : ''}`}>
       <div className="min-w-0 flex-1">
-        <span className="text-xs text-gray-400">{getTypeLabel(answer.type)}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-gray-400">{getTypeLabel(answer.type)}</span>
+          {isDuplicate && (
+            <span className={`text-[9px] px-1 py-0.5 rounded ${color!.bg} ${color!.text} border ${color!.border}`}>
+              {t('profile.duplicate')}
+            </span>
+          )}
+        </div>
         <p className="text-sm text-gray-800 truncate">{answer.value}</p>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">

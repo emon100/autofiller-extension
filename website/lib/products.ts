@@ -35,6 +35,9 @@ export function groupProductsByPlan(products: Product[]): Plan[] {
   const planMap = new Map<string, Plan>();
 
   for (const product of products) {
+    // 跳过价格为 0 的产品（通常是 Paddle price ID 配置有误）
+    if (product.price_amount <= 0) continue;
+
     const planName = product.name.split(' ')[0];
     const planId = planName.toLowerCase();
     const priceInDollars = product.price_amount / 100;

@@ -266,6 +266,10 @@ export const messages = {
     en: 'Sign in to manage your credits and use premium features.',
     zh: '登录以管理您的积分和使用高级功能。',
   },
+  'settings.loginBonus': {
+    en: '20 free credits on first sign-up to explore all features!',
+    zh: '首次注册赠送 20 积分，畅享全部功能！',
+  },
   'settings.login': {
     en: 'Sign In',
     zh: '登录账户',
@@ -707,8 +711,8 @@ export const messages = {
 
   // Login prompts
   'toast.loginForAi': {
-    en: 'Sign in to try AI-enhanced filling for better accuracy!',
-    zh: '登录即可试用 AI 增强填充，获得更高准确率！',
+    en: 'Sign in to try AI-enhanced filling — 20 free credits on sign-up!',
+    zh: '登录即可试用 AI 增强填充，注册赠送 20 积分！',
   },
   'toast.loginAction': {
     en: 'Sign In',
@@ -792,6 +796,18 @@ export const messages = {
     en: 'Get Started',
     zh: '开始使用',
   },
+  'onboarding.welcome.demoStep1': {
+    en: 'Import',
+    zh: '导入',
+  },
+  'onboarding.welcome.demoStep2': {
+    en: 'Fill & Learn',
+    zh: '填充+学习',
+  },
+  'onboarding.welcome.demoStep3': {
+    en: 'Cross-platform',
+    zh: '跨平台',
+  },
 
   // Onboarding - LinkedIn Step
   'onboarding.linkedin.title': {
@@ -830,6 +846,10 @@ export const messages = {
     en: 'Cancel',
     zh: '取消',
   },
+  'onboarding.linkedin.loginForAi': {
+    en: 'Sign in to enable AI',
+    zh: '登录以启用 AI',
+  },
   'onboarding.linkedin.step1': {
     en: 'Open your LinkedIn profile',
     zh: '打开您的 LinkedIn 个人主页',
@@ -837,6 +857,10 @@ export const messages = {
   'onboarding.linkedin.open': {
     en: 'Open',
     zh: '打开',
+  },
+  'onboarding.linkedin.detecting': {
+    en: 'Waiting for LinkedIn page to load...',
+    zh: '等待 LinkedIn 页面加载中...',
   },
   'onboarding.linkedin.step2': {
     en: 'Click Parse when page loaded',
@@ -889,8 +913,8 @@ export const messages = {
     zh: '登录后即可使用 AI 简历解析',
   },
   'onboarding.resume.loginDesc': {
-    en: 'Resume parsing requires AI services. Sign in to get started.',
-    zh: '简历解析需要 AI 服务支持。请登录以开始使用。',
+    en: 'Resume parsing requires AI services. Sign in to get started — 20 free credits included!',
+    zh: '简历解析需要 AI 服务支持。注册即送 20 积分，立即开始使用！',
   },
   'onboarding.resume.loginButton': {
     en: 'Sign In',
@@ -915,6 +939,22 @@ export const messages = {
   'onboarding.resume.goSettings': {
     en: 'Go to Settings',
     zh: '前往设置',
+  },
+  'onboarding.resume.llmWarningTitle': {
+    en: 'Remote AI Processing Required',
+    zh: '需要远端 AI 处理',
+  },
+  'onboarding.resume.llmWarningDesc': {
+    en: 'Your resume will be sent to our AI service for parsing. Data is not stored or used for training.',
+    zh: '您的简历将发送到我们的 AI 服务进行解析。数据不会被存储或用于训练。',
+  },
+  'onboarding.privacy.aiRequiredLabel': {
+    en: 'Notice:',
+    zh: '注意：',
+  },
+  'onboarding.privacy.aiRequired': {
+    en: 'This feature requires sending data to AI for processing.',
+    zh: '此功能需要将数据发送到 AI 进行处理。',
   },
 
   // Onboarding - Practice Step
@@ -1053,6 +1093,100 @@ export const messages = {
   'profile.values': {
     en: '{count} values',
     zh: '{count} 个值',
+  },
+  'profile.selectOne': {
+    en: 'Click to keep one and remove others:',
+    zh: '点击选择保留一个，删除其他：',
+  },
+  'profile.keep': {
+    en: 'Keep',
+    zh: '保留',
+  },
+  'profile.duplicate': {
+    en: 'Duplicate',
+    zh: '重复',
+  },
+  'profile.autoLearn': {
+    en: 'OneFillr Auto-Learns',
+    zh: 'OneFillr 自动学习',
+  },
+  'profile.autoLearnDesc': {
+    en: "Don't worry about missing fields — OneFillr will automatically learn from the forms you fill out.",
+    zh: '不必担心缺失的字段 — OneFillr 会从您填写的表单中自动学习。',
+  },
+  'profile.editValue': {
+    en: 'Edit',
+    zh: '编辑',
+  },
+  'profile.createNew': {
+    en: 'New Profile',
+    zh: '新建 Profile',
+  },
+  'profile.newName': {
+    en: 'Profile name...',
+    zh: 'Profile 名称...',
+  },
+  'profile.deleteConfirm': {
+    en: 'Delete this profile and all its data?',
+    zh: '删除此 Profile 及其所有数据？',
+  },
+
+  // AI SuperFill
+  'aiFill.superFill': {
+    en: 'AI SuperFill',
+    zh: 'AI 超级填充',
+  },
+  'aiFill.filling': {
+    en: 'AI Filling...',
+    zh: 'AI 填充中...',
+  },
+  'aiFill.success': {
+    en: 'AI filled {count} additional fields!',
+    zh: 'AI 额外填充了 {count} 个字段！',
+  },
+  'aiFill.noFields': {
+    en: 'AI could not fill additional fields',
+    zh: 'AI 无法填充更多字段',
+  },
+  'aiFill.singleSuccess': {
+    en: 'AI filled this field',
+    zh: 'AI 已填充此字段',
+  },
+  'aiFill.singleFailed': {
+    en: 'AI could not generate a value for this field',
+    zh: 'AI 无法为此字段生成值',
+  },
+  'aiFill.loginRequired': {
+    en: 'Please sign in to use AI SuperFill',
+    zh: '请登录以使用 AI 超级填充',
+  },
+  'aiFill.insufficientCredits': {
+    en: 'Insufficient credits for AI fill',
+    zh: 'AI 填充积分不足',
+  },
+
+  // Pin Hint (side panel)
+  'pinHint.title': {
+    en: 'Pin OneFillr for quick access',
+    zh: '固定 OneFillr 以便快速访问',
+  },
+  'pinHint.desc': {
+    en: 'Click the pin icon above to keep OneFillr always visible in this panel.',
+    zh: '点击上方的固定图标，让 OneFillr 始终显示在侧边栏中。',
+  },
+
+  // Empty profile banner
+  'emptyProfile.title': {
+    en: 'Your profile is empty',
+    zh: '您的资料为空',
+  },
+  'emptyProfile.desc': {
+    en: 'Set up your profile to start auto-filling forms.',
+    zh: '配置您的个人资料，即可开始自动填充表单。',
+  },
+  'emptyProfile.startSetup': {
+    en: 'Start Setup',
+    zh: '开始设置',
   },
 } as const
 

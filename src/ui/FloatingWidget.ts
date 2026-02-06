@@ -35,6 +35,7 @@ export interface FloatingWidgetCallbacks {
   onSave?: () => DetectedField[] | Promise<DetectedField[]>
   onFill?: (animated?: boolean, onProgress?: (state: FillAnimationState) => void) => Promise<FillResult>
   onConfirm?: (fields: DetectedField[]) => Promise<void>
+  onAIFill?: () => Promise<{ count: number }>
   getSiteKey?: () => string
 }
 
@@ -71,6 +72,9 @@ export class FloatingWidget {
     currentFieldLabel: '',
     progress: 0
   }
+
+  // AI SuperFill state
+  private showAISuperFill = false
 
   constructor(callbacks: FloatingWidgetCallbacks = {}) {
     this.callbacks = callbacks
@@ -226,9 +230,9 @@ export class FloatingWidget {
               <span>Save</span>
             </button>
             <div style="width: 1px; height: 24px; background: #e5e7eb;"></div>
-            <button id="af-btn-fill" class="af-btn-hover" style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: white; background: linear-gradient(to right, #3b82f6, #2563eb); display: flex; align-items: center; gap: 8px;">
-              ${ICONS.check}
-              <span>Fill</span>
+            <button id="af-btn-fill" class="af-btn-hover" style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: white; background: ${this.showAISuperFill ? 'linear-gradient(to right, #7c3aed, #6d28d9)' : 'linear-gradient(to right, #3b82f6, #2563eb)'}; display: flex; align-items: center; gap: 8px;">
+              ${this.showAISuperFill ? ICONS.sparkles : ICONS.check}
+              <span>${this.showAISuperFill ? 'AI SuperFill' : 'Fill'}</span>
             </button>
             <div style="width: 1px; height: 24px; background: #e5e7eb;"></div>
             <button id="af-btn-minimize" class="af-btn-hover" style="padding: 12px 10px; font-size: 14px; color: #9ca3af; display: flex; align-items: center; transition: color 0.15s;" title="Minimize OneFillr">
@@ -456,7 +460,13 @@ export class FloatingWidget {
 
     dragHandle?.addEventListener('mousedown', (e) => this.handleMouseDown(e))
     saveBtn?.addEventListener('click', () => this.handleSave())
-    fillBtn?.addEventListener('click', () => this.handleFill())
+    fillBtn?.addEventListener('click', () => {
+      if (this.showAISuperFill) {
+        this.handleAIFill()
+      } else {
+        this.handleFill()
+      }
+    })
     dbLink?.addEventListener('click', (e) => { e.preventDefault(); this.openSidePanel() })
     cancelBtn?.addEventListener('click', () => this.showPhase('widget'))
     confirmBtn?.addEventListener('click', () => this.handleConfirm())
@@ -588,9 +598,20 @@ export class FloatingWidget {
             // Prompt to enable autofill for this site if not enabled
             this.checkAndPromptAutofill()
 
-            // Return to widget after showing complete state
+            // Switch to AI SuperFill mode after showing complete state
             setTimeout(() => {
+              if (this.callbacks.onAIFill) {
+                this.showAISuperFill = true
+              }
               this.showPhase('widget')
+
+              // Auto-reset AI SuperFill after 30 seconds
+              if (this.showAISuperFill) {
+                setTimeout(() => {
+                  this.showAISuperFill = false
+                  if (this.currentPhase === 'widget') this.render()
+                }, 30000)
+              }
             }, 1500)
           } else {
             const reason = this.getFailureReason(debug)
@@ -637,10 +658,25 @@ export class FloatingWidget {
             this.checkAndPromptAutofill()
 
             setTimeout(() => {
-              fillBtn.innerHTML = originalContent
-              fillBtn.style.background = 'linear-gradient(to right, #3b82f6, #2563eb)'
+              if (this.callbacks.onAIFill) {
+                this.showAISuperFill = true
+              }
+              fillBtn.innerHTML = this.showAISuperFill
+                ? `${ICONS.sparkles}<span>AI SuperFill</span>`
+                : originalContent
+              fillBtn.style.background = this.showAISuperFill
+                ? 'linear-gradient(to right, #7c3aed, #6d28d9)'
+                : 'linear-gradient(to right, #3b82f6, #2563eb)'
               fillBtn.style.opacity = '1'
               fillBtn.removeAttribute('disabled')
+
+              // Auto-reset AI SuperFill after 30 seconds
+              if (this.showAISuperFill) {
+                setTimeout(() => {
+                  this.showAISuperFill = false
+                  if (this.currentPhase === 'widget') this.render()
+                }, 30000)
+              }
             }, 1500)
           } else {
             fillBtn.innerHTML = `
@@ -674,6 +710,62 @@ export class FloatingWidget {
           showToast('Error filling fields', 'warning')
         }
       }
+    }
+  }
+
+  private async handleAIFill(): Promise<void> {
+    const fillBtn = document.getElementById('af-btn-fill')
+    if (!fillBtn) return
+
+    if (!isExtensionContextValid()) {
+      showToast('Extension updated. Please refresh the page.', 'warning')
+      return
+    }
+
+    // Show loading state
+    fillBtn.innerHTML = `
+      <span class="af-animate-spin" style="width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; display: inline-block;"></span>
+      <span>AI Filling...</span>
+    `
+    fillBtn.setAttribute('disabled', 'true')
+    fillBtn.style.opacity = '0.8'
+
+    try {
+      if (this.callbacks.onAIFill) {
+        const { count } = await this.callbacks.onAIFill()
+
+        if (count > 0) {
+          showToast(`AI filled ${count} additional fields!`, 'success')
+          fillBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
+            <span>Done!</span>
+          `
+          fillBtn.style.background = 'linear-gradient(to right, #22c55e, #10b981)'
+        } else {
+          showToast('AI could not fill additional fields', 'info')
+        }
+
+        // Reset back to normal Fill button
+        this.showAISuperFill = false
+        setTimeout(() => {
+          this.showPhase('widget')
+        }, 1500)
+      }
+    } catch (error) {
+      console.error('[AutoFiller] AI Fill error:', error)
+      this.showAISuperFill = false
+
+      if (error instanceof ExtensionContextInvalidatedError ||
+          (error instanceof Error && error.message.includes('Extension context invalidated'))) {
+        showToast('Extension updated. Please refresh the page.', 'warning')
+      } else if (error instanceof Error && error.message.includes('credits')) {
+        showToast('Insufficient credits for AI fill', 'warning')
+      } else if (error instanceof Error && error.message.includes('sign in')) {
+        showToast('Please sign in to use AI SuperFill', 'info')
+      } else {
+        showToast('AI fill failed. Try again later.', 'warning')
+      }
+      this.showPhase('widget')
     }
   }
 

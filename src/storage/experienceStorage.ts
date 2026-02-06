@@ -1,6 +1,5 @@
 import { ExperienceEntry, ExperienceGroupType } from '@/types'
-
-const STORAGE_KEY = 'experiences'
+import { profileStorage } from './profileStorage'
 
 async function getStorage<T>(key: string): Promise<T | null> {
   const result = await chrome.storage.local.get(key)
@@ -11,11 +10,17 @@ async function setStorage<T>(key: string, value: T): Promise<void> {
   await chrome.storage.local.set({ [key]: value })
 }
 
+async function getStorageKey(): Promise<string> {
+  const profileId = await profileStorage.getActiveId()
+  return profileStorage.getExperiencesKey(profileId)
+}
+
 export class ExperienceStorage {
   async save(entry: ExperienceEntry): Promise<void> {
     const entries = await this.getAllMap()
     entries[entry.id] = entry
-    await setStorage(STORAGE_KEY, entries)
+    const key = await getStorageKey()
+    await setStorage(key, entries)
   }
 
   async saveBatch(newEntries: ExperienceEntry[]): Promise<void> {
@@ -23,7 +28,8 @@ export class ExperienceStorage {
     for (const entry of newEntries) {
       entries[entry.id] = entry
     }
-    await setStorage(STORAGE_KEY, entries)
+    const key = await getStorageKey()
+    await setStorage(key, entries)
   }
 
   async getById(id: string): Promise<ExperienceEntry | null> {
@@ -58,8 +64,8 @@ export class ExperienceStorage {
   async delete(id: string): Promise<void> {
     const entries = await this.getAllMap()
     delete entries[id]
-    await setStorage(STORAGE_KEY, entries)
-    // Re-normalize priorities after deletion
+    const key = await getStorageKey()
+    await setStorage(key, entries)
     await this.normalizePriorities()
   }
 
@@ -68,7 +74,8 @@ export class ExperienceStorage {
     const filtered = Object.fromEntries(
       Object.entries(entries).filter(([, entry]) => entry.groupType !== type)
     )
-    await setStorage(STORAGE_KEY, filtered)
+    const key = await getStorageKey()
+    await setStorage(key, filtered)
   }
 
   async update(id: string, updates: Partial<Omit<ExperienceEntry, 'id'>>): Promise<void> {
@@ -92,11 +99,13 @@ export class ExperienceStorage {
         entry.updatedAt = Date.now()
       }
     }
-    await setStorage(STORAGE_KEY, entries)
+    const key = await getStorageKey()
+    await setStorage(key, entries)
   }
 
   async clearAll(): Promise<void> {
-    await setStorage(STORAGE_KEY, {})
+    const key = await getStorageKey()
+    await setStorage(key, {})
   }
 
   async getCount(): Promise<number> {
@@ -110,7 +119,8 @@ export class ExperienceStorage {
   }
 
   private async getAllMap(): Promise<Record<string, ExperienceEntry>> {
-    return (await getStorage<Record<string, ExperienceEntry>>(STORAGE_KEY)) || {}
+    const key = await getStorageKey()
+    return (await getStorage<Record<string, ExperienceEntry>>(key)) || {}
   }
 
   private async normalizePriorities(): Promise<void> {
@@ -127,7 +137,8 @@ export class ExperienceStorage {
       })
     }
 
-    await setStorage(STORAGE_KEY, entries)
+    const key = await getStorageKey()
+    await setStorage(key, entries)
   }
 }
 

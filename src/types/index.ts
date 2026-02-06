@@ -174,14 +174,14 @@ export interface FillAnimationConfig {
 
 export const DEFAULT_FILL_ANIMATION_CONFIG: FillAnimationConfig = {
   enabled: true,
-  maxDuration: 10,
-  minCharDelay: 15,
-  maxCharDelay: 60,
+  maxDuration: 4,
+  minCharDelay: 8,
+  maxCharDelay: 30,
   stageDelays: {
-    scanning: 800,
-    thinking: 1200,
+    scanning: 300,
+    thinking: 400,
   },
-  fieldDelay: 100,
+  fieldDelay: 50,
 }
 
 export type FillAnimationStage = 'idle' | 'scanning' | 'thinking' | 'filling' | 'done'

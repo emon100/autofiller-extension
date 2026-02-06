@@ -1,8 +1,11 @@
 import { AnswerValue, Observation, SiteSettings, Taxonomy, PendingObservation, ExperienceEntry, AuthState, CreditsInfo } from '@/types'
 import { ExperienceStorage, experienceStorage } from './experienceStorage'
 import { knowledgeNormalizer } from '@/services/KnowledgeNormalizer'
+import { profileStorage } from './profileStorage'
 
 export { ExperienceStorage, experienceStorage }
+export { profileStorage, ProfileStorage } from './profileStorage'
+export type { Profile } from './profileStorage'
 
 const STORAGE_KEYS = {
   ANSWERS: 'answers',
@@ -74,7 +77,8 @@ export class AnswerStorage {
     const toSave = normalize ? await knowledgeNormalizer.normalizeAnswer(answer) : answer
     const answers = await this.getAllMap()
     answers[toSave.id] = toSave
-    await setStorage(STORAGE_KEYS.ANSWERS, answers)
+    const key = await this.getStorageKey()
+    await setStorage(key, answers)
   }
 
   async getById(id: string): Promise<AnswerValue | null> {
@@ -111,7 +115,8 @@ export class AnswerStorage {
   async delete(id: string): Promise<void> {
     const answers = await this.getAllMap()
     delete answers[id]
-    await setStorage(STORAGE_KEYS.ANSWERS, answers)
+    const key = await this.getStorageKey()
+    await setStorage(key, answers)
   }
 
   async update(id: string, updates: Partial<AnswerValue>): Promise<void> {
@@ -122,8 +127,14 @@ export class AnswerStorage {
     }
   }
 
+  private async getStorageKey(): Promise<string> {
+    const profileId = await profileStorage.getActiveId()
+    return profileStorage.getAnswersKey(profileId)
+  }
+
   private async getAllMap(): Promise<Record<string, AnswerValue>> {
-    return (await getStorage<Record<string, AnswerValue>>(STORAGE_KEYS.ANSWERS)) || {}
+    const key = await this.getStorageKey()
+    return (await getStorage<Record<string, AnswerValue>>(key)) || {}
   }
 }
 
@@ -131,7 +142,8 @@ export class ObservationStorage {
   async save(observation: Observation): Promise<void> {
     const observations = await this.getAllMap()
     observations[observation.id] = observation
-    await setStorage(STORAGE_KEYS.OBSERVATIONS, observations)
+    const key = await this.getStorageKey()
+    await setStorage(key, observations)
   }
 
   async getById(id: string): Promise<Observation | null> {
@@ -160,10 +172,6 @@ export class ObservationStorage {
       .sort((a, b) => b.timestamp - a.timestamp)
   }
 
-  /**
-   * Get relevant historical examples for few-shot learning
-   * Returns high-confidence observations grouped by taxonomy type
-   */
   async getRelevantExamples(limit: number = 5): Promise<Array<{
     questionKeyId: string
     answerId: string
@@ -172,8 +180,8 @@ export class ObservationStorage {
   }>> {
     const observations = await this.getAllMap()
     return Object.values(observations)
-      .filter(o => o.confidence >= 0.8)  // Only high-confidence examples
-      .sort((a, b) => b.confidence - a.confidence)  // Highest confidence first
+      .filter(o => o.confidence >= 0.8)
+      .sort((a, b) => b.confidence - a.confidence)
       .slice(0, limit)
       .map(o => ({
         questionKeyId: o.questionKeyId,
@@ -186,7 +194,8 @@ export class ObservationStorage {
   async delete(id: string): Promise<void> {
     const observations = await this.getAllMap()
     delete observations[id]
-    await setStorage(STORAGE_KEYS.OBSERVATIONS, observations)
+    const key = await this.getStorageKey()
+    await setStorage(key, observations)
   }
 
   async clearBySite(siteKey: string): Promise<void> {
@@ -197,11 +206,18 @@ export class ObservationStorage {
         filtered[id] = obs
       }
     }
-    await setStorage(STORAGE_KEYS.OBSERVATIONS, filtered)
+    const key = await this.getStorageKey()
+    await setStorage(key, filtered)
+  }
+
+  private async getStorageKey(): Promise<string> {
+    const profileId = await profileStorage.getActiveId()
+    return profileStorage.getObservationsKey(profileId)
   }
 
   private async getAllMap(): Promise<Record<string, Observation>> {
-    return (await getStorage<Record<string, Observation>>(STORAGE_KEYS.OBSERVATIONS)) || {}
+    const key = await this.getStorageKey()
+    return (await getStorage<Record<string, Observation>>(key)) || {}
   }
 }
 
@@ -390,12 +406,13 @@ export class Storage {
   auth = new AuthStorage()
 
   async clearAll(): Promise<void> {
+    const profileId = await profileStorage.getActiveId()
     await chrome.storage.local.remove([
-      STORAGE_KEYS.ANSWERS,
-      STORAGE_KEYS.OBSERVATIONS,
+      profileStorage.getAnswersKey(profileId),
+      profileStorage.getObservationsKey(profileId),
       STORAGE_KEYS.SITE_SETTINGS,
       STORAGE_KEYS.QUESTION_KEYS,
-      'experiences',
+      profileStorage.getExperiencesKey(profileId),
     ])
     this.pendingObservations.discardAll()
   }

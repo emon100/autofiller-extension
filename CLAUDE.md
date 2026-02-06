@@ -5,168 +5,173 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Guidelines
 
 ### Code Cleanup Rule
-**Delete unused code during implementation.** No backward compatibility needed - only passing tests matter. Remove:
-- Unused imports
-- Unused variables/functions
-- Legacy modules replaced by new implementations
-- Dead code paths
+**Delete unused code during implementation.** No backward compatibility needed - only passing tests matter. Remove unused imports, variables, functions, legacy modules, and dead code paths.
+
+## Commands
+
+```bash
+npm test                          # Run all unit tests (vitest --run)
+npm test -- tests/unit/parser.test.ts  # Run a single test file
+npm run build                     # Dev build (tsc + vite two-stage)
+npm run build:prod                # Production build (minified, no sourcemaps, console stripped)
+npm run lint                      # ESLint on src/
+npm run test:e2e                  # Playwright end-to-end tests
+npm run test:ui                   # Vitest interactive UI
+```
+
+### Build Pipeline
+
+Two-stage Vite build (both stages required):
+1. **Stage 1** (default): Builds `background.js` (service worker) + `sidepanel.js` (React app) as ES modules. Also generates `sidepanel.html` and copies `public/` assets.
+2. **Stage 2** (`BUILD_TARGET=content`): Builds `content.js` as IIFE (Chrome content scripts don't support ES modules). Appends to `dist/` without clearing.
+
+Production mode (`BUILD_MODE=production`): Enables terser minification, drops `console.log/info/debug`, removes comments, mangles `_`-prefixed properties, disables sourcemaps.
+
+**Path alias**: `@/` → `src/` (configured in both `vite.config.ts` and `vitest.config.ts`)
 
 ## Project Overview
 
-**autofiller-claude** is a Chrome browser extension for auto-filling job application forms. Users fill forms once manually, and the extension learns "question semantic → answer semantic" mappings to auto-fill similar questions on any job site.
+**OneFillr** (package name: `autofiller-claude`) is a Chrome MV3 browser extension for auto-filling job application forms. Users fill forms once manually, and the extension learns "question semantic → answer semantic" mappings to auto-fill similar questions on any job site. It also supports importing profiles from LinkedIn pages and resume files (PDF/Word).
 
 ### Core Principles
 - **Speed**: Fill visible fields in 2-3 seconds, non-blocking
 - **Trust**: All actions have visible feedback (toast, badges, logs); support undo
 - **Conservative**: Low confidence = no auto-fill (suggest only); sensitive fields never auto-fill by default
 - **Two-Phase Save**: Only persist answers when form is submitted (not on blur)
-- **Compatibility**: Support React/Vue controlled inputs, custom dropdowns, open shadow DOM, same-origin iframes
+- **Compatibility**: React/Vue controlled inputs, custom dropdowns, open shadow DOM, same-origin iframes
 
 ## Tech Stack
 
 - **Extension**: Chrome Manifest V3
-- **Language**: TypeScript
-- **Testing**: Vitest
-- **UI Framework**: React + Tailwind CSS + shadcn/ui
+- **Language**: TypeScript (strict mode, target ES2020)
+- **Build**: Vite 5 with two-stage build
+- **Testing**: Vitest (happy-dom environment) + Playwright for E2E
+- **UI Framework**: React 18 + Tailwind CSS 4 + shadcn/ui + @headlessui/react
 - **Icons**: lucide-react
-- **Storage**: chrome.storage with encryption for sensitive data
+- **Storage**: chrome.storage with multi-profile isolation
+- **LLM**: Multi-provider support (OpenAI, Anthropic, DashScope, DeepSeek, Zhipu)
+- **I18n**: Custom bilingual system (English + Chinese)
+- **Auth**: Google OAuth via chrome.identity
+- **Website**: Next.js marketing site at `website/` with Supabase backend
 
 ## Architecture
 
-### Data Models (in `types/`)
+### Extension Entry Points
 
 ```
-AnswerValue         - Saved semantic answers (e.g., school name, phone)
-                      Fields: id, type, value, display, aliases[], sensitivity, autofillAllowed
-
-PendingObservation  - Temporary tracked input (before form submit)
-                      Fields: id, formId, type, value, status (pending/committed/discarded)
-
-Observation         - Committed user input record
-                      Fields: timestamp, siteKey, url, questionKeyId, answerId, confidence
-
-QuestionKey         - Cross-site reusable question signatures
-                      Fields: id, type, phrases[], sectionHints[], choiceSetHash?
-
-WidgetSignature     - Form control capability profile
-                      Fields: kind, role/attributes, interactionPlan, optionLocator?
+src/background/index.ts   → dist/background.js  (service worker, ES module)
+src/content/main.ts        → dist/content.js     (content script, IIFE)
+src/sidepanel/main.tsx     → dist/sidepanel.js   (React app, ES module)
 ```
+
+### Content Script Flow
+
+`main.ts` → creates `AutoFiller` instance (defined in `index.ts`, ~1500 lines, the central orchestrator).
+
+**AutoFiller** coordinates all content-side logic:
+1. **Scanning**: Uses `scanner/` to extract `FieldContext` from DOM (labels, attributes, options, widget signatures)
+2. **Parsing**: Uses `parser/` to classify fields into `Taxonomy` types (rule-based chain + optional LLM batch parsing)
+3. **Matching**: Looks up `AnswerValue` from storage by taxonomy type
+4. **Transforming**: Uses `transformer/` to convert between formats (date, phone, name, degree, boolean)
+5. **Filling**: Uses `executor/` to set values with proper events for React/Vue compatibility
+6. **Recording**: Uses `recorder/` for two-phase save (track on blur → commit on form submit)
+
+Additional features in AutoFiller:
+- **Dynamic form monitoring**: MutationObserver detects new fields
+- **Auto-add**: Clicks "Add" buttons to fill repeating sections (work experience, education) via LLM decision
+- **AI SuperFill**: LLM-based filling for fields that rule-based parsing can't classify
+- **Animated filling**: Typewriter effect for human-like interaction
+- **Experience mapping**: Maps form sections to stored work/education/project entries
+- **Smart widget visibility**: Only shows floating widget on detected job application pages
+
+### Background Script
+
+Routes messages between content scripts and side panel. Creates context menus ("AutoFill this form", "AI fill this field", "Open OneFillr panel"). Opens welcome page on install.
+
+### Side Panel (React)
+
+Tabbed interface: Local Knowledge, Import, This Site, Activity, Settings, Developer.
+
+Key features:
+- **Onboarding wizard**: Welcome → LinkedIn/Resume import → Practice → Features
+- **Profile switcher**: Multi-profile support with isolated data
+- **LLM settings**: Provider selection, API key, model, endpoint, thinking mode toggle
+- **Auth**: Google Sign-In with credits display
+- **Language switcher**: en/zh
 
 ### Core Modules
 
-1. **DOM Scanner** (`scanner/`) - Extract FieldContext from page
-   - labelText, sectionTitle, attributes, optionsText[]
-   - framePath (iframe), shadowPath (shadow DOM)
+| Module | Location | Purpose |
+|--------|----------|---------|
+| Scanner | `src/scanner/` | DOM scanning, label extraction, section detection, add-button detection |
+| Parser | `src/parser/` | Field classification via plugin chain (rule-based + LLM). `LLMParser.ts` is the largest (~30KB) |
+| Transformer | `src/transformer/` | Value format conversion (names, dates, phones, booleans, degrees) |
+| Executor | `src/executor/` | Fill operations: directSet, nativeSetterWithEvents, openDropdownClickOption, typeToSearchEnter |
+| Recorder | `src/recorder/` | Two-phase save: PendingObservation on blur → commit on form submit |
+| Services | `src/services/` | `LLMService` (add-more decisions, super fill, profile cleaning) + `KnowledgeNormalizer` |
+| Profile Parser | `src/profileParser/` | LinkedIn DOM parsing + Resume file parsing (PDF via pdfjs-dist, Word via mammoth) |
+| Storage | `src/storage/` | Multi-profile storage layer (answers, experiences, observations, settings, auth, credits) |
+| I18n | `src/i18n/` | 160+ translation keys, auto-detects browser language, `t(key, params?)` function |
+| UI | `src/ui/` | FloatingWidget (~42KB, multi-phase), BadgeManager, Toast, AIPromotionBubble, WidgetVisibility |
+| Utils | `src/utils/` | `llmProvider.ts` (multi-provider LLM abstraction with PII scrubbing), `authLogin.ts` (Google OAuth) |
 
-2. **Parser Framework** (`parser/`) - Extensible field classification
-   - IFieldParser interface for plugin architecture
-   - Built-in parsers: AutocompleteParser, TypeAttributeParser, NameIdParser, LabelParser
-   - LLMParser placeholder for future AI enhancement
+### Data Models (in `src/types/`)
 
-3. **Value Transformer** (`transformer/`) - Semantic value conversion
-   - Name split/merge (Full Name ↔ First + Last)
-   - Date format conversion (ISO ↔ US ↔ select ↔ split year/month)
-   - Phone format conversion (E.164 ↔ local ↔ formatted)
-   - Boolean/choice normalization (Yes/No ↔ checkbox ↔ select)
-   - Degree alias matching (Bachelor's ↔ BS ↔ 本科)
+```
+AnswerValue         - Saved semantic answers (id, type, value, display, aliases[], sensitivity, autofillAllowed)
+ExperienceEntry     - Work/education/project entries (groupType, priority, fields, startDate, endDate)
+QuestionKey         - Cross-site reusable question signatures (type, phrases[], sectionHints[])
+FieldContext        - Extracted form field info (element, labelText, sectionTitle, attributes, optionsText[], widgetSignature)
+WidgetSignature     - Form control profile (kind: text|select|checkbox|radio|combobox|date|textarea|custom)
+PendingObservation  - Temporary tracked input before form submit
+Observation         - Committed user input record
+ParsedProfile       - Imported profile from LinkedIn/resume (singleAnswers[], experiences[])
+AuthState           - Auth tokens + user info
+```
 
-4. **Fill Executor** (`executor/`) - Execute fill operations
-   - Native setter + input/change/blur events for controlled inputs
-   - Click-based flow for combobox/listbox (open → match → click)
-   - Batch execution with yield to main thread
+### Taxonomy (48 field types)
 
-5. **Recorder** (`recorder/`) - Two-phase save
-   - Phase 1: Track PendingObservation on blur/change
-   - Phase 2: Commit to storage on form submit
+**Personal**: FULL_NAME, FIRST_NAME, LAST_NAME, EMAIL, PHONE, COUNTRY_CODE, CITY, LINKEDIN, GITHUB, PORTFOLIO, SUMMARY
 
-### Taxonomy (MVP)
+**Education**: SCHOOL, DEGREE, MAJOR, GPA, GRAD_DATE, GRAD_YEAR, GRAD_MONTH
 
-**Personal**: FULL_NAME, FIRST_NAME, LAST_NAME, EMAIL, PHONE, COUNTRY_CODE, CITY, LINKEDIN, GITHUB, PORTFOLIO
+**Work**: COMPANY_NAME, JOB_TITLE, JOB_DESCRIPTION, SKILLS, WORK_AUTH, NEED_SPONSORSHIP
 
-**Education**: SCHOOL, DEGREE, MAJOR, GRAD_DATE, GRAD_YEAR, GRAD_MONTH, START_DATE, END_DATE
+**Shared**: START_DATE, END_DATE
 
-**Work**: WORK_AUTH, NEED_SPONSORSHIP
+**Sensitive** (no auto-fill): RESUME_TEXT, SALARY, EEO_*, GOV_ID, DISABILITY, VETERAN, ETHNICITY, GENDER
 
-**Sensitive** (no auto-fill): EEO_*, SALARY, GOV_ID, DISABILITY, VETERAN, ETHNICITY, GENDER
+### Storage Architecture
 
-### UI Components
+**Multi-profile isolation**: Each profile gets namespaced keys (`answers-{profileId}`, `experiences-{profileId}`, `observations-{profileId}`). Default profile auto-created. Migration from global to profile-namespaced storage exists.
 
-**Field Badge**: Inline element next to form fields showing:
-- "Filled" or "Transformed" (with source/undo)
-- "Suggested" (1-2 candidate buttons)
-- "Sensitive" (amber, confirmation required)
-- "Pending" (gray, waiting for submit)
-- Hover shows × button to clear field
+**LLM Dual Mode**:
+- **Backend API**: For logged-in users with credits (requests go through OneFillr server)
+- **Custom API (BYOK)**: Users provide their own API key/endpoint
 
-**Floating Widget**: Save Now + Fill buttons
+### Fill Execution Rules
 
-**Toast**: Feedback for record/fill actions with undo option
+- Confidence threshold: 0.75 (configurable)
+- Batch size: 5-10 fields per batch with yield between batches
+- Skip field if user activity in last 800ms
+- Retry failed fills once, then fallback to suggestion mode
+- Snapshot/restore for undo functionality
+- Never scroll or steal focus
 
 ## Demo Pages
 
-Test pages in `demo-pages/`:
-- `interactive-demo.html` - **Main test page** with all features:
-  - Quick profile loading (US/CN/International)
-  - Synonym form tests (name split, date formats, phone formats, boolean variants)
-  - Two-phase save demonstration
-  - Hover-to-clear functionality
-  - Value transformation visualization
+Test pages in `demo-pages/` — use `interactive-demo.html` as the main test page (profile loading, synonym tests, two-phase save, value transformation).
 
-## Fill Execution Rules
+## Testing
 
-- Confidence threshold: 0.75 (configurable)
-- Batch size: 5-10 fields per batch
-- Yield between batches via setTimeout/requestIdleCallback
-- Skip field if user activity in last 800ms
-- Retry failed fills once, then fallback to suggestion mode
-- Never scroll or steal focus
-
-## Commands
-
-```bash
-npm test        # Run unit tests
-npm run build   # Build extension
-```
-
-## Known Issues & TODOs
-
-### Medium Priority (Enhancements)
-
-1. **Form submit interception edge cases**
-   - May need to handle: buttons without type="submit", JavaScript-triggered submits
-   - Location: `src/content/index.ts` → `setupFormSubmitListener()`
-
-2. **Parser accuracy improvements**
-   - Some field types may still not be recognized correctly
-   - Consider adding more pattern rules or LLM-based parsing
-
-### Session Summary (2025-01-09)
-
-**Completed:**
-- ✅ Duplicate type values: Shows "Will replace: xxx" warning, replaces on confirm
-- ✅ Auto-popup on form submit: Intercepts submit, shows learning phase, then submits
-- ✅ Badge positioning: Simplified to adjacent sibling element (no observers)
-- ✅ Default settings: recordEnabled/autofillEnabled default to true
-- ✅ Delete row flicker: Fixed by direct DOM removal instead of re-render
-- ✅ Fill debug info: Added FillDebugInfo with user-friendly error messages
-- ✅ Date format fix: "2024-06" → "2024-06-01" for date inputs
-- ✅ Form Only toggle in demo page
-- ✅ Database edit UI: Added inline editing and delete buttons in side panel
-- ✅ Label extraction: Improved to find sibling labels and use name attribute as fallback
-- ✅ Learning phase diff: Only shows fields that differ from existing database values
-- ✅ Learning phase position: Bubble now appears higher (bottom: 80px) to avoid being covered
-
-**Key Files Modified:**
-- `src/ui/FloatingWidget.ts` - Learning phase conflict warnings, position adjustment
-- `src/ui/BadgeManager.ts` - Simplified positioning
-- `src/content/index.ts` - Form submit interception, conflict detection, diff-only display
-- `src/storage/index.ts` - Default settings
-- `src/scanner/index.ts` - Improved label extraction with sibling search
-- `src/sidepanel/tabs/SavedAnswers.tsx` - Added edit/delete functionality
+- **Unit tests**: `tests/unit/` — badge, executor, parser, recorder, scanner, storage, transformer
+- **E2E tests**: `tests/e2e/` — Playwright
+- **Environment**: happy-dom (lightweight DOM simulation)
+- **Coverage**: v8 provider
 
 ## Not in MVP Scope
 
 - Cross-origin iframes
-- Closed shadow DOM (future: whitelist + attachShadow hook)
+- Closed shadow DOM
 - CAPTCHA/login handling
-- Automatic file uploads (prompt only)
+- Automatic file uploads

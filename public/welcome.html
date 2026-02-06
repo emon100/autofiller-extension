@@ -31,14 +31,11 @@
       width: 64px;
       height: 64px;
       margin: 0 auto 20px;
-      background: #3b82f6;
-      border-radius: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
     }
-    .logo img { width: 40px; height: 40px; filter: brightness(10); }
+    .logo img { width: 64px; height: 64px; }
     h1 {
       font-size: 28px;
       font-weight: 700;
@@ -135,7 +132,6 @@
     }
     .fallback-hint .icon-mock {
       width: 14px; height: 14px;
-      background: #3b82f6;
       border-radius: 3px;
     }
     .error-msg {
@@ -194,11 +190,220 @@
       color: #9ca3af;
       margin-top: 24px;
     }
+
+    /* Pin Guide Card */
+    .pin-guide {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 24px;
+      margin-top: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .pin-guide-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .pin-guide-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: #eff6ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .pin-guide-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #111827;
+    }
+    .pin-guide-subtitle {
+      font-size: 13px;
+      color: #6b7280;
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+
+    /* Toolbar mockup */
+    .toolbar-mock {
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+    }
+    .toolbar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toolbar-url {
+      flex: 1;
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: #9ca3af;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .toolbar-puzzle {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .toolbar-puzzle.highlight {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+      animation: pulse-border 2s ease-in-out infinite;
+    }
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+      50% { box-shadow: 0 0 0 4px rgba(59,130,246,0.25); }
+    }
+    .toolbar-ext-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Steps under the toolbar */
+    .pin-steps {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .pin-step {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 10px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .pin-step:hover {
+      border-color: #bfdbfe;
+      background: #f0f7ff;
+    }
+    .pin-step-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #3b82f6;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .pin-step-text {
+      font-size: 12px;
+      color: #374151;
+      line-height: 1.4;
+    }
+    .pin-step-text strong {
+      color: #111827;
+    }
+
+    /* Also try: right-click tip */
+    .pin-alt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 8px 12px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #15803d;
+    }
+    .pin-alt svg {
+      flex-shrink: 0;
+    }
+
+    /* Transition: hide sections after panel opened */
+    .section-hidden {
+      display: none !important;
+    }
+    .pin-guide.pin-guide-hero {
+      margin-top: 0;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+    }
+    .pin-guide-hero .pin-guide-header {
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .pin-guide-hero .pin-guide-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+    }
+    .pin-guide-hero .pin-guide-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+    .pin-guide-hero .pin-guide-title {
+      font-size: 20px;
+    }
+    .pin-guide-hero .pin-guide-subtitle {
+      text-align: center;
+    }
+
+    /* Success check badge shown above pin guide */
+    .panel-opened-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #15803d;
+    }
+    .panel-opened-badge svg {
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="hero">
+    <div class="hero" id="heroSection">
       <div class="logo">
         <img src="icons/icon128.png" alt="OneFillr">
       </div>
@@ -221,7 +426,7 @@
       </div>
     </div>
 
-    <div class="cta-card">
+    <div class="cta-card" id="ctaSection">
       <p id="ctaDesc">Click below to open the setup panel and start configuring your profile.</p>
       <button id="ctaBtn" class="cta-btn">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -232,34 +437,92 @@
       </button>
       <p id="errorMsg" class="error-msg"></p>
       <p id="fallbackHint" class="fallback-hint">
-        <span id="fallbackText">Or click the <span class="icon-hint"><span class="icon-mock"></span></span> icon in your toolbar</span>
+        <span id="fallbackText">Or click the <span class="icon-hint"><img src="icons/icon128.png" alt="" width="14" height="14" style="border-radius:3px"></span> icon in your toolbar</span>
       </p>
     </div>
 
-    <div class="features">
+    <div class="features" id="featuresSection">
       <div class="feature">
-        <div class="feature-icon fi-blue">&#9889;</div>
+        <div class="feature-icon fi-blue">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
         <div class="feature-title" id="feat1t">Fast Fill</div>
         <div class="feature-desc" id="feat1d">Fill forms in 2-3 seconds</div>
       </div>
       <div class="feature">
-        <div class="feature-icon fi-green">&#128274;</div>
+        <div class="feature-icon fi-green">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
         <div class="feature-title" id="feat2t">Privacy First</div>
         <div class="feature-desc" id="feat2d">All data stored locally</div>
       </div>
       <div class="feature">
-        <div class="feature-icon fi-purple">&#129504;</div>
+        <div class="feature-icon fi-purple">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7e22ce" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>
+        </div>
         <div class="feature-title" id="feat3t">Auto Learn</div>
         <div class="feature-desc" id="feat3d">Learns from your inputs</div>
       </div>
       <div class="feature">
-        <div class="feature-icon fi-amber">&#127919;</div>
+        <div class="feature-icon fi-amber">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        </div>
         <div class="feature-title" id="feat4t">Smart Match</div>
         <div class="feature-desc" id="feat4d">Works across all job sites</div>
       </div>
     </div>
 
     <p class="footer" id="footer">You can always access OneFillr by clicking its icon in the toolbar.</p>
+
+    <!-- Success badge (shown after panel opened) -->
+    <div class="panel-opened-badge section-hidden" id="panelOpenedBadge">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <span id="panelOpenedText">Side panel opened! Now pin the extension:</span>
+    </div>
+
+    <!-- Pin Guide Card -->
+    <div class="pin-guide" id="pinGuide">
+      <div class="pin-guide-header">
+        <div class="pin-guide-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+        </div>
+        <span class="pin-guide-title" id="pinTitle">Pin OneFillr for Quick Access</span>
+      </div>
+      <p class="pin-guide-subtitle" id="pinSubtitle">Keep OneFillr one click away by pinning it to your browser toolbar.</p>
+
+      <!-- Toolbar mockup -->
+      <div class="toolbar-mock">
+        <div class="toolbar-row">
+          <div class="toolbar-url">jobs.example.com/apply</div>
+          <div class="toolbar-actions">
+            <div class="toolbar-puzzle highlight" title="Extensions">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.214 3.214c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.61a2.404 2.404 0 0 1-1.705.707 2.402 2.402 0 0 1-1.704-.706l-1.568-1.568a1.026 1.026 0 0 0-.877-.29c-.493.074-.84.504-1.02.968a2.5 2.5 0 1 1-3.237-3.237c.464-.18.894-.527.967-1.02a1.026 1.026 0 0 0-.289-.877l-1.568-1.568A2.402 2.402 0 0 1 1.998 12c0-.617.236-1.234.706-1.704L4.315 8.685a.98.98 0 0 1 .837-.276c.47.07.802.48.968.925a2.501 2.501 0 1 0 3.214-3.214c-.446-.166-.855-.497-.925-.968a.979.979 0 0 1 .276-.837l1.61-1.61a2.404 2.404 0 0 1 1.705-.707c.617 0 1.234.236 1.704.706l1.568 1.568c.23.23.556.338.877.29.493-.074.84-.504 1.02-.968a2.5 2.5 0 1 1 3.237 3.237c-.464.18-.894.527-.967 1.02Z"/></svg>
+            </div>
+            <div class="toolbar-ext-icon" title="OneFillr">
+              <img src="icons/icon128.png" alt="OneFillr" width="16" height="16">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Steps -->
+      <div class="pin-steps">
+        <div class="pin-step">
+          <span class="pin-step-num">1</span>
+          <span class="pin-step-text" id="pinStep1">Click the <strong>puzzle piece</strong> icon in the toolbar</span>
+        </div>
+        <div class="pin-step">
+          <span class="pin-step-num">2</span>
+          <span class="pin-step-text" id="pinStep2">Find <strong>OneFillr</strong> and click the <strong>pin</strong> icon</span>
+        </div>
+      </div>
+
+      <!-- Alternative: right-click -->
+      <div class="pin-alt">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 15l-2 5L9 9l11 4-5 2z"/><path d="m2 2 7.586 7.586"/></svg>
+        <span id="pinAlt">Also: right-click any form field and select <strong>OneFillr</strong> from the menu.</span>
+      </div>
+    </div>
   </div>
 
   <script src="welcome.js"></script>

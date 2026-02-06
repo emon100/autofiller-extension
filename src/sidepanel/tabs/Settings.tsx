@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Key, Server, CheckCircle, Code2, Type, User, CreditCard, LogIn, LogOut, ExternalLink, Infinity, RefreshCw, Loader2, Globe, Sparkles } from 'lucide-react'
+import { Key, Server, CheckCircle, Code2, Type, User, CreditCard, LogIn, LogOut, ExternalLink, Infinity, RefreshCw, Loader2, Globe, Sparkles, Gift } from 'lucide-react'
 import { storage } from '@/storage'
-import { AuthUser, CreditsInfo, AuthState } from '@/types'
+import { AuthUser, CreditsInfo } from '@/types'
+import { launchLogin } from '@/utils/authLogin'
 import PrivacySection from '../components/PrivacySection'
 import { t, getUserPreference, setLocale, Locale } from '@/i18n'
 
@@ -71,32 +72,15 @@ export default function Settings() {
     setLoggingIn(true)
     setLoginError('')
 
-    try {
-      const redirectUrl = chrome.identity.getRedirectURL('callback')
-      const authUrl = `${WEBSITE_URL}/extension/auth?redirect_uri=${encodeURIComponent(redirectUrl)}`
-
-      const responseUrl = await new Promise<string>((resolve, reject) => {
-        chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, (callbackUrl) => {
-          if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message))
-          else if (callbackUrl) resolve(callbackUrl)
-          else reject(new Error('No callback URL received'))
-        })
-      })
-
-      const encodedToken = new URL(responseUrl).searchParams.get('token')
-      if (!encodedToken) throw new Error('No token in callback')
-
-      const tokenData = JSON.parse(decodeURIComponent(encodedToken)) as AuthState
-      if (!tokenData.accessToken || !tokenData.user) throw new Error('Invalid token data')
-
-      await storage.auth.setAuthState(tokenData)
-      setUser(tokenData.user)
+    const result = await launchLogin()
+    if (result.success && result.user) {
+      setUser(result.user)
       setCredits(await storage.auth.fetchCredits())
-    } catch (err) {
-      setLoginError(err instanceof Error ? err.message : 'Login failed')
-    } finally {
-      setLoggingIn(false)
+    } else if (result.error) {
+      setLoginError(result.error)
     }
+
+    setLoggingIn(false)
   }
 
   async function handleRefreshCredits() {
@@ -229,6 +213,10 @@ export default function Settings() {
             <p className="text-sm text-gray-600">
               {t('settings.loginDesc')}
             </p>
+            <div className="flex items-center gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+              <Gift className="w-4 h-4 text-amber-500 flex-shrink-0" />
+              <p className="text-xs font-medium text-amber-700">{t('settings.loginBonus')}</p>
+            </div>
             <button
               onClick={handleLogin}
               disabled={loggingIn}

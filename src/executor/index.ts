@@ -477,7 +477,8 @@ export async function fillTextAnimated(
   const previousValue = element.value
 
   try {
-    // Focus the element first
+    // Scroll to and focus the element
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' })
     element.focus()
 
     // Clear existing value
@@ -601,7 +602,8 @@ export async function executeFillPlanAnimated(
         }
       }
     } else {
-      // Non-text fields use regular fill
+      // Non-text fields use regular fill, but still scroll to them
+      context.element.scrollIntoView({ behavior: 'smooth', block: 'center' })
       result = await fillField(context, value, enableLogging)
 
       // Simulate some animation time for non-text fields

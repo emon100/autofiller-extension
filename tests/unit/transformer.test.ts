@@ -223,10 +223,10 @@ describe('Value Transformers', () => {
       expect(result).toBe('415-555-1234')
     })
 
-    it('returns digits only by default', () => {
+    it('returns international format by default', () => {
       const context = createFieldContext({})
       const result = transformer.transform('+14155551234', context)
-      expect(result).toBe('4155551234')
+      expect(result).toBe('+1 4155551234')
     })
 
     it('handles already formatted phone', () => {

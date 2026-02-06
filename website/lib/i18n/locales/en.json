@@ -95,7 +95,34 @@
     "new": "New",
     "allFilled": "{count} fields all filled!",
     "timeUsed": "Time: {time}s",
-    "differentFormSameSpeed": "Different form styles, same blazing speed"
+    "differentFormSameSpeed": "Different form styles, same blazing speed",
+    "step1Header": "Import LinkedIn Profile",
+    "step2Header": "Greenhouse Application",
+    "step2Sub": "Standard ATS Form",
+    "step3Header": "Workday Application",
+    "step3Sub": "Completely different form style",
+    "enterField": "Enter {field}",
+    "importFields": {
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "education": "Education",
+      "experience": "Work Experience"
+    },
+    "formFields": {
+      "fullName": "Full Name",
+      "email": "Email",
+      "phone": "Phone",
+      "yearsOfExperience": "Years of Experience",
+      "expectedSalary": "Expected Salary"
+    },
+    "form3Fields": {
+      "applicantName": "Applicant Name",
+      "contactEmail": "Contact Email",
+      "phone": "Phone Number",
+      "workYears": "Work Years",
+      "salary": "Expected Salary"
+    }
   },
   "features": {
     "title": "Everything You Need to Apply Faster",

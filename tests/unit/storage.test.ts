@@ -15,7 +15,11 @@ vi.stubGlobal('chrome', { storage: mockChromeStorage })
 describe('Storage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockChromeStorage.local.get.mockResolvedValue({})
+    // Default: return activeProfileId='default' for profile-aware storage
+    mockChromeStorage.local.get.mockImplementation((key: string | string[]) => {
+      if (key === 'activeProfileId') return Promise.resolve({ activeProfileId: 'default' })
+      return Promise.resolve({})
+    })
     mockChromeStorage.local.set.mockResolvedValue(undefined)
     mockChromeStorage.local.remove.mockResolvedValue(undefined)
   })
@@ -58,8 +62,10 @@ describe('Storage', () => {
         updatedAt: Date.now(),
       }
 
-      mockChromeStorage.local.get.mockResolvedValue({
-        'answers': { 'ans-1': answer },
+      mockChromeStorage.local.get.mockImplementation((key: string | string[]) => {
+        if (key === 'activeProfileId') return Promise.resolve({ activeProfileId: 'default' })
+        if (key === 'answers-default') return Promise.resolve({ 'answers-default': { 'ans-1': answer } })
+        return Promise.resolve({})
       })
 
       const result = await storage.getById('ans-1')
@@ -104,7 +110,11 @@ describe('Storage', () => {
         },
       }
 
-      mockChromeStorage.local.get.mockResolvedValue({ 'answers': answers })
+      mockChromeStorage.local.get.mockImplementation((key: string | string[]) => {
+        if (key === 'activeProfileId') return Promise.resolve({ activeProfileId: 'default' })
+        if (key === 'answers-default') return Promise.resolve({ 'answers-default': answers })
+        return Promise.resolve({})
+      })
 
       const emailAnswers = await storage.getByType(Taxonomy.EMAIL)
 
@@ -142,8 +152,10 @@ describe('Storage', () => {
         updatedAt: 1000,
       }
 
-      mockChromeStorage.local.get.mockResolvedValue({
-        'answers': { 'ans-1': existingAnswer },
+      mockChromeStorage.local.get.mockImplementation((key: string | string[]) => {
+        if (key === 'activeProfileId') return Promise.resolve({ activeProfileId: 'default' })
+        if (key === 'answers-default') return Promise.resolve({ 'answers-default': { 'ans-1': existingAnswer } })
+        return Promise.resolve({})
       })
 
       const updatedAnswer = { ...existingAnswer, value: 'Stanford', updatedAt: 2000 }
@@ -153,8 +165,10 @@ describe('Storage', () => {
     })
 
     it('deletes answer', async () => {
-      mockChromeStorage.local.get.mockResolvedValue({
-        'answers': { 'ans-1': { id: 'ans-1' } },
+      mockChromeStorage.local.get.mockImplementation((key: string | string[]) => {
+        if (key === 'activeProfileId') return Promise.resolve({ activeProfileId: 'default' })
+        if (key === 'answers-default') return Promise.resolve({ 'answers-default': { 'ans-1': { id: 'ans-1' } } })
+        return Promise.resolve({})
       })
 
       await storage.delete('ans-1')
@@ -177,7 +191,11 @@ describe('Storage', () => {
         },
       }
 
-      mockChromeStorage.local.get.mockResolvedValue({ 'answers': answers })
+      mockChromeStorage.local.get.mockImplementation((key: string | string[]) => {
+        if (key === 'activeProfileId') return Promise.resolve({ activeProfileId: 'default' })
+        if (key === 'answers-default') return Promise.resolve({ 'answers-default': answers })
+        return Promise.resolve({})
+      })
 
       const result = await storage.findByValue(Taxonomy.SCHOOL, '清华大学')
 
@@ -191,7 +209,11 @@ describe('Storage', () => {
         'ans-2': { id: 'ans-2', type: Taxonomy.PHONE } as AnswerValue,
       }
 
-      mockChromeStorage.local.get.mockResolvedValue({ 'answers': answers })
+      mockChromeStorage.local.get.mockImplementation((key: string | string[]) => {
+        if (key === 'activeProfileId') return Promise.resolve({ activeProfileId: 'default' })
+        if (key === 'answers-default') return Promise.resolve({ 'answers-default': answers })
+        return Promise.resolve({})
+      })
 
       const result = await storage.getAll()
 
@@ -251,7 +273,11 @@ describe('Storage', () => {
         },
       }
 
-      mockChromeStorage.local.get.mockResolvedValue({ 'observations': observations })
+      mockChromeStorage.local.get.mockImplementation((key: string | string[]) => {
+        if (key === 'activeProfileId') return Promise.resolve({ activeProfileId: 'default' })
+        if (key === 'observations-default') return Promise.resolve({ 'observations-default': observations })
+        return Promise.resolve({})
+      })
 
       const result = await storage.getBySite('example.com')
 
@@ -274,7 +300,11 @@ describe('Storage', () => {
         }
       }
 
-      mockChromeStorage.local.get.mockResolvedValue({ 'observations': observations })
+      mockChromeStorage.local.get.mockImplementation((key: string | string[]) => {
+        if (key === 'activeProfileId') return Promise.resolve({ activeProfileId: 'default' })
+        if (key === 'observations-default') return Promise.resolve({ 'observations-default': observations })
+        return Promise.resolve({})
+      })
 
       const result = await storage.getRecent(10)
 
