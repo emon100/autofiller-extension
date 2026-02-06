@@ -342,8 +342,35 @@ export class AuthStorage {
 
   async getAccessToken(): Promise<string | null> {
     const state = await this.getAuthState()
-    if (!state || state.expiresAt <= Date.now() + TOKEN_BUFFER_MS) return null
-    return state.accessToken
+    if (!state) return null
+
+    // Token still valid
+    if (state.expiresAt > Date.now() + TOKEN_BUFFER_MS) {
+      return state.accessToken
+    }
+
+    // Token expired or close to expiry — try refreshing
+    if (state.refreshToken) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/extension/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: state.refreshToken }),
+        })
+        if (response.ok) {
+          const data = await response.json() as AuthState
+          await this.setAuthState(data)
+          return data.accessToken
+        }
+        if (response.status === 401) {
+          await this.clearAuthState()
+        }
+      } catch {
+        // Network error — fall through to return null
+      }
+    }
+
+    return null
   }
 
   async fetchCredits(): Promise<CreditsInfo | null> {

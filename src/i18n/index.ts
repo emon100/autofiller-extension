@@ -386,6 +386,26 @@ export const messages = {
     en: 'Use your own API key instead of backend service',
     zh: '使用自己的 API 密钥而非后端服务',
   },
+  'settings.creditsAdded': {
+    en: '+{amount} credits added!',
+    zh: '+{amount} 积分已到账！',
+  },
+  'settings.recordMode': {
+    en: 'Record Mode',
+    zh: '记录模式',
+  },
+  'settings.recordModeDesc': {
+    en: 'Learn from your inputs when filling forms',
+    zh: '填写表单时从您的输入中学习',
+  },
+  'settings.autoFill': {
+    en: 'Auto-Fill',
+    zh: '自动填充',
+  },
+  'settings.autoFillDesc': {
+    en: 'Fill forms automatically when page loads',
+    zh: '页面加载后自动填充表单',
+  },
 
   // Saved Answers
   'answers.search': {

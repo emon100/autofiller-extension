@@ -87,6 +87,10 @@
             <span class="font-medium">Synonym: Phone Format</span>
             <span class="text-gray-400 block">E.164 vs Local vs Split</span>
           </button>
+          <button onclick="loadTemplate('phone-country-split')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-green-300 hover:border-green-500 hover:bg-green-50" data-template="phone-country-split">
+            <span class="font-medium">Phone + Country Code</span>
+            <span class="text-green-500 block">Country code separation test</span>
+          </button>
           <button onclick="loadTemplate('synonym-bool')" class="template-btn w-full px-3 py-2 text-left text-xs rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50" data-template="synonym-bool">
             <span class="font-medium">Synonym: Yes/No</span>
             <span class="text-gray-400 block">Radio vs Checkbox vs Select</span>
@@ -381,6 +385,7 @@
         [Taxonomy.LAST_NAME]: { value: 'Patel', display: 'Patel' },
         [Taxonomy.EMAIL]: { value: 'amit@university.edu', display: 'amit@university.edu' },
         [Taxonomy.PHONE]: { value: '+919876543210', display: '+91 98765 43210' },
+        [Taxonomy.COUNTRY_CODE]: { value: '+91', display: '+91' },
         [Taxonomy.CITY]: { value: 'Mumbai', display: 'Mumbai' },
         [Taxonomy.LOCATION]: { value: 'Mumbai, India', display: 'Mumbai, India' },
         [Taxonomy.LINKEDIN]: { value: 'https://linkedin.com/in/amitpatel', display: 'linkedin.com/in/amitpatel' },
@@ -419,6 +424,9 @@
           { name: 'gradYearSelect', label: 'Graduation Year', type: 'select', options: ['', '2022', '2023', '2024', '2025', '2026'], taxonomy: Taxonomy.GRAD_YEAR },
           { name: 'gradMonthSelect', label: 'Graduation Month', type: 'select', options: ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'], taxonomy: Taxonomy.GRAD_MONTH },
           { name: 'gradText', label: 'Graduation (Text: MM/YYYY)', type: 'text', placeholder: '05/2024', taxonomy: Taxonomy.GRAD_DATE },
+          { name: 'gradMonthShort', label: 'Graduation Month (Short)', type: 'select', options: ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], taxonomy: Taxonomy.GRAD_MONTH },
+          { name: 'gradMonthNumeric', label: 'Graduation Month (Numeric)', type: 'select', options: ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], taxonomy: Taxonomy.GRAD_MONTH },
+          { name: 'gradMonthPadded', label: 'Graduation Month (Padded)', type: 'select', options: ['', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'], taxonomy: Taxonomy.GRAD_MONTH },
         ]
       },
       'synonym-phone': {
@@ -430,6 +438,26 @@
           { name: 'phoneFormatted', label: 'Phone (Formatted)', type: 'tel', placeholder: '(415) 555-1234', taxonomy: Taxonomy.PHONE },
           { name: 'countryCode', label: 'Country Code', type: 'select', options: ['', '+1 (US)', '+86 (CN)', '+91 (IN)', '+44 (UK)'], taxonomy: Taxonomy.COUNTRY_CODE },
           { name: 'phoneNumber', label: 'Phone Number (without country)', type: 'tel', taxonomy: Taxonomy.PHONE },
+          { name: 'phoneDashes', label: 'Phone (Dashes: 415-555-1234)', type: 'tel', placeholder: '555-555-5555', taxonomy: Taxonomy.PHONE },
+        ]
+      },
+      'phone-country-split': {
+        title: 'Phone + Country Code Test',
+        subtitle: 'Country code separation scenarios',
+        sections: [
+          { title: 'Section A — Phone Only (no Country Code field)', fields: [
+            { name: 'phoneOnly', label: 'Phone', type: 'tel', taxonomy: Taxonomy.PHONE },
+          ]},
+          { title: 'Section B — Phone + Country Code Split', fields: [
+            { name: 'countryCodeB', label: 'Country Code', type: 'select', options: ['', '+1', '+86', '+91', '+44'], taxonomy: Taxonomy.COUNTRY_CODE },
+            { name: 'phoneB', label: 'Phone Number', type: 'tel', taxonomy: Taxonomy.PHONE },
+          ]},
+          { title: 'Section C — Various Formats + Country Code', fields: [
+            { name: 'countryCodeC', label: 'Country Code', type: 'select', options: ['', '+1', '+86', '+91', '+44'], taxonomy: Taxonomy.COUNTRY_CODE },
+            { name: 'phoneCLocal', label: 'Phone (maxlength=10)', type: 'tel', maxlength: '10', taxonomy: Taxonomy.PHONE },
+            { name: 'phoneCParens', label: 'Phone (parentheses)', type: 'tel', placeholder: '(555) 555-5555', taxonomy: Taxonomy.PHONE },
+            { name: 'phoneCDashes', label: 'Phone (dashes)', type: 'tel', placeholder: '555-555-5555', taxonomy: Taxonomy.PHONE },
+          ]},
         ]
       },
       'synonym-bool': {
@@ -441,6 +469,7 @@
           { name: 'workAuthCheck', label: 'I am authorized to work in this country', type: 'checkbox', taxonomy: Taxonomy.WORK_AUTH },
           { name: 'sponsorRadio', label: 'Need visa sponsorship?', type: 'radio', options: ['Yes', 'No'], taxonomy: Taxonomy.NEED_SPONSORSHIP },
           { name: 'sponsorSelect', label: 'Sponsorship Required', type: 'select', options: ['', 'Yes, I need sponsorship', 'No, I do not need sponsorship'], taxonomy: Taxonomy.NEED_SPONSORSHIP },
+          { name: 'workAuthChinese', label: 'Work Authorization (Chinese)', type: 'select', options: ['', '是', '否'], taxonomy: Taxonomy.WORK_AUTH },
         ]
       },
       'synonym-email': {
@@ -489,6 +518,7 @@
           { name: 'major', label: 'Major/Field of Study', type: 'text', taxonomy: Taxonomy.MAJOR },
           { name: 'fieldOfStudy', label: 'Field of Study', type: 'text', taxonomy: Taxonomy.MAJOR },
           { name: 'concentration', label: 'Concentration', type: 'text', taxonomy: Taxonomy.MAJOR },
+          { name: 'degreeChinese', label: 'Degree (Chinese)', type: 'select', options: ['', '本科', '硕士', '博士'], taxonomy: Taxonomy.DEGREE },
         ]
       },
       'all-fields': {
@@ -632,8 +662,10 @@
     }
 
     // ==================== VALUE TRANSFORMERS ====================
-    const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 
+    const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'];
+    const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     function transformValue(sourceValue, sourceType, targetField) {
       if (!sourceValue) return sourceValue;
@@ -668,9 +700,21 @@
             return year;
           }
           if (targetField.taxonomy === Taxonomy.GRAD_MONTH) {
-            if (targetField.type === 'select') {
+            if (targetField.type === 'select' && targetField.options) {
               const monthNum = parseInt(month || '1');
-              return MONTH_NAMES[monthNum - 1] || month;
+              const fullName = MONTH_NAMES[monthNum - 1];
+              const shortName = MONTH_SHORT[monthNum - 1];
+              const opts = targetField.options.filter(o => o);
+              // Try full month name
+              if (opts.includes(fullName)) return fullName;
+              // Try short month name
+              if (opts.includes(shortName)) return shortName;
+              // Try unpadded numeric
+              if (opts.includes(String(monthNum))) return String(monthNum);
+              // Try padded numeric
+              const padded = String(monthNum).padStart(2, '0');
+              if (opts.includes(padded)) return padded;
+              return fullName || month;
             }
             return month || '01';
           }
@@ -702,6 +746,11 @@
           if (targetField.placeholder?.includes('(')) {
             const n = number.slice(-10);
             return `(${n.slice(0,3)}) ${n.slice(3,6)}-${n.slice(6)}`;
+          }
+
+          if (targetField.placeholder && /\d{3}-\d{3}-\d{4}/.test(targetField.placeholder)) {
+            const n = number.slice(-10);
+            return `${n.slice(0,3)}-${n.slice(3,6)}-${n.slice(6)}`;
           }
         }
       }
@@ -752,6 +801,25 @@
       }
 
       return sourceValue;
+    }
+
+    // ==================== STRIP COUNTRY CODE ====================
+    function stripCountryCode(phoneValue) {
+      const cleaned = phoneValue.replace(/[\s\-\(\)\.]/g, '');
+      if (!cleaned.startsWith('+')) return phoneValue;
+      const digits = cleaned.slice(1);
+      const knownCodes = {
+        '1': [10], '7': [10], '44': [10], '86': [11], '91': [10],
+        '81': [10,11], '82': [10,11], '49': [10,11], '33': [9], '61': [9],
+        '852': [8], '886': [9],
+      };
+      for (const codeLen of [3, 2, 1]) {
+        if (digits.length <= codeLen) continue;
+        const code = digits.slice(0, codeLen);
+        const rest = digits.slice(codeLen);
+        if (knownCodes[code]) return rest;
+      }
+      return phoneValue;
     }
 
     // ==================== CLASSIFIER ====================
@@ -882,7 +950,13 @@
       fillHistory = [];
       
       removeBadges();
-      
+
+      // Detect if any field is classified as COUNTRY_CODE
+      const hasCountryCodeField = Array.from(elements).some(el => {
+        const c = classifyField(el, el._fieldDef);
+        return c.type === Taxonomy.COUNTRY_CODE;
+      });
+
       for (const element of elements) {
         const fieldDef = element._fieldDef;
         const classification = classifyField(element, fieldDef);
@@ -926,6 +1000,18 @@
             valueToFill = transformedValue;
             transformed = true;
             transformedCount++;
+          }
+        }
+
+        // Strip country code from phone when a dedicated COUNTRY_CODE field exists
+        if (hasCountryCodeField && classification.type === Taxonomy.PHONE) {
+          const stripped = stripCountryCode(valueToFill);
+          if (stripped !== valueToFill) {
+            valueToFill = stripped;
+            if (!transformed) {
+              transformed = true;
+              transformedCount++;
+            }
           }
         }
         

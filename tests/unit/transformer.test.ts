@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { 
+import {
   transformValue,
+  stripCountryCode,
   NameTransformer,
   DateTransformer,
   PhoneTransformer,
@@ -347,6 +348,28 @@ describe('Value Transformers', () => {
       const context = createFieldContext({})
       const result = transformValue('some value', Taxonomy.UNKNOWN, context)
       expect(result).toBe('some value')
+    })
+  })
+
+  describe('stripCountryCode', () => {
+    it('strips US country code (+1)', () => {
+      expect(stripCountryCode('+1 5551234567')).toBe('5551234567')
+    })
+
+    it('strips China country code (+86)', () => {
+      expect(stripCountryCode('+86 13812345678')).toBe('13812345678')
+    })
+
+    it('strips UK country code (+44)', () => {
+      expect(stripCountryCode('+44 7911123456')).toBe('7911123456')
+    })
+
+    it('returns as-is when no country code prefix', () => {
+      expect(stripCountryCode('5551234567')).toBe('5551234567')
+    })
+
+    it('strips country code from compact format', () => {
+      expect(stripCountryCode('+14155551234')).toBe('4155551234')
     })
   })
 })

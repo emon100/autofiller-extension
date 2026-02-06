@@ -3,6 +3,7 @@ import { Database, Trash2, Download, Upload, CheckCircle, AlertTriangle, User, B
 import { Taxonomy, AnswerValue, SENSITIVE_TYPES, FillAnimationConfig, DEFAULT_FILL_ANIMATION_CONFIG } from '@/types'
 import { saveLLMLog, getLLMLogs, clearLLMLogs, LLMLogEntry, logLLMRequest, logLLMResponse, logLLMError } from '@/utils/logger'
 import { storage } from '@/storage'
+import { profileStorage } from '@/storage/profileStorage'
 
 const API_BASE_URL = 'https://www.onefil.help/api'
 
@@ -508,13 +509,17 @@ export default function Developer() {
         updatedAt: now,
       }))
 
-      // Convert to object format expected by storage
+      // Create a new profile and write answers to its namespaced key
+      const newProfile = await profileStorage.create(profile.name)
+      await profileStorage.setActiveId(newProfile.id)
+
       const answersMap: Record<string, AnswerValue> = {}
       for (const answer of answers) {
         answersMap[answer.id] = answer
       }
-      await chrome.storage.local.set({ answers: answersMap })
-      showMessage('success', `Loaded "${profile.name}" profile with ${answers.length} fields`)
+      const answersKey = profileStorage.getAnswersKey(newProfile.id)
+      await chrome.storage.local.set({ [answersKey]: answersMap })
+      showMessage('success', `Created profile "${profile.name}" with ${answers.length} fields`)
     } catch (err) {
       showMessage('error', 'Failed to load profile')
     } finally {

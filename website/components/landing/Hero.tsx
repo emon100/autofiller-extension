@@ -90,7 +90,7 @@ export default function Hero() {
           <Link href="#features" className="text-gray-600 hover:text-gray-900">
             {t('nav.features')}
           </Link>
-          <Link href="#pricing" className="text-gray-600 hover:text-gray-900">
+          <Link href="/pricing" className="text-gray-600 hover:text-gray-900">
             {t('nav.pricing')}
           </Link>
           <Link href="#faq" className="text-gray-600 hover:text-gray-900">
@@ -168,7 +168,7 @@ export default function Hero() {
               {t('nav.features')}
             </Link>
             <Link
-              href="#pricing"
+              href="/pricing"
               className="text-gray-600 hover:text-gray-900"
               onClick={() => setMobileMenuOpen(false)}
             >
