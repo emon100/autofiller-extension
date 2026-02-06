@@ -159,6 +159,18 @@ export default function Settings() {
 
   async function saveConfig() {
     setSaving(true)
+
+    // Request host permission for custom endpoint if needed
+    if (config.endpoint && config.useCustomApi) {
+      try {
+        const url = new URL(config.endpoint)
+        const origin = `${url.protocol}//${url.host}/*`
+        await chrome.permissions.request({ origins: [origin] })
+      } catch {
+        // Invalid URL or permission denied — continue saving anyway
+      }
+    }
+
     await chrome.storage.local.set({ llmConfig: config })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)

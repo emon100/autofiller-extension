@@ -14,7 +14,16 @@
     "identity"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://www.onefil.help/*",
+    "https://api.openai.com/*",
+    "https://api.anthropic.com/*",
+    "https://dashscope.aliyuncs.com/*",
+    "https://api.deepseek.com/*",
+    "https://open.bigmodel.cn/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
   ],
   "action": {
     "default_title": "OneFillr - Click to open",

@@ -152,11 +152,13 @@ export default function App() {
   async function handleOnboardingComplete() {
     await chrome.storage.local.set({ onboardingComplete: true })
     setOnboardingComplete(true)
+    await checkProfileEmpty()
   }
 
   async function handleOnboardingSkip() {
     await chrome.storage.local.set({ onboardingComplete: true })
     setOnboardingComplete(true)
+    await checkProfileEmpty()
   }
 
   const baseTabs = [

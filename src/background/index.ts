@@ -1,4 +1,5 @@
 import { hasValidConsent } from '@/consent'
+import { handleFetchProxy } from './llmProxy'
 
 // Track side panel state per tab
 const sidePanelOpenTabs = new Set<number>()
@@ -105,6 +106,44 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 })
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'fetchProxy') {
+    return handleFetchProxy(message, sender, sendResponse)
+  }
+
+  if (message.action === 'openLoginTab') {
+    const { url, redirectUrl } = message as { url: string; redirectUrl: string }
+
+    chrome.tabs.create({ url, active: true }, (tab) => {
+      if (!tab?.id) {
+        sendResponse({ error: 'Failed to create tab' })
+        return
+      }
+      const loginTabId = tab.id
+
+      function onUpdated(tabId: number, changeInfo: chrome.tabs.TabChangeInfo) {
+        if (tabId !== loginTabId) return
+        // Check if the tab navigated to the redirect URL (callback with token)
+        if (changeInfo.url && changeInfo.url.startsWith(redirectUrl)) {
+          chrome.tabs.onUpdated.removeListener(onUpdated)
+          chrome.tabs.onRemoved.removeListener(onRemoved)
+          chrome.tabs.remove(loginTabId).catch(() => {})
+          sendResponse({ callbackUrl: changeInfo.url })
+        }
+      }
+
+      function onRemoved(tabId: number) {
+        if (tabId !== loginTabId) return
+        chrome.tabs.onUpdated.removeListener(onUpdated)
+        chrome.tabs.onRemoved.removeListener(onRemoved)
+        sendResponse({ error: 'Tab closed before login completed' })
+      }
+
+      chrome.tabs.onUpdated.addListener(onUpdated)
+      chrome.tabs.onRemoved.addListener(onRemoved)
+    })
+    return true
+  }
+
   if (message.action === 'openSidePanel') {
     const tabId = sender.tab?.id
     const windowId = sender.tab?.windowId

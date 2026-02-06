@@ -1359,6 +1359,9 @@ export class AutoFiller {
 
   setSidePanelState(isOpen: boolean): void {
     this.floatingWidget.setSidePanelOpen(isOpen)
+    if (isOpen) {
+      this.floatingWidget.show()
+    }
   }
 
   private notifyRecorded(type: Taxonomy, value: string): void {

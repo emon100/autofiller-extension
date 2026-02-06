@@ -1,5 +1,7 @@
 // LLM helper functions for profile parsing
 
+import { backgroundFetch } from '@/utils/backgroundFetch'
+
 const API_BASE_URL = 'https://www.onefil.help/api'
 
 export interface LLMConfig {
@@ -137,7 +139,7 @@ async function callBackendLLM(params: {
     throw new Error('Not authenticated. Please sign in to use AI features.')
   }
 
-  const response = await fetch(`${API_BASE_URL}/llm/chat`, {
+  const response = await backgroundFetch(`${API_BASE_URL}/llm/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -147,7 +149,7 @@ async function callBackendLLM(params: {
   })
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
+    const errorData = (() => { try { return JSON.parse(response.body) } catch { return {} } })()
     if (response.status === 402) {
       throw new Error(`Insufficient credits. Balance: ${errorData.balance || 0}`)
     }
@@ -157,7 +159,7 @@ async function callBackendLLM(params: {
     throw new Error(errorData.error || `Backend API error ${response.status}`)
   }
 
-  const data = await response.json()
+  const data = JSON.parse(response.body)
   return data.text || ''
 }
 
@@ -196,13 +198,11 @@ async function callOpenAICompatibleText(
 
   // 禁用thinking模式
   if (config.disableThinking) {
-    // 智谱AI GLM系列模型使用 enable_thinking 参数
     requestBody.enable_thinking = false
-    // 某些版本可能使用 thinking 对象
     requestBody.thinking = { type: 'disabled' }
   }
 
-  const response = await fetch(endpoint, {
+  const response = await backgroundFetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -212,15 +212,10 @@ async function callOpenAICompatibleText(
   })
 
   if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`API error ${response.status}: ${errorText}`)
+    throw new Error(`API error ${response.status}: ${response.body}`)
   }
 
-  if (needsStream) {
-    return parseStreamResponse(response)
-  }
-
-  const data = await response.json()
+  const data = JSON.parse(response.body)
   return data.choices?.[0]?.message?.content || ''
 }
 
@@ -247,7 +242,7 @@ async function callAnthropicText(
     body.temperature = temperature
   }
 
-  const response = await fetch(endpoint, {
+  const response = await backgroundFetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -259,11 +254,10 @@ async function callAnthropicText(
   })
 
   if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Anthropic API error ${response.status}: ${errorText}`)
+    throw new Error(`Anthropic API error ${response.status}: ${response.body}`)
   }
 
-  const data = await response.json()
+  const data = JSON.parse(response.body)
   return data.content?.[0]?.text || ''
 }
 
@@ -310,7 +304,7 @@ async function callOpenAIVision(
   // 智谱AI的某些模型只支持流式模式
   const needsStream = config.provider === 'zhipu' || (model && model.startsWith('glm-4'))
 
-  const response = await fetch(endpoint, {
+  const response = await backgroundFetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -326,15 +320,10 @@ async function callOpenAIVision(
   })
 
   if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Vision API error ${response.status}: ${errorText}`)
+    throw new Error(`Vision API error ${response.status}: ${response.body}`)
   }
 
-  if (needsStream) {
-    return parseStreamResponse(response)
-  }
-
-  const data = await response.json()
+  const data = JSON.parse(response.body)
   return data.choices?.[0]?.message?.content || ''
 }
 
@@ -387,7 +376,7 @@ async function callAnthropicVision(
     body.temperature = temperature
   }
 
-  const response = await fetch(endpoint, {
+  const response = await backgroundFetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -399,11 +388,10 @@ async function callAnthropicVision(
   })
 
   if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Anthropic Vision API error ${response.status}: ${errorText}`)
+    throw new Error(`Anthropic Vision API error ${response.status}: ${response.body}`)
   }
 
-  const data = await response.json()
+  const data = JSON.parse(response.body)
   return data.content?.[0]?.text || ''
 }
 
@@ -437,46 +425,3 @@ export function parseJSONFromLLMResponse<T>(content: string): T | null {
   }
 }
 
-/**
- * 解析流式响应 (SSE 格式)
- */
-async function parseStreamResponse(response: Response): Promise<string> {
-  const reader = response.body?.getReader()
-  if (!reader) {
-    throw new Error('No response body')
-  }
-
-  const decoder = new TextDecoder()
-  let content = ''
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      const chunk = decoder.decode(value, { stream: true })
-      const lines = chunk.split('\n')
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim()
-          if (data === '[DONE]') continue
-
-          try {
-            const json = JSON.parse(data)
-            const delta = json.choices?.[0]?.delta?.content
-            if (delta) {
-              content += delta
-            }
-          } catch {
-            // 忽略解析错误的行
-          }
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock()
-  }
-
-  return content
-}

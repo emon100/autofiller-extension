@@ -1,14 +1,8 @@
 /**
  * Shared Google login utility for Chrome extension OAuth flow.
  *
- * Handles the common issue where users already logged into onefil.help
- * cause the OAuth popup to redirect so fast that Chrome's
- * launchWebAuthFlow may fail to capture the callback URL.
- *
- * Fixes:
- * 1. Check callbackUrl before chrome.runtime.lastError (URL takes priority)
- * 2. Check both query params and hash fragment for token
- * 3. Retry once with delay on quick failures
+ * Opens a new tab for login (instead of popup), then listens for
+ * the callback URL containing the auth token via background messaging.
  */
 
 import { storage } from '@/storage'
@@ -23,56 +17,48 @@ export interface LoginResult {
 }
 
 /**
- * Launch Google login via chrome.identity.launchWebAuthFlow.
- * Retries once on quick failure (common when user is already logged in).
+ * Launch Google login by opening a new tab.
+ * Background script monitors the tab for the callback URL.
  */
 export async function launchLogin(): Promise<LoginResult> {
-  const maxAttempts = 2
+  try {
+    const tokenData = await attemptLogin()
+    await storage.auth.setAuthState(tokenData)
+    return { success: true, user: tokenData.user }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Login failed'
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      const tokenData = await attemptLogin()
-      await storage.auth.setAuthState(tokenData)
-      return { success: true, user: tokenData.user }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Login failed'
-
-      // On first attempt failure, retry after delay if it looks like a quick-close issue
-      if (attempt < maxAttempts - 1 && isRetryableError(msg)) {
-        console.log('[Auth] Quick popup close detected, retrying...', msg)
-        await sleep(800)
-        continue
-      }
-
-      // User deliberately closed the popup — not an error to display
-      if (msg.includes('canceled') || msg.includes('cancelled') || msg.includes('closed')) {
-        return { success: false }
-      }
-
-      return { success: false, error: msg }
+    // User deliberately closed the tab — not an error to display
+    if (msg.includes('canceled') || msg.includes('cancelled') || msg.includes('closed') || msg.includes('Tab closed')) {
+      return { success: false }
     }
-  }
 
-  return { success: false, error: 'Login failed after retries' }
+    return { success: false, error: msg }
+  }
 }
 
 async function attemptLogin(): Promise<AuthState> {
   const redirectUrl = chrome.identity.getRedirectURL('callback')
   const authUrl = `${WEBSITE_URL}/extension/auth?redirect_uri=${encodeURIComponent(redirectUrl)}`
 
+  // Ask background to open a tab and watch for callback
   const responseUrl = await new Promise<string>((resolve, reject) => {
-    chrome.identity.launchWebAuthFlow(
-      { url: authUrl, interactive: true },
-      (callbackUrl) => {
-        // IMPORTANT: Check callbackUrl FIRST — Chrome may set lastError as a
-        // warning even when the URL is valid (especially on fast redirects)
-        if (callbackUrl) {
-          resolve(callbackUrl)
-        } else if (chrome.runtime.lastError) {
+    chrome.runtime.sendMessage(
+      { action: 'openLoginTab', url: authUrl, redirectUrl },
+      (response) => {
+        if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message))
-        } else {
-          reject(new Error('No callback URL received'))
+          return
         }
+        if (!response) {
+          reject(new Error('No response from background'))
+          return
+        }
+        if (response.error) {
+          reject(new Error(response.error))
+          return
+        }
+        resolve(response.callbackUrl)
       }
     )
   })
@@ -98,21 +84,4 @@ async function attemptLogin(): Promise<AuthState> {
   }
 
   return tokenData
-}
-
-function isRetryableError(message: string): boolean {
-  const retryablePatterns = [
-    'user interaction required',
-    'user did not approve',
-    'the user turned off sync',
-    'no callback url received',
-    'authorization page could not be loaded',
-    'cannot contact the identity service',
-  ]
-  const lower = message.toLowerCase()
-  return retryablePatterns.some(p => lower.includes(p))
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms))
 }
