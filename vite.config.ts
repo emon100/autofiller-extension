@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { writeFileSync, mkdirSync } from 'fs'
+import obfuscatorPlugin from 'rollup-plugin-obfuscator'
 
 function generateSidepanelHtml() {
   return {
@@ -30,9 +31,39 @@ function generateSidepanelHtml() {
 const isContentBuild = process.env.BUILD_TARGET === 'content'
 const isProduction = process.env.BUILD_MODE === 'production'
 
+const obfuscator = isProduction ? obfuscatorPlugin({
+  global: false,
+  options: {
+    controlFlowFlattening: true,
+    controlFlowFlatteningThreshold: 0.5,
+    deadCodeInjection: true,
+    deadCodeInjectionThreshold: 0.2,
+    stringArray: true,
+    stringArrayThreshold: 0.5,
+    stringArrayEncoding: ['base64'],
+    stringArrayRotate: true,
+    stringArrayShuffle: true,
+    renameGlobals: false,
+    selfDefending: false,
+    debugProtection: false,
+    debugProtectionInterval: 0,
+    transformObjectKeys: false,
+    unicodeEscapeSequence: false,
+    target: 'browser',
+    compact: true,
+    simplify: true,
+  },
+}) : null
+
 export default defineConfig({
-  plugins: isContentBuild ? [] : [react(), generateSidepanelHtml()],
+  plugins: [
+    ...(isContentBuild ? [] : [react(), generateSidepanelHtml()]),
+    ...(obfuscator ? [obfuscator] : []),
+  ],
   publicDir: isContentBuild ? false : 'public',
+  define: {
+    __DEV_MODE__: JSON.stringify(!isProduction),
+  },
   server: {
     fs: {
       allow: ['..'],

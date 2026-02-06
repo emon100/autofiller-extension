@@ -2,6 +2,9 @@ import { defineConfig } from 'vitest/config'
 import path from 'path'
 
 export default defineConfig({
+  define: {
+    __DEV_MODE__: JSON.stringify(true),
+  },
   test: {
     environment: 'happy-dom',
     globals: true,

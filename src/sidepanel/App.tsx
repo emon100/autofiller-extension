@@ -1,16 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Tab } from '@headlessui/react'
 import { Database, Globe, Activity, Settings as SettingsIcon, Code2, Pin, X, Sparkles } from 'lucide-react'
 import SavedAnswers from './tabs/SavedAnswers'
 import ThisSite from './tabs/ThisSite'
 import ActivityLog from './tabs/ActivityLog'
 import Settings from './tabs/Settings'
-import Developer from './tabs/Developer'
 import ConsentModal from './components/ConsentModal'
 import Onboarding from './components/Onboarding'
 import { hasValidConsent } from '@/consent'
 import { t, initLocale } from '@/i18n'
 import { profileStorage, storage } from '@/storage'
+
+const Developer = __DEV_MODE__ ? lazy(() => import('./tabs/Developer')) : null
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ')
@@ -62,7 +63,7 @@ export default function App() {
       await initLocale()
       setLocaleReady(true)
       await profileStorage.migrateIfNeeded()
-      await loadDevSettings()
+      if (__DEV_MODE__) await loadDevSettings()
       await checkConsent()
       await checkOnboarding()
       await checkPinHint()
@@ -71,7 +72,7 @@ export default function App() {
     init()
 
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
-      if (changes.devSettings) {
+      if (__DEV_MODE__ && changes.devSettings) {
         setDevModeEnabled(changes.devSettings.newValue?.devModeEnabled ?? false)
       }
       if (changes.userConsent) {
@@ -165,8 +166,9 @@ export default function App() {
     { name: t('tabs.settings'), icon: SettingsIcon, component: Settings },
   ]
 
-  const devTab = { name: t('tabs.developer'), icon: Code2, component: Developer }
-  const tabs = devModeEnabled ? [...baseTabs, devTab] : baseTabs
+  const tabs = (__DEV_MODE__ && Developer && devModeEnabled)
+    ? [...baseTabs, { name: t('tabs.developer'), icon: Code2, component: Developer }]
+    : baseTabs
 
   // Show loading state while checking consent and locale
   if (consentValid === null || onboardingComplete === null || !localeReady) {
@@ -244,7 +246,9 @@ export default function App() {
         <Tab.Panels className="max-h-[calc(100vh-45px)] overflow-y-auto custom-scrollbar">
           {tabs.map((tab) => (
             <Tab.Panel key={tab.name} className="p-3">
-              <tab.component />
+              <Suspense fallback={<div className="text-gray-400 text-sm text-center py-4">Loading...</div>}>
+                <tab.component />
+              </Suspense>
             </Tab.Panel>
           ))}
         </Tab.Panels>
