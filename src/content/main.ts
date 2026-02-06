@@ -2,6 +2,12 @@ import { initAutoFiller, getAutoFiller } from './index'
 
 initAutoFiller()
 
+// Track last right-clicked element for context menu AI fill
+let lastRightClickedElement: HTMLElement | null = null
+document.addEventListener('contextmenu', (e) => {
+  lastRightClickedElement = e.target as HTMLElement
+})
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const filler = getAutoFiller()
 
@@ -70,12 +76,24 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   switch (message.action) {
     case 'fill':
       filler.fill().then(results => {
-        sendResponse({ 
-          success: true, 
+        sendResponse({
+          success: true,
           filled: results.filter(r => r.success).length,
           failed: results.filter(r => !r.success).length,
         })
       })
+      return true
+
+    case 'aiFillField':
+      if (lastRightClickedElement) {
+        filler.aiFillSingleField(lastRightClickedElement).then(success => {
+          sendResponse({ success })
+        }).catch(err => {
+          sendResponse({ success: false, error: String(err) })
+        })
+      } else {
+        sendResponse({ success: false, error: 'No target element' })
+      }
       return true
 
     case 'undo':

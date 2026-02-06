@@ -68,6 +68,7 @@ export class AutoFiller {
       onSave: () => this.detectFieldsForWidget(),
       onFill: (animated, onProgress) => this.fillAndReturnCount(animated, onProgress),
       onConfirm: (fields) => this.handleConfirmAndSubmit(fields),
+      onAIFill: () => this.aiSuperFill(),
       getSiteKey: () => this.siteKey,
     })
 
@@ -557,7 +558,7 @@ export class AutoFiller {
     animated = false,
     onProgress?: (state: FillAnimationState) => void
   ): Promise<{ count: number; debug: FillDebugInfo }> {
-    const { results, debug } = await this.fillWithDebug(animated, onProgress)
+    const { results, debug } = await this.fillWithDebug(animated, onProgress, true)
     return { count: results.filter(r => r.success).length, debug }
   }
 
@@ -622,20 +623,21 @@ export class AutoFiller {
   }
 
   async fill(): Promise<FillResult[]> {
-    const { results } = await this.fillWithDebug()
+    const { results } = await this.fillWithDebug(false, undefined, true)
     return results
   }
 
   private async fillWithDebug(
     animated = false,
-    onProgress?: (state: FillAnimationState) => void
+    onProgress?: (state: FillAnimationState) => void,
+    manual = false
   ): Promise<{ results: FillResult[]; debug: FillDebugInfo }> {
     const debug = createEmptyDebugInfo()
     const settings = await this.siteSettingsStorage.get(this.siteKey)
 
     debug.autofillEnabled = settings?.autofillEnabled ?? false
 
-    if (!settings?.autofillEnabled) {
+    if (!manual && !settings?.autofillEnabled) {
       await saveDebugLog('fill', debug)
       return { results: [], debug }
     }
@@ -1366,6 +1368,161 @@ export class AutoFiller {
 
   getPendingCount(): number {
     return this.recorder.getPendingCount()
+  }
+
+  /**
+   * AI SuperFill: use LLM to fill remaining empty fields
+   */
+  async aiSuperFill(): Promise<{ count: number }> {
+    const fields = scanFields(document.body)
+    const emptyFields: Array<{ field: FieldContext; fieldId: string }> = []
+
+    // Find empty fields
+    for (const field of fields) {
+      const value = this.getFieldValue(field.element)
+      if (!value) {
+        emptyFields.push({ field, fieldId: `field-${emptyFields.length}` })
+      }
+    }
+
+    if (emptyFields.length === 0) {
+      return { count: 0 }
+    }
+
+    // Build user profile context
+    const userProfile = await this.buildUserProfileContext()
+    const experiences = await this.buildExperienceContext()
+
+    // Build field descriptions for LLM
+    const unfilledFields = emptyFields.map(({ field, fieldId }) => {
+      const desc: {
+        fieldId: string
+        label: string
+        fieldType: string
+        placeholder?: string
+        options?: string[]
+        sectionTitle?: string
+      } = {
+        fieldId,
+        label: field.labelText || field.attributes.placeholder || field.attributes.name || 'Unknown',
+        fieldType: field.element instanceof HTMLTextAreaElement ? 'textarea'
+          : field.element instanceof HTMLSelectElement ? 'select'
+          : (field.element as HTMLInputElement).type || 'text',
+      }
+
+      if (field.attributes.placeholder) desc.placeholder = field.attributes.placeholder
+      if (field.optionsText?.length) desc.options = field.optionsText
+      if (field.sectionTitle) desc.sectionTitle = field.sectionTitle
+
+      return desc
+    })
+
+    // Call LLM
+    const results = await llmService.superFillFields({
+      userProfile,
+      experiences,
+      unfilledFields,
+    })
+
+    // Fill fields with LLM results
+    let filledCount = 0
+    for (const result of results) {
+      if (result.confidence < 0.3) continue
+
+      const entry = emptyFields.find(e => e.fieldId === result.fieldId)
+      if (!entry) continue
+
+      const fillResult = await fillField(entry.field, result.value)
+      if (fillResult.success) {
+        filledCount++
+        this.markAsFilledByProgram(entry.field.element)
+        this.badgeManager.showBadge(entry.field, {
+          type: 'filled',
+          answerId: `ai-${result.fieldId}`,
+          canUndo: true,
+        })
+      }
+
+      await this.yieldToMainThread()
+    }
+
+    return { count: filledCount }
+  }
+
+  /**
+   * AI fill a single field (triggered by right-click context menu)
+   */
+  async aiFillSingleField(element: HTMLElement): Promise<boolean> {
+    // Find the field context for this element
+    const fields = scanFields(element.closest('form') || document.body)
+    const fieldContext = fields.find(f => f.element === element)
+
+    if (!fieldContext) {
+      showToast('Could not identify this field', 'info')
+      return false
+    }
+
+    const userProfile = await this.buildUserProfileContext()
+    const experiences = await this.buildExperienceContext()
+
+    // Get surrounding text for context
+    const surroundingText = element.closest('div, fieldset, section')?.textContent?.slice(0, 300) || ''
+
+    const value = await llmService.fillSingleField({
+      userProfile,
+      experiences,
+      field: {
+        label: fieldContext.labelText || fieldContext.attributes.placeholder || fieldContext.attributes.name || 'Unknown',
+        fieldType: element instanceof HTMLTextAreaElement ? 'textarea'
+          : element instanceof HTMLSelectElement ? 'select'
+          : (element as HTMLInputElement).type || 'text',
+        placeholder: fieldContext.attributes.placeholder,
+        options: fieldContext.optionsText,
+        sectionTitle: fieldContext.sectionTitle,
+        surroundingText,
+      },
+    })
+
+    if (!value) {
+      showToast('AI could not generate a value for this field', 'info')
+      return false
+    }
+
+    const result = await fillField(fieldContext, value)
+    if (result.success) {
+      this.markAsFilledByProgram(element)
+      showToast('AI filled this field', 'success')
+      return true
+    }
+
+    showToast('Failed to fill this field', 'warning')
+    return false
+  }
+
+  /**
+   * Build user profile context from stored answers
+   */
+  private async buildUserProfileContext(): Promise<Record<string, string>> {
+    const allAnswers = await this.answerStorage.getAll()
+    const profile: Record<string, string> = {}
+    for (const answer of allAnswers) {
+      // Use type as key, take first value for each type
+      if (!profile[answer.type]) {
+        profile[answer.type] = answer.value
+      }
+    }
+    return profile
+  }
+
+  /**
+   * Build experience context from stored experiences
+   */
+  private async buildExperienceContext(): Promise<Array<{ type: string; fields: Record<string, string> }>> {
+    const allExperiences = await experienceStorage.getAll()
+    return allExperiences.map(e => ({
+      type: e.groupType,
+      fields: e.fields,
+    }))
   }
 
   destroy(): void {

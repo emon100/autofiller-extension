@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Zap, Linkedin, FileText, FormInput, Sparkles, ArrowRight, ArrowLeft, Check, ExternalLink, Database, Shield, Brain, Lock, HardDrive, LogIn, Loader2, Settings, type LucideIcon } from 'lucide-react'
-import { Taxonomy, AuthState } from '@/types'
+import { Zap, Linkedin, FileText, FormInput, Sparkles, ArrowRight, ArrowLeft, Check, ExternalLink, Database, Shield, Brain, Lock, HardDrive, LogIn, Loader2, Settings, MousePointerClick, AlertTriangle, type LucideIcon } from 'lucide-react'
+import { Taxonomy } from '@/types'
 import { storage } from '@/storage'
 import { t } from '@/i18n'
 import { isLLMEnabled } from '@/profileParser/llmHelpers'
+import { launchLogin } from '@/utils/authLogin'
 import OnboardingHeroDemo from './OnboardingHeroDemo'
-
-const WEBSITE_URL = 'https://www.onefil.help'
 
 // --- Shared helpers ---
 
@@ -60,16 +59,37 @@ function StepNav({ onBack, onNext, done, nextLabel }: {
   )
 }
 
-function PrivacyBadge({ variant = 'local' }: { variant?: 'local' | 'ai-optional' }) {
-  const isAI = variant === 'ai-optional'
-  const color = isAI ? 'amber' : 'green'
-  const labelKey = isAI ? 'onboarding.privacy.aiOptionalLabel' : 'onboarding.privacy.localLabel'
-  const descKey = isAI ? 'onboarding.privacy.aiOptional' : 'onboarding.privacy.local'
+function PrivacyBadge({ variant = 'local' }: { variant?: 'local' | 'ai-optional' | 'ai-required' }) {
+  const isAI = variant !== 'local'
+  const isRequired = variant === 'ai-required'
+  const labelKey = isRequired ? 'onboarding.privacy.aiRequiredLabel' : isAI ? 'onboarding.privacy.aiOptionalLabel' : 'onboarding.privacy.localLabel'
+  const descKey = isRequired ? 'onboarding.privacy.aiRequired' : isAI ? 'onboarding.privacy.aiOptional' : 'onboarding.privacy.local'
   const IconComp = isAI ? Shield : Lock
+
+  if (isRequired) {
+    return (
+      <div className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg mt-3">
+        <IconComp className="w-4 h-4 text-amber-600 flex-shrink-0" />
+        <p className="text-xs text-amber-700">
+          <strong>{t(labelKey)}</strong> {t(descKey)}
+        </p>
+      </div>
+    )
+  }
+  if (isAI) {
+    return (
+      <div className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-lg mt-3">
+        <IconComp className="w-4 h-4 text-amber-600 flex-shrink-0" />
+        <p className="text-xs text-amber-700">
+          <strong>{t(labelKey)}</strong> {t(descKey)}
+        </p>
+      </div>
+    )
+  }
   return (
-    <div className={`flex items-center gap-2 p-2 bg-${color}-50 border border-${color}-200 rounded-lg mt-3`}>
-      <IconComp className={`w-4 h-4 text-${color}-600 flex-shrink-0`} />
-      <p className={`text-xs text-${color}-700`}>
+    <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg mt-3">
+      <IconComp className="w-4 h-4 text-green-600 flex-shrink-0" />
+      <p className="text-xs text-green-700">
         <strong>{t(labelKey)}</strong> {t(descKey)}
       </p>
     </div>
@@ -93,14 +113,27 @@ export default function Onboarding({ onComplete, onSkip }: OnboardingProps) {
   const currentIndex = steps.indexOf(step)
   const progress = ((currentIndex) / (steps.length - 1)) * 100
 
+  // If user has imported data, skip practice step
+  const shouldSkipPractice = linkedinDone || resumeDone
+
   function nextStep() {
-    const next = steps[currentIndex + 1]
+    let nextIndex = currentIndex + 1
+    // Skip practice step if user has already imported data
+    if (steps[nextIndex] === 'practice' && shouldSkipPractice) {
+      nextIndex++
+    }
+    const next = steps[nextIndex]
     if (next) setStep(next)
     else onComplete()
   }
 
   function prevStep() {
-    const prev = steps[currentIndex - 1]
+    let prevIndex = currentIndex - 1
+    // Skip practice step when going back if it was skipped
+    if (steps[prevIndex] === 'practice' && shouldSkipPractice) {
+      prevIndex--
+    }
+    const prev = steps[prevIndex]
     if (prev) setStep(prev)
   }
 
@@ -207,7 +240,72 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
 function LinkedInStep({ done, onDone, onNext, onBack }: {
   done: boolean; onDone: () => void; onNext: () => void; onBack: () => void
 }) {
-  const [status, setStatus] = useState<'idle' | 'choosing' | 'parsing' | 'done' | 'error'>('idle')
+  const [status, setStatus] = useState<'idle' | 'choosing' | 'parsing' | 'done' | 'error' | 'detecting'>('idle')
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
+  const [loggingIn, setLoggingIn] = useState(false)
+  const [activeTabLinkedIn, setActiveTabLinkedIn] = useState<string | null>(null)
+
+  useEffect(() => {
+    storage.auth.getAuthState().then(authState => {
+      setIsLoggedIn(!!(authState && authState.expiresAt > Date.now()))
+    })
+    checkActiveTab()
+  }, [])
+
+  async function checkActiveTab() {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      if (tab?.url && /linkedin\.com\/in\//.test(tab.url)) {
+        setActiveTabLinkedIn(tab.url)
+      } else {
+        setActiveTabLinkedIn(null)
+      }
+    } catch {
+      setActiveTabLinkedIn(null)
+    }
+  }
+
+  function openLinkedInAndDetect() {
+    chrome.tabs.create({ url: 'https://www.linkedin.com/in/me/', active: true })
+    setStatus('detecting')
+
+    let cancelled = false
+    let attempts = 0
+    const maxAttempts = 30
+
+    const poll = async () => {
+      if (cancelled) return
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+        if (tab?.url && /linkedin\.com\/in\//.test(tab.url)) {
+          setActiveTabLinkedIn(tab.url)
+          setStatus('idle')
+          return
+        }
+      } catch { /* ignore */ }
+      attempts++
+      if (attempts < maxAttempts && !cancelled) {
+        setTimeout(poll, 1000)
+      } else if (!cancelled) {
+        setStatus('idle')
+      }
+    }
+
+    setTimeout(poll, 2000)
+
+    // cleanup on unmount is not critical here since it's a one-time action
+  }
+
+  async function handleLogin() {
+    setLoggingIn(true)
+    const result = await launchLogin()
+    if (result.success) {
+      setIsLoggedIn(true)
+    } else if (result.error) {
+      console.error('LinkedIn login error:', result.error)
+    }
+    setLoggingIn(false)
+  }
 
   async function parseProfile(withAI: boolean) {
     setStatus('parsing')
@@ -262,25 +360,52 @@ function LinkedInStep({ done, onDone, onNext, onBack }: {
             </button>
 
             {/* AI Processing Option */}
-            <button
-              onClick={() => parseProfile(true)}
-              className="w-full p-3 border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors text-left"
-            >
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Sparkles className="w-5 h-5 text-blue-600" />
+            {isLoggedIn ? (
+              <button
+                onClick={() => parseProfile(true)}
+                className="w-full p-3 border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors text-left"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Sparkles className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-800">{t('onboarding.linkedin.aiOption')}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {t('onboarding.linkedin.aiDesc')}
+                    </p>
+                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 flex-shrink-0" /> {t('onboarding.linkedin.aiWarning')}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-800">{t('onboarding.linkedin.aiOption')}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {t('onboarding.linkedin.aiDesc')}
-                  </p>
-                  <p className="text-xs text-amber-600 mt-1">
-                    ⚠️ {t('onboarding.linkedin.aiWarning')}
-                  </p>
+              </button>
+            ) : (
+              <div className="w-full p-3 border-2 border-gray-200 rounded-xl bg-gray-50/50 text-left">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Sparkles className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-800">{t('onboarding.linkedin.aiOption')}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {t('onboarding.linkedin.aiDesc')}
+                    </p>
+                    <button
+                      onClick={handleLogin}
+                      disabled={loggingIn}
+                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {loggingIn ? (
+                        <><Loader2 className="w-3 h-3 animate-spin" /> {t('onboarding.resume.loggingIn')}</>
+                      ) : (
+                        <><LogIn className="w-3 h-3" /> {t('onboarding.linkedin.loginForAi')}</>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </button>
+            )}
 
             <button
               onClick={() => setStatus('idle')}
@@ -291,16 +416,33 @@ function LinkedInStep({ done, onDone, onNext, onBack }: {
           </div>
         ) : !done && status !== 'done' ? (
           <>
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">1</div>
-              <p className="text-sm text-gray-700 flex-1">{t('onboarding.linkedin.step1')}</p>
-              <button onClick={() => chrome.tabs.create({ url: 'https://www.linkedin.com/in/me/', active: true })} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                {t('onboarding.linkedin.open')} <ExternalLink className="w-3 h-3" />
-              </button>
-            </div>
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">2</div>
-              <p className="text-sm text-gray-700 flex-1">{t('onboarding.linkedin.step2')}</p>
+            {activeTabLinkedIn ? (
+              <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-green-700">{t('onboarding.linkedin.step1')}</p>
+                  <p className="text-xs text-green-600 truncate mt-0.5">{activeTabLinkedIn}</p>
+                </div>
+              </div>
+            ) : status === 'detecting' ? (
+              <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <Loader2 className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-blue-700">{t('onboarding.linkedin.detecting')}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">1</div>
+                <p className="text-sm text-gray-700 flex-1">{t('onboarding.linkedin.step1')}</p>
+                <button onClick={openLinkedInAndDetect} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                  {t('onboarding.linkedin.open')} <ExternalLink className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+            <div className={`flex items-center gap-3 p-3 rounded-lg ${activeTabLinkedIn ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${activeTabLinkedIn ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600'}`}>2</div>
+              <p className={`text-sm flex-1 ${activeTabLinkedIn ? 'text-blue-700 font-medium' : 'text-gray-700'}`}>{t('onboarding.linkedin.step2')}</p>
               <button
                 onClick={() => setStatus('choosing')}
                 disabled={status === 'parsing'}
@@ -356,35 +498,16 @@ function ResumeStep({ done, onDone, onNext, onBack }: {
     setLoggingIn(true)
     setLoginError('')
 
-    try {
-      const redirectUrl = chrome.identity.getRedirectURL('callback')
-      const authUrl = `${WEBSITE_URL}/extension/auth?redirect_uri=${encodeURIComponent(redirectUrl)}`
-
-      const responseUrl = await new Promise<string>((resolve, reject) => {
-        chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, (callbackUrl) => {
-          if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message))
-          else if (callbackUrl) resolve(callbackUrl)
-          else reject(new Error('No callback URL received'))
-        })
-      })
-
-      const encodedToken = new URL(responseUrl).searchParams.get('token')
-      if (!encodedToken) throw new Error('No token in callback')
-
-      const tokenData = JSON.parse(decodeURIComponent(encodedToken)) as AuthState
-      if (!tokenData.accessToken || !tokenData.user) throw new Error('Invalid token data')
-
-      await storage.auth.setAuthState(tokenData)
+    const result = await launchLogin()
+    if (result.success) {
       setIsLoggedIn(true)
-
-      // Recheck LLM availability after login
       const enabled = await isLLMEnabled()
       setLlmReady(enabled)
-    } catch (err) {
-      setLoginError(err instanceof Error ? err.message : t('onboarding.resume.loginError'))
-    } finally {
-      setLoggingIn(false)
+    } else if (result.error) {
+      setLoginError(result.error)
     }
+
+    setLoggingIn(false)
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -479,6 +602,19 @@ function ResumeStep({ done, onDone, onNext, onBack }: {
         ) : !done && status !== 'done' ? (
           /* Upload area */
           <>
+            {/* LLM API Warning */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+              <div className="flex items-start gap-2">
+                <Shield className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-medium text-amber-800">{t('onboarding.resume.llmWarningTitle')}</p>
+                  <p className="text-[11px] text-amber-700 mt-0.5">
+                    {t('onboarding.resume.llmWarningDesc')}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <label className="block cursor-pointer">
               <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-green-400 hover:bg-green-50/50 transition-colors">
                 <FileText className="w-10 h-10 text-gray-400 mx-auto mb-2" />
@@ -495,7 +631,6 @@ function ResumeStep({ done, onDone, onNext, onBack }: {
                 disabled={status === 'parsing'}
               />
             </label>
-            <PrivacyBadge />
           </>
         ) : (
           <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg">
@@ -564,7 +699,7 @@ function PracticeStep({ done, onDone, onNext, onBack }: {
 
       {!done && !saved && showHint && (
         <div className="flex items-center gap-2 p-2.5 bg-purple-50 border border-purple-200 rounded-xl animate-pulse">
-          <span className="text-lg">👆</span>
+          <MousePointerClick className="w-4 h-4 text-purple-600" />
           <p className="text-xs text-purple-700 font-medium">{t('onboarding.practice.animHint')}</p>
         </div>
       )}

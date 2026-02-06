@@ -95,7 +95,34 @@
     "new": "新增",
     "allFilled": "{count} 字段全部填充！",
     "timeUsed": "用时 {time} 秒",
-    "differentFormSameSpeed": "不同表单样式，相同的极速体验"
+    "differentFormSameSpeed": "不同表单样式，相同的极速体验",
+    "step1Header": "导入 LinkedIn 资料",
+    "step2Header": "Greenhouse 申请表",
+    "step2Sub": "标准 ATS 表单",
+    "step3Header": "Workday 申请表",
+    "step3Sub": "完全不同的表单样式",
+    "enterField": "请输入{field}",
+    "importFields": {
+      "name": "姓名",
+      "email": "邮箱",
+      "phone": "电话",
+      "education": "学历",
+      "experience": "工作经历"
+    },
+    "formFields": {
+      "fullName": "Full Name",
+      "email": "Email",
+      "phone": "Phone",
+      "yearsOfExperience": "Years of Experience",
+      "expectedSalary": "Expected Salary"
+    },
+    "form3Fields": {
+      "applicantName": "申请人姓名",
+      "contactEmail": "联系邮箱",
+      "phone": "手机号码",
+      "workYears": "工作年限",
+      "salary": "期望薪资"
+    }
   },
   "features": {
     "title": "更快申请所需的一切",

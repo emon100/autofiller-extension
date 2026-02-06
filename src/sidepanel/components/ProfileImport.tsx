@@ -13,6 +13,10 @@ interface ImportResult {
   experiencesAdded: number
 }
 
+interface ProfileImportProps {
+  onImportComplete?: () => void
+}
+
 function isLinkedInProfileUrl(url: string): boolean {
   return /linkedin\.com\/in\//.test(url)
 }
@@ -21,7 +25,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback
 }
 
-export default function ImportProfile(): React.ReactElement {
+export default function ProfileImport({ onImportComplete }: ProfileImportProps): React.ReactElement {
   const [status, setStatus] = useState<ImportStatus>('idle')
   const [mode, setMode] = useState<ImportMode>('resume')
   const [error, setError] = useState<string | null>(null)
@@ -33,7 +37,6 @@ export default function ImportProfile(): React.ReactElement {
   const [activeTabLinkedIn, setActiveTabLinkedIn] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Check if the current active tab is a LinkedIn profile page
   const checkActiveTab = useCallback(async () => {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
@@ -51,7 +54,6 @@ export default function ImportProfile(): React.ReactElement {
     }
   }, [linkedinUrl])
 
-  // Check if the LinkedIn page is fully loaded
   const checkLinkedInPageReady = useCallback(async (): Promise<boolean> => {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
@@ -71,20 +73,16 @@ export default function ImportProfile(): React.ReactElement {
     }
   }, [mode, status, checkActiveTab])
 
-  // Auto-check LinkedIn page ready status after opening
   useEffect(() => {
-    // Only start checking when linkedinOpened becomes true and we're in idle state
     if (!linkedinOpened) return
-    // Don't restart if already checking or in another state
     if (status !== 'idle') return
-    // Don't restart if already marked as ready
     if (linkedinPageReady) return
 
     setStatus('checking')
 
     let cancelled = false
     let attempts = 0
-    const maxAttempts = 30 // 30 seconds max
+    const maxAttempts = 30
 
     const pollPageReady = async () => {
       if (cancelled) return
@@ -102,12 +100,10 @@ export default function ImportProfile(): React.ReactElement {
       if (attempts < maxAttempts) {
         setTimeout(pollPageReady, 1000)
       } else {
-        // Timeout - allow user to try anyway
         setStatus('idle')
       }
     }
 
-    // Start polling after a short delay to let the page start loading
     const timer = setTimeout(pollPageReady, 1500)
 
     return () => {
@@ -162,13 +158,11 @@ export default function ImportProfile(): React.ReactElement {
     setError(null)
   }
 
-  // Show consent dialog before parsing
   function handleParseClick(): void {
     setStatus('consent')
     setError(null)
   }
 
-  // Proceed with parsing after consent
   async function parseLinkedInPage(useAI: boolean): Promise<void> {
     setStatus('parsing')
     setError(null)
@@ -233,6 +227,7 @@ export default function ImportProfile(): React.ReactElement {
         experiencesAdded: parsedProfile.experiences.length,
       })
       setStatus('success')
+      onImportComplete?.()
     } catch (err) {
       showError(getErrorMessage(err, 'Failed to import profile'))
     }
@@ -253,14 +248,9 @@ export default function ImportProfile(): React.ReactElement {
   const educationExperiences = parsedProfile?.experiences.filter(e => e.groupType === 'EDUCATION') ?? []
 
   return (
-    <div className="space-y-4">
-      <div className="text-center pb-2">
-        <h2 className="text-lg font-semibold text-gray-800">Import Profile</h2>
-        <p className="text-sm text-gray-500">Import from resume or LinkedIn</p>
-      </div>
-
+    <div className="space-y-3">
       {(status === 'idle' || status === 'checking') && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex rounded-lg bg-gray-100 p-1">
             <ModeTab label="Resume" active={mode === 'resume'} onClick={() => setMode('resume')} />
             <ModeTab label="LinkedIn" active={mode === 'linkedin'} onClick={() => setMode('linkedin')} />
@@ -268,7 +258,7 @@ export default function ImportProfile(): React.ReactElement {
 
           {mode === 'resume' && (
             <div
-              className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-colors cursor-pointer"
+              className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-colors cursor-pointer"
               onClick={() => fileInputRef.current?.click()}
             >
               <input
@@ -278,7 +268,7 @@ export default function ImportProfile(): React.ReactElement {
                 onChange={handleFileSelect}
                 className="hidden"
               />
-              <Upload className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
               <p className="text-sm font-medium text-gray-700">Upload Resume</p>
               <p className="text-xs text-gray-500 mt-1">PDF, Word, or Image</p>
             </div>
@@ -287,15 +277,15 @@ export default function ImportProfile(): React.ReactElement {
           {mode === 'linkedin' && (
             <div className="space-y-3">
               <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl">
-                <Linkedin className="w-6 h-6 text-blue-600 flex-shrink-0" />
+                <Linkedin className="w-5 h-5 text-blue-600 flex-shrink-0" />
                 <p className="text-xs text-blue-700">
                   {activeTabLinkedIn
                     ? 'LinkedIn profile detected! Click Parse to import.'
-                    : 'Enter your LinkedIn profile URL, open it, then click "Parse" to import.'}
+                    : 'Enter your LinkedIn URL, open it, then click "Parse".'}
                 </p>
               </div>
 
-              {activeTabLinkedIn && !linkedinOpened ? (
+              {activeTabLinkedIn ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
                     <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
@@ -357,58 +347,54 @@ export default function ImportProfile(): React.ReactElement {
       )}
 
       {status === 'consent' && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="text-center">
-            <Shield className="w-10 h-10 text-blue-500 mx-auto mb-2" />
-            <h3 className="text-base font-semibold text-gray-800">Choose Processing Method</h3>
+            <Shield className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+            <h3 className="text-sm font-semibold text-gray-800">Choose Processing Method</h3>
             <p className="text-xs text-gray-500 mt-1">
               How would you like to process your LinkedIn profile?
             </p>
           </div>
 
-          <div className="space-y-3">
-            {/* AI Processing Option */}
+          <div className="space-y-2">
             <button
               onClick={() => parseLinkedInPage(true)}
               className="w-full p-3 border-2 border-blue-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors text-left"
             >
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Sparkles className="w-5 h-5 text-blue-600" />
+                <div className="p-1.5 bg-blue-100 rounded-lg">
+                  <Sparkles className="w-4 h-4 text-blue-600" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-800">AI-Enhanced Processing</p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     Better accuracy for names, dates, and formatting
                   </p>
-                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="mt-1.5 p-1.5 bg-amber-50 border border-amber-200 rounded-lg">
                     <p className="text-xs text-amber-700">
-                      <strong>Note:</strong> Your profile data will be sent to our AI service for processing.
-                      Data is NOT stored or used for training.
+                      <strong>Note:</strong> Data sent to AI service. NOT stored or used for training.
                     </p>
                   </div>
                 </div>
               </div>
             </button>
 
-            {/* Local Processing Option */}
             <button
               onClick={() => parseLinkedInPage(false)}
               className="w-full p-3 border-2 border-gray-200 rounded-xl hover:border-gray-400 hover:bg-gray-50/50 transition-colors text-left"
             >
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <HardDrive className="w-5 h-5 text-gray-600" />
+                <div className="p-1.5 bg-gray-100 rounded-lg">
+                  <HardDrive className="w-4 h-4 text-gray-600" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-800">Local Processing Only</p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     All processing happens on your device
                   </p>
-                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="mt-1.5 p-1.5 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-xs text-green-700">
                       <strong>Privacy:</strong> No data leaves your browser.
-                      Results may be less accurate for complex profiles.
                     </p>
                   </div>
                 </div>
@@ -437,7 +423,7 @@ export default function ImportProfile(): React.ReactElement {
       )}
 
       {status === 'previewing' && parsedProfile && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <PreviewSection title="Basic Info" count={parsedProfile.singleAnswers.length}>
             {parsedProfile.singleAnswers.slice(0, 5).map((a, i) => (
               <div key={i} className="flex justify-between text-xs py-1">
@@ -454,7 +440,7 @@ export default function ImportProfile(): React.ReactElement {
 
           <PreviewSection title="Work Experience" count={workExperiences.length}>
             {workExperiences.slice(0, 3).map((exp, i) => (
-              <ExperienceItem
+              <ImportExperienceItem
                 key={i}
                 title={exp.fields.JOB_TITLE || 'Unknown Title'}
                 subtitle={formatWorkSubtitle(exp)}
@@ -464,7 +450,7 @@ export default function ImportProfile(): React.ReactElement {
 
           <PreviewSection title="Education" count={educationExperiences.length}>
             {educationExperiences.slice(0, 3).map((exp, i) => (
-              <ExperienceItem
+              <ImportExperienceItem
                 key={i}
                 title={exp.fields.SCHOOL || 'Unknown School'}
                 subtitle={formatEducationSubtitle(exp)}
@@ -492,10 +478,10 @@ export default function ImportProfile(): React.ReactElement {
       {status === 'importing' && <LoadingState message="Importing profile..." />}
 
       {status === 'success' && importResult && (
-        <div className="text-center py-6">
-          <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-gray-800">Import Complete!</h3>
-          <div className="mt-3 space-y-1 text-sm text-gray-600">
+        <div className="text-center py-4">
+          <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-2" />
+          <h3 className="text-sm font-semibold text-gray-800">Import Complete!</h3>
+          <div className="mt-2 space-y-1 text-xs text-gray-600">
             <p>{importResult.answersAdded} answers added</p>
             {importResult.answersSkipped > 0 && (
               <p className="text-gray-400">{importResult.answersSkipped} duplicates skipped</p>
@@ -504,7 +490,7 @@ export default function ImportProfile(): React.ReactElement {
           </div>
           <button
             onClick={reset}
-            className="mt-4 px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            className="mt-3 px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
           >
             Done
           </button>
@@ -512,13 +498,13 @@ export default function ImportProfile(): React.ReactElement {
       )}
 
       {status === 'error' && (
-        <div className="text-center py-6">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-gray-800">Import Failed</h3>
-          <p className="mt-2 text-sm text-red-600">{error}</p>
+        <div className="text-center py-4">
+          <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-2" />
+          <h3 className="text-sm font-semibold text-gray-800">Import Failed</h3>
+          <p className="mt-1 text-xs text-red-600">{error}</p>
           <button
             onClick={reset}
-            className="mt-4 px-6 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+            className="mt-3 px-6 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
           >
             Try Again
           </button>
@@ -528,7 +514,6 @@ export default function ImportProfile(): React.ReactElement {
   )
 }
 
-// Helper functions
 function formatWorkSubtitle(exp: ExperienceEntry): string {
   const company = exp.fields.COMPANY_NAME || 'Unknown Company'
   const dateRange = [exp.startDate, exp.endDate].filter(Boolean).join(' - ')
@@ -540,7 +525,6 @@ function formatEducationSubtitle(exp: ExperienceEntry): string {
   return parts.join(' ')
 }
 
-// Extracted components
 interface ModeTabProps {
   label: string
   active: boolean
@@ -587,8 +571,8 @@ interface LoadingStateProps {
 
 function LoadingState({ message }: LoadingStateProps): React.ReactElement {
   return (
-    <div className="text-center py-8">
-      <Loader2 className="w-10 h-10 text-blue-500 animate-spin mx-auto mb-3" />
+    <div className="text-center py-6">
+      <Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-2" />
       <p className="text-sm text-gray-600">{message}</p>
       <p className="text-xs text-gray-400 mt-1">This may take a moment</p>
     </div>
@@ -613,12 +597,12 @@ function PreviewSection({ title, count, children }: PreviewSectionProps): React.
   )
 }
 
-interface ExperienceItemProps {
+interface ImportExperienceItemProps {
   title: string
   subtitle: string
 }
 
-function ExperienceItem({ title, subtitle }: ExperienceItemProps): React.ReactElement {
+function ImportExperienceItem({ title, subtitle }: ImportExperienceItemProps): React.ReactElement {
   return (
     <div className="py-1 border-b border-gray-100 last:border-0">
       <p className="text-sm font-medium text-gray-800">{title}</p>

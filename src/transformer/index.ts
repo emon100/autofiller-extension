@@ -235,22 +235,62 @@ export class PhoneTransformer implements IValueTransformer {
     return this.formatPhone(parsed, targetFormat)
   }
 
-  private parsePhone(value: string): { countryCode?: string; number: string } | null {
+  private parsePhone(value: string): { countryCode?: string; number: string; original: string } | null {
     const cleaned = value.replace(/[\s\-\(\)\.]/g, '')
-    
-    const e164Match = cleaned.match(/^\+(\d{1,3})(\d{10})$/)
-    if (e164Match) {
-      return { countryCode: e164Match[1], number: e164Match[2] }
+
+    // Try known country codes with specific lengths (non-greedy approach)
+    // Common country codes: 1 (US/CA), 44 (UK), 86 (CN), 91 (IN), 81 (JP), 82 (KR), 49 (DE), 33 (FR), etc.
+    const knownCodes: Record<string, number[]> = {
+      '1': [10], '7': [10], '20': [10], '27': [9], '30': [10], '31': [9],
+      '32': [8,9], '33': [9], '34': [9], '36': [8,9], '39': [9,10], '40': [9],
+      '41': [9], '43': [10], '44': [10], '45': [8], '46': [9], '47': [8],
+      '48': [9], '49': [10,11], '51': [9], '52': [10], '53': [8], '54': [10],
+      '55': [10,11], '56': [9], '57': [10], '58': [10], '60': [9,10], '61': [9],
+      '62': [10,12], '63': [10], '64': [8,9], '65': [8], '66': [9],
+      '81': [10,11], '82': [10,11], '84': [9,10], '86': [11], '90': [10],
+      '91': [10], '92': [10], '93': [9], '94': [9], '95': [8],
+      '212': [9], '213': [9], '216': [8], '218': [9], '220': [7],
+      '234': [10], '249': [9], '254': [9], '255': [9], '256': [9],
+      '260': [9], '263': [9], '351': [9], '352': [9], '353': [9],
+      '354': [7], '355': [8,9], '356': [8], '357': [8], '358': [9,10],
+      '370': [8], '371': [8], '372': [7,8], '373': [8], '374': [8],
+      '375': [9,10], '380': [9], '381': [8,9], '385': [8,9], '386': [8],
+      '420': [9], '421': [9], '852': [8], '853': [8], '855': [8,9],
+      '856': [8], '880': [10], '886': [9], '960': [7], '961': [7,8],
+      '962': [8,9], '963': [8,9], '964': [10], '965': [8], '966': [9],
+      '968': [8], '971': [9], '972': [9], '973': [8], '974': [8],
     }
 
-    const withCountry = cleaned.match(/^\+(\d{1,3})(\d{7,15})$/)
-    if (withCountry) {
-      return { countryCode: withCountry[1], number: withCountry[2] }
+    if (cleaned.startsWith('+')) {
+      const digits = cleaned.slice(1)
+
+      // Try matching known country codes (1-3 digits), longest first
+      for (const codeLen of [3, 2, 1]) {
+        if (digits.length <= codeLen) continue
+        const code = digits.slice(0, codeLen)
+        const rest = digits.slice(codeLen)
+        if (knownCodes[code]) {
+          return { countryCode: code, number: rest, original: cleaned }
+        }
+      }
+
+      // Fallback: try to split at a reasonable boundary
+      // For 1-digit codes, number should be 10+ digits
+      // For 2-digit codes, number should be 8+ digits
+      // For 3-digit codes, number should be 7+ digits
+      for (const [codeLen, minNum] of [[1, 10], [2, 8], [3, 7]] as [number, number][]) {
+        if (digits.length > codeLen) {
+          const rest = digits.slice(codeLen)
+          if (rest.length >= minNum) {
+            return { countryCode: digits.slice(0, codeLen), number: rest, original: cleaned }
+          }
+        }
+      }
     }
 
     const localMatch = cleaned.match(/^(\d{10,11})$/)
     if (localMatch) {
-      return { number: localMatch[1] }
+      return { number: localMatch[1], original: cleaned }
     }
 
     return null
@@ -272,10 +312,10 @@ export class PhoneTransformer implements IValueTransformer {
     if (/\(\d{3}\)/.test(placeholder)) return 'us-format'
     if (/\d{3}-\d{3}-\d{4}/.test(placeholder)) return 'us-dashes'
     
-    return 'digits-only'
+    return 'international'
   }
 
-  private formatPhone(phone: { countryCode?: string; number: string }, format: string): string {
+  private formatPhone(phone: { countryCode?: string; number: string; original: string }, format: string): string {
     const { countryCode, number } = phone
     
     switch (format) {

@@ -1,30 +1,14 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
-// Lazy initialization of Supabase client
 function getSupabaseClient() {
-  // In mock mode, return a mock client
-  if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true') {
-    return {
-      rpc: async () => ({ data: null, error: null }),
-      from: () => ({
-        insert: async () => ({ error: null }),
-        upsert: async () => ({ error: null }),
-        update: () => ({
-          eq: async () => ({ error: null }),
-        }),
-      }),
-    } as unknown as ReturnType<typeof createClient>;
-  }
-
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 }
 
-// Paddle webhook signature verification
 function verifyPaddleSignature(
   rawBody: string,
   signature: string,
@@ -49,14 +33,24 @@ function verifyPaddleSignature(
   return h1Value === expectedSignature;
 }
 
-// Credit amounts per product
-const CREDITS_PER_PRODUCT: Record<string, number> = {
-  pri_starter: 100,
-  pri_pro: 500,
-};
+async function updateWebhookLog(
+  supabase: SupabaseClient,
+  logId: string | undefined,
+  processed: boolean,
+  error?: string
+) {
+  if (!logId) return;
+  await supabase
+    .from('webhook_logs')
+    .update({
+      processed,
+      processing_completed_at: new Date().toISOString(),
+      ...(error ? { error } : {}),
+    })
+    .eq('id', logId);
+}
 
 export async function POST(request: Request) {
-  // Mock mode - just return success
   if (process.env.NEXT_PUBLIC_MOCK_MODE === 'true') {
     return NextResponse.json({ received: true, mock: true });
   }
@@ -83,15 +77,43 @@ export async function POST(request: Request) {
   }
 
   const event = JSON.parse(rawBody);
-  const eventType = event.event_type;
+  const eventType: string = event.event_type;
+  const paddleEventId: string | undefined = event.event_id;
 
-  console.log('Paddle webhook received:', eventType);
+  // --- Log webhook to webhook_logs ---
+  const { data: logEntry, error: logError } = await supabase
+    .from('webhook_logs')
+    .insert({
+      event_type: eventType,
+      paddle_event_id: paddleEventId,
+      raw_body: event,
+      headers: {
+        'paddle-signature': signature,
+        'content-type': request.headers.get('content-type'),
+        'user-agent': request.headers.get('user-agent'),
+      },
+      processed: false,
+      processing_started_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single();
+
+  const webhookLogId: string | undefined = logEntry?.id;
+
+  if (logError) {
+    // Duplicate event (unique constraint on paddle_event_id) — skip silently
+    if (logError.code === '23505') {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    console.error('Failed to log webhook:', logError);
+  }
+
+  console.log('Paddle webhook received:', eventType, paddleEventId);
 
   try {
     switch (eventType) {
       case 'transaction.completed': {
         const { data } = event;
-        // custom_data may be string or object depending on Paddle version
         const customData = typeof data.custom_data === 'string'
           ? JSON.parse(data.custom_data)
           : (data.custom_data || {});
@@ -99,21 +121,32 @@ export async function POST(request: Request) {
 
         if (!userId) {
           console.error('No userId in custom_data');
+          await updateWebhookLog(supabase, webhookLogId, false, 'Missing userId in custom_data');
           return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
         }
 
-        // Get product info
+        // Extract both product_id and price_id from Paddle payload
         const productId = data.items?.[0]?.price?.product_id;
-        const credits = CREDITS_PER_PRODUCT[productId];
+        const priceId = data.items?.[0]?.price?.id;
 
-        if (credits) {
-          // One-time purchase - add credits
+        // Look up credits from products table (match by product_id OR price_id)
+        const { data: product } = await supabase
+          .from('products')
+          .select('credits')
+          .or(`paddle_product_id.eq.${productId},paddle_price_id.eq.${priceId}`)
+          .limit(1)
+          .single();
+
+        const credits = product?.credits;
+
+        if (credits && credits > 0) {
+          // Add credits
           await supabase.rpc('add_credits', {
             p_user_id: userId,
             p_amount: credits,
           });
 
-          // Log transaction
+          // Log credit transaction
           await supabase.from('credit_transactions').insert({
             user_id: userId,
             amount: credits,
@@ -121,15 +154,20 @@ export async function POST(request: Request) {
             description: `Purchased ${credits} credits`,
           });
 
-          // Log purchase
+          // Log purchase (idempotent via unique constraint on paddle_transaction_id)
           await supabase.from('purchases').insert({
             user_id: userId,
             paddle_transaction_id: data.id,
-            product_id: productId,
+            product_id: productId || priceId,
             amount_cents: data.details?.totals?.total,
             currency: data.currency_code,
             credits_added: credits,
+            processing_status: 'completed',
           });
+        } else {
+          console.error('No credits found for product:', productId, 'price:', priceId);
+          await updateWebhookLog(supabase, webhookLogId, false, `No credits config for product=${productId} price=${priceId}`);
+          return NextResponse.json({ received: true, warning: 'no credits config found' });
         }
         break;
       }
@@ -137,7 +175,6 @@ export async function POST(request: Request) {
       case 'subscription.activated':
       case 'subscription.updated': {
         const { data } = event;
-        // custom_data may be string or object depending on Paddle version
         const customData = typeof data.custom_data === 'string'
           ? JSON.parse(data.custom_data)
           : (data.custom_data || {});
@@ -145,10 +182,10 @@ export async function POST(request: Request) {
 
         if (!userId) {
           console.error('No userId in custom_data');
+          await updateWebhookLog(supabase, webhookLogId, false, 'Missing userId in custom_data');
           return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
         }
 
-        // Upsert subscription
         await supabase.from('subscriptions').upsert(
           {
             user_id: userId,
@@ -183,9 +220,11 @@ export async function POST(request: Request) {
         console.log('Unhandled event type:', eventType);
     }
 
+    await updateWebhookLog(supabase, webhookLogId, true);
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error('Webhook error:', error);
+    await updateWebhookLog(supabase, webhookLogId, false, String(error));
     return NextResponse.json(
       { error: 'Webhook processing failed' },
       { status: 500 }

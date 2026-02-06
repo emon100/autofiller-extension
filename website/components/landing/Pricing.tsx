@@ -55,7 +55,7 @@ export default function Pricing() {
   };
 
   const dbPlans: Plan[] = products
-    .filter(p => p.billing_cycle !== 'year')
+    .filter(p => p.billing_cycle !== 'year' && p.price_amount > 0)
     .map(product => {
       const planName = product.name.split(' ')[0];
       const isSubscription = product.type === 'subscription';

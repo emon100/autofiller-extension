@@ -6,6 +6,7 @@ const sidePanelOpenTabs = new Set<number>()
 // Context menu IDs
 const CONTEXT_MENU_IDS = {
   FILL_FORM: 'autofiller-fill-form',
+  AI_FILL_FIELD: 'autofiller-ai-fill-field',
   OPEN_SIDEPANEL: 'autofiller-open-sidepanel',
 } as const
 
@@ -18,6 +19,13 @@ function createContextMenus() {
       id: CONTEXT_MENU_IDS.FILL_FORM,
       title: 'AutoFill this form',
       contexts: ['page', 'editable'],
+    })
+
+    // AI fill single field - shown on editable elements
+    chrome.contextMenus.create({
+      id: CONTEXT_MENU_IDS.AI_FILL_FIELD,
+      title: 'OneFillr: AI fill this',
+      contexts: ['editable'],
     })
 
     // Open side panel
@@ -52,6 +60,29 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
               await chrome.tabs.sendMessage(tab.id!, { action: 'fill' })
             } catch (e) {
               console.error('[AutoFiller] Fill failed after injection:', e)
+            }
+          }, 500)
+        } catch (injectError) {
+          console.error('[AutoFiller] Failed to inject content script:', injectError)
+        }
+      }
+      break
+
+    case CONTEXT_MENU_IDS.AI_FILL_FIELD:
+      try {
+        await chrome.tabs.sendMessage(tab.id, { action: 'aiFillField' })
+      } catch (error) {
+        console.error('[AutoFiller] Failed to send AI fill command:', error)
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js'],
+          })
+          setTimeout(async () => {
+            try {
+              await chrome.tabs.sendMessage(tab.id!, { action: 'aiFillField' })
+            } catch (e) {
+              console.error('[AutoFiller] AI fill failed after injection:', e)
             }
           }, 500)
         } catch (injectError) {

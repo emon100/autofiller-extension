@@ -14,6 +14,7 @@
 
 export interface LLMConfig {
   enabled: boolean
+  useCustomApi?: boolean
   provider: 'openai' | 'anthropic' | 'dashscope' | 'deepseek' | 'zhipu' | 'custom'
   apiKey: string
   endpoint?: string
@@ -290,10 +291,29 @@ export async function loadLLMConfig(): Promise<LLMConfig | null> {
 
 /**
  * Check if LLM is available and configured
+ * For backend API mode (useCustomApi=false): requires login (auth token)
+ * For custom API mode (useCustomApi=true): requires apiKey
  */
 export async function isLLMAvailable(): Promise<boolean> {
   const config = await loadLLMConfig()
-  return !!(config?.enabled && config?.apiKey)
+  if (!config?.enabled) return false
+
+  if (!config.useCustomApi) {
+    // Backend API mode - check for auth token
+    try {
+      const result = await chrome.storage.local.get('authState')
+      const state = result.authState
+      if (state && state.accessToken && state.expiresAt > Date.now()) {
+        return true
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return false
+  }
+
+  // Custom API mode - requires apiKey
+  return !!config.apiKey
 }
 
 /**
