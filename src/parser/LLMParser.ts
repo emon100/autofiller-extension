@@ -590,12 +590,19 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
 
   private async callLLMSingle(metadata: FieldMetadata): Promise<CandidateType[]> {
     const config = this.config!
-    const prompt = this.buildSinglePrompt(metadata)
+
+    // Route through backend API when not using custom API
+    if (!config.useCustomApi) {
+      const results = await this.callBackendAPI([metadata])
+      if (results.length === 0) return []
+      const r = results[0]
+      return [{ type: r.type as Taxonomy, score: r.confidence, reasons: ['backend-api'] }]
+    }
 
     if (config.provider === 'anthropic') {
-      return this.callAnthropicSingle(prompt)
+      return this.callAnthropicSingle(this.buildSinglePrompt(metadata))
     }
-    return this.callOpenAICompatibleSingle(prompt)
+    return this.callOpenAICompatibleSingle(this.buildSinglePrompt(metadata))
   }
 
   private async callOpenAICompatibleSingle(prompt: string): Promise<CandidateType[]> {

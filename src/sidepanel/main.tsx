@@ -6,13 +6,17 @@ import './index.css'
 async function notifySidePanelState(isOpen: boolean): Promise<void> {
   const action = isOpen ? 'sidePanelOpened' : 'sidePanelClosed'
   try {
-    chrome.runtime.sendMessage({ action })
+    await chrome.runtime.sendMessage({ action })
+  } catch {
+    // Background may not be listening
+  }
+  try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
     if (tab?.id) {
-      chrome.tabs.sendMessage(tab.id, { action })
+      await chrome.tabs.sendMessage(tab.id, { action })
     }
   } catch {
-    // Ignore errors - tab may not have content script
+    // Tab may not have content script
   }
 }
 

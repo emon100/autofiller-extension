@@ -1,6 +1,6 @@
 import { scanFields, detectFormSections, findAddButtonForSection, clickAddButtonAndWait } from '@/scanner'
 import { parseField, parseFieldsBatch } from '@/parser'
-import { transformValue } from '@/transformer'
+import { transformValue, stripCountryCode } from '@/transformer'
 import { fillField, createFillSnapshot, restoreSnapshot, FillSnapshot, executeFillPlanAnimated } from '@/executor'
 import { Recorder, generateId } from '@/recorder'
 import { storage, AnswerStorage, ObservationStorage, SiteSettingsStorage, experienceStorage } from '@/storage'
@@ -120,7 +120,8 @@ export class AutoFiller {
       if (!form || form.tagName !== 'FORM') return
 
       const settings = await this.siteSettingsStorage.get(this.siteKey)
-      if (!settings?.recordEnabled) return
+      const global = await this.getGlobalSettings()
+      if (!global.recordEnabled || !settings?.recordEnabled) return
 
       e.preventDefault()
       this.pendingFormSubmit = form
@@ -179,13 +180,14 @@ export class AutoFiller {
 
   async initialize(): Promise<void> {
     const settings = await this.siteSettingsStorage.getOrCreate(this.siteKey)
+    const global = await this.getGlobalSettings()
 
-    if (settings.recordEnabled) {
+    if (global.recordEnabled && settings.recordEnabled) {
       this.recorder.start()
     }
 
-    // Start dynamic form monitoring if autofill is enabled
-    if (settings.autofillEnabled) {
+    // Start dynamic form monitoring if autofill is enabled (both global and per-site)
+    if (global.autofillEnabled && settings.autofillEnabled) {
       this.startDynamicFormMonitoring()
     }
 
@@ -350,7 +352,8 @@ export class AutoFiller {
     }
 
     const settings = await this.siteSettingsStorage.get(this.siteKey)
-    if (!settings?.autofillEnabled) {
+    const global = await this.getGlobalSettings()
+    if (!global.autofillEnabled || !settings?.autofillEnabled) {
       this.pendingMutationNodes.clear()
       return
     }
@@ -622,6 +625,18 @@ export class AutoFiller {
     this.stopDynamicFormMonitoring()
   }
 
+  private async getGlobalSettings(): Promise<{ recordEnabled: boolean; autofillEnabled: boolean }> {
+    try {
+      const result = await chrome.storage.local.get('globalSettings')
+      return {
+        recordEnabled: result.globalSettings?.recordEnabled ?? true,
+        autofillEnabled: result.globalSettings?.autofillEnabled ?? false,
+      }
+    } catch {
+      return { recordEnabled: true, autofillEnabled: false }
+    }
+  }
+
   async fill(): Promise<FillResult[]> {
     const { results } = await this.fillWithDebug(false, undefined, true)
     return results
@@ -634,10 +649,11 @@ export class AutoFiller {
   ): Promise<{ results: FillResult[]; debug: FillDebugInfo }> {
     const debug = createEmptyDebugInfo()
     const settings = await this.siteSettingsStorage.get(this.siteKey)
+    const global = await this.getGlobalSettings()
 
-    debug.autofillEnabled = settings?.autofillEnabled ?? false
+    debug.autofillEnabled = (global.autofillEnabled && (settings?.autofillEnabled ?? false))
 
-    if (!manual && !settings?.autofillEnabled) {
+    if (!manual && !debug.autofillEnabled) {
       await saveDebugLog('fill', debug)
       return { results: [], debug }
     }
@@ -1145,6 +1161,17 @@ export class AutoFiller {
       })
     }
 
+    // If form has both COUNTRY_CODE and PHONE, strip country code from PHONE values
+    const hasCountryCode = [...fieldTypeMap.values()].includes(Taxonomy.COUNTRY_CODE)
+    if (hasCountryCode) {
+      for (const plan of plans) {
+        const idx = fields.indexOf(plan.field)
+        if (fieldTypeMap.get(idx) === Taxonomy.PHONE) {
+          plan.answer = { ...plan.answer, value: stripCountryCode(plan.answer.value) }
+        }
+      }
+    }
+
     return { plans, suggestions, sensitiveFields, fieldDebug }
   }
 
@@ -1399,6 +1426,7 @@ export class AutoFiller {
         fieldId: string
         label: string
         fieldType: string
+        required?: boolean
         placeholder?: string
         options?: string[]
         sectionTitle?: string
@@ -1410,6 +1438,11 @@ export class AutoFiller {
           : (field.element as HTMLInputElement).type || 'text',
       }
 
+      const isRequired = field.attributes.required !== undefined
+        || (field.element as HTMLInputElement).required
+        || /\*\s*$/.test(field.labelText)
+      if (isRequired) desc.required = true
+
       if (field.attributes.placeholder) desc.placeholder = field.attributes.placeholder
       if (field.optionsText?.length) desc.options = field.optionsText
       if (field.sectionTitle) desc.sectionTitle = field.sectionTitle
@@ -1418,11 +1451,19 @@ export class AutoFiller {
     })
 
     // Call LLM
-    const results = await llmService.superFillFields({
-      userProfile,
-      experiences,
-      unfilledFields,
-    })
+    let results: Awaited<ReturnType<typeof llmService.superFillFields>>
+    try {
+      results = await llmService.superFillFields({
+        userProfile,
+        experiences,
+        unfilledFields,
+      })
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown error'
+      console.error('[AutoFiller] SuperFill error:', msg)
+      showToast(`AI error: ${msg}`, 'warning')
+      return { count: 0 }
+    }
 
     // Fill fields with LLM results
     let filledCount = 0
@@ -1468,20 +1509,28 @@ export class AutoFiller {
     // Get surrounding text for context
     const surroundingText = element.closest('div, fieldset, section')?.textContent?.slice(0, 300) || ''
 
-    const value = await llmService.fillSingleField({
-      userProfile,
-      experiences,
-      field: {
-        label: fieldContext.labelText || fieldContext.attributes.placeholder || fieldContext.attributes.name || 'Unknown',
-        fieldType: element instanceof HTMLTextAreaElement ? 'textarea'
-          : element instanceof HTMLSelectElement ? 'select'
-          : (element as HTMLInputElement).type || 'text',
-        placeholder: fieldContext.attributes.placeholder,
-        options: fieldContext.optionsText,
-        sectionTitle: fieldContext.sectionTitle,
-        surroundingText,
-      },
-    })
+    let value: string | null
+    try {
+      value = await llmService.fillSingleField({
+        userProfile,
+        experiences,
+        field: {
+          label: fieldContext.labelText || fieldContext.attributes.placeholder || fieldContext.attributes.name || 'Unknown',
+          fieldType: element instanceof HTMLTextAreaElement ? 'textarea'
+            : element instanceof HTMLSelectElement ? 'select'
+            : (element as HTMLInputElement).type || 'text',
+          placeholder: fieldContext.attributes.placeholder,
+          options: fieldContext.optionsText,
+          sectionTitle: fieldContext.sectionTitle,
+          surroundingText,
+        },
+      })
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown error'
+      console.error('[AutoFiller] AI single fill error:', msg)
+      showToast(`AI error: ${msg}`, 'warning')
+      return false
+    }
 
     if (!value) {
       showToast('AI could not generate a value for this field', 'info')

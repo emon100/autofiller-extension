@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { Zap, CreditCard, History, Settings, LogOut, Plus, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -41,20 +41,33 @@ export default function DashboardClient({
   subscription,
 }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<Tab>('credits');
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [currentBalance, setCurrentBalance] = useState(credits.balance);
+  const [rechargeDelta, setRechargeDelta] = useState<number | null>(null);
+  const prevBalanceRef = useRef(credits.balance);
   const supabase = createClient();
 
-  useEffect(() => {
-    // Check for checkout success in URL
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('checkout') === 'success') {
-      setShowSuccess(true);
-      // Remove query param from URL
-      window.history.replaceState({}, '', '/dashboard');
-      // Auto-hide after 5 seconds
-      setTimeout(() => setShowSuccess(false), 5000);
+  const pollCredits = useCallback(async () => {
+    try {
+      const res = await fetch('/api/credits');
+      if (!res.ok) return;
+      const data = await res.json();
+      const newBalance = data.balance as number;
+      if (newBalance > prevBalanceRef.current) {
+        setRechargeDelta(newBalance - prevBalanceRef.current);
+        setTimeout(() => setRechargeDelta(null), 5000);
+      }
+      prevBalanceRef.current = newBalance;
+      setCurrentBalance(newBalance);
+    } catch {
+      // ignore network errors
     }
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'credits') return;
+    const id = setInterval(pollCredits, 10_000);
+    return () => clearInterval(id);
+  }, [activeTab, pollCredits]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -89,17 +102,14 @@ export default function DashboardClient({
         </div>
       </header>
 
-      {/* Success Message */}
-      {showSuccess && (
+      {/* Recharge Banner */}
+      {rechargeDelta !== null && (
         <div className="mx-auto max-w-7xl px-6 pt-4">
           <div className="flex items-center gap-3 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-green-800">
             <CheckCircle className="h-5 w-5 flex-shrink-0" />
-            <div>
-              <p className="font-medium">Payment successful!</p>
-              <p className="text-sm">Your credits will be added shortly. Please refresh if they don't appear.</p>
-            </div>
+            <p className="font-medium">Credits topped up! +{rechargeDelta} credits</p>
             <button
-              onClick={() => setShowSuccess(false)}
+              onClick={() => setRechargeDelta(null)}
               className="ml-auto text-green-600 hover:text-green-800"
             >
               ✕
@@ -142,7 +152,7 @@ export default function DashboardClient({
           <main className="md:col-span-3">
             {activeTab === 'credits' && (
               <CreditBalance
-                balance={credits.balance}
+                balance={currentBalance}
                 lifetimeUsed={credits.lifetime_used}
                 subscription={subscription}
               />

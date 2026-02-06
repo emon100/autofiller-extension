@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Key, Server, CheckCircle, Code2, Type, User, CreditCard, LogIn, LogOut, ExternalLink, Infinity, RefreshCw, Loader2, Globe, Sparkles, Gift } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Key, Server, CheckCircle, Code2, Type, User, CreditCard, LogIn, LogOut, ExternalLink, Infinity, RefreshCw, Loader2, Globe, Sparkles, Gift, BookOpen, Zap } from 'lucide-react'
 import { storage } from '@/storage'
 import { AuthUser, CreditsInfo } from '@/types'
 import { launchLogin } from '@/utils/authLogin'
@@ -40,6 +40,8 @@ export default function Settings() {
   const [config, setConfig] = useState<LLMConfig>(DEFAULT_CONFIG)
   const [devModeEnabled, setDevModeEnabled] = useState(false)
   const [fillAnimationEnabled, setFillAnimationEnabled] = useState(true)
+  const [globalRecordEnabled, setGlobalRecordEnabled] = useState(true)
+  const [globalAutofillEnabled, setGlobalAutofillEnabled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [language, setLanguage] = useState<Locale>(getUserPreference())
@@ -51,22 +53,47 @@ export default function Settings() {
   const [loggingIn, setLoggingIn] = useState(false)
   const [loginError, setLoginError] = useState('')
   const [refreshingCredits, setRefreshingCredits] = useState(false)
+  const [rechargeDelta, setRechargeDelta] = useState<number | null>(null)
+  const prevBalanceRef = useRef<number | null>(null)
 
   useEffect(() => {
     (async () => {
-      const result = await chrome.storage.local.get(['llmConfig', 'devSettings', 'fillAnimationConfig'])
+      const result = await chrome.storage.local.get(['llmConfig', 'devSettings', 'fillAnimationConfig', 'globalSettings'])
       if (result.llmConfig) setConfig({ ...DEFAULT_CONFIG, ...result.llmConfig })
       if (result.devSettings) setDevModeEnabled(result.devSettings.devModeEnabled ?? false)
       if (result.fillAnimationConfig) setFillAnimationEnabled(result.fillAnimationConfig.enabled ?? true)
+      if (result.globalSettings) {
+        setGlobalRecordEnabled(result.globalSettings.recordEnabled ?? true)
+        setGlobalAutofillEnabled(result.globalSettings.autofillEnabled ?? false)
+      }
 
       const authState = await storage.auth.getAuthState()
       if (authState && authState.expiresAt > Date.now()) {
         setUser(authState.user)
-        setCredits(await storage.auth.fetchCredits())
+        const fetchedCredits = await storage.auth.fetchCredits()
+        setCredits(fetchedCredits)
+        prevBalanceRef.current = fetchedCredits?.balance ?? null
       }
       setLoadingAuth(false)
     })()
   }, [])
+
+  // Poll credits every 15 seconds when logged in
+  useEffect(() => {
+    if (!user) return
+    const id = setInterval(async () => {
+      const fetched = await storage.auth.fetchCredits()
+      if (!fetched) return
+      const prev = prevBalanceRef.current
+      if (prev !== null && fetched.balance > prev) {
+        setRechargeDelta(fetched.balance - prev)
+        setTimeout(() => setRechargeDelta(null), 5000)
+      }
+      prevBalanceRef.current = fetched.balance
+      setCredits(fetched)
+    }, 15_000)
+    return () => clearInterval(id)
+  }, [user])
 
   async function handleLogin() {
     setLoggingIn(true)
@@ -105,6 +132,22 @@ export default function Settings() {
     const newValue = !fillAnimationEnabled
     setFillAnimationEnabled(newValue)
     await chrome.storage.local.set({ fillAnimationConfig: { enabled: newValue } })
+  }
+
+  async function toggleGlobalRecord() {
+    const newValue = !globalRecordEnabled
+    setGlobalRecordEnabled(newValue)
+    const result = await chrome.storage.local.get('globalSettings')
+    const current = result.globalSettings || {}
+    await chrome.storage.local.set({ globalSettings: { ...current, recordEnabled: newValue } })
+  }
+
+  async function toggleGlobalAutofill() {
+    const newValue = !globalAutofillEnabled
+    setGlobalAutofillEnabled(newValue)
+    const result = await chrome.storage.local.get('globalSettings')
+    const current = result.globalSettings || {}
+    await chrome.storage.local.set({ globalSettings: { ...current, autofillEnabled: newValue } })
   }
 
   async function handleLanguageChange(newLocale: Locale) {
@@ -159,6 +202,20 @@ export default function Settings() {
                 {t('settings.signOut')}
               </button>
             </div>
+
+            {/* Recharge Banner */}
+            {rechargeDelta !== null && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm">
+                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                <span className="font-medium">{t('settings.creditsAdded', { amount: rechargeDelta })}</span>
+                <button
+                  onClick={() => setRechargeDelta(null)}
+                  className="ml-auto text-green-600 hover:text-green-800 text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             {/* Credits Display */}
             <div className="bg-gray-50 rounded-lg p-3">
@@ -246,12 +303,12 @@ export default function Settings() {
 
       {/* AI Enhancement Section - Simple toggle */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-purple-500" />
-            <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Sparkles className="w-5 h-5 text-purple-500 flex-shrink-0" />
+            <div className="min-w-0">
               <h3 className="font-medium text-gray-900">{t('settings.aiEnhancement')}</h3>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 truncate">
                 {user
                   ? t('settings.aiEnhancementDesc')
                   : t('settings.aiEnhancementLoginRequired')}
@@ -265,7 +322,7 @@ export default function Settings() {
               chrome.storage.local.set({ llmConfig: newConfig })
             }}
             disabled={!user && !config.useCustomApi}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            className={`flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
               config.enabled ? 'bg-purple-600' : 'bg-gray-200'
             } ${!user && !config.useCustomApi ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
@@ -284,27 +341,67 @@ export default function Settings() {
         )}
       </div>
 
+      {/* Global Record Mode */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <h3 className="font-medium text-gray-900 mb-2">{t('settings.about')}</h3>
-        <p className="text-xs text-gray-500">
-          OneFillr v1.0.0
-        </p>
-        <p className="text-xs text-gray-500 mt-1">
-          {t('settings.aboutDesc')}
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <BookOpen className="w-5 h-5 text-orange-500 flex-shrink-0" />
+            <div className="min-w-0">
+              <h3 className="font-medium text-gray-900">{t('settings.recordMode')}</h3>
+              <p className="text-xs text-gray-500">{t('settings.recordModeDesc')}</p>
+            </div>
+          </div>
+          <button
+            onClick={toggleGlobalRecord}
+            className={`flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              globalRecordEnabled ? 'bg-orange-600' : 'bg-gray-200'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                globalRecordEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Global Auto-Fill */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Zap className="w-5 h-5 text-blue-500 flex-shrink-0" />
+            <div className="min-w-0">
+              <h3 className="font-medium text-gray-900">{t('settings.autoFill')}</h3>
+              <p className="text-xs text-gray-500">{t('settings.autoFillDesc')}</p>
+            </div>
+          </div>
+          <button
+            onClick={toggleGlobalAutofill}
+            className={`flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              globalAutofillEnabled ? 'bg-blue-600' : 'bg-gray-200'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                globalAutofillEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Language Selector */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Globe className="w-5 h-5 text-blue-500" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Globe className="w-5 h-5 text-blue-500 flex-shrink-0" />
             <h3 className="font-medium text-gray-900">{t('settings.language')}</h3>
           </div>
           <select
             value={language}
             onChange={(e) => handleLanguageChange(e.target.value as Locale)}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="flex-shrink-0 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="auto">{t('settings.language.auto')}</option>
             <option value="en">{t('settings.language.en')}</option>
@@ -314,17 +411,17 @@ export default function Settings() {
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Type className="w-5 h-5 text-green-500" />
-            <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Type className="w-5 h-5 text-green-500 flex-shrink-0" />
+            <div className="min-w-0">
               <h3 className="font-medium text-gray-900">{t('settings.typingAnimation')}</h3>
               <p className="text-xs text-gray-500">{t('settings.typingAnimationDesc')}</p>
             </div>
           </div>
           <button
             onClick={toggleFillAnimation}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            className={`flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
               fillAnimationEnabled ? 'bg-green-600' : 'bg-gray-200'
             }`}
           >
@@ -345,17 +442,17 @@ export default function Settings() {
 
       {/* Developer Mode */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Code2 className="w-5 h-5 text-purple-500" />
-            <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Code2 className="w-5 h-5 text-purple-500 flex-shrink-0" />
+            <div className="min-w-0">
               <h3 className="font-medium text-gray-900">{t('settings.devMode')}</h3>
               <p className="text-xs text-gray-500">{t('settings.devModeDesc')}</p>
             </div>
           </div>
           <button
             onClick={toggleDevMode}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            className={`flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
               devModeEnabled ? 'bg-purple-600' : 'bg-gray-200'
             }`}
           >
@@ -495,6 +592,17 @@ export default function Settings() {
             )}
           </div>
         )}
+      </div>
+
+      {/* About - at the bottom */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <h3 className="font-medium text-gray-900 mb-2">{t('settings.about')}</h3>
+        <p className="text-xs text-gray-500">
+          OneFillr v1.0.0
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          {t('settings.aboutDesc')}
+        </p>
       </div>
     </div>
   )

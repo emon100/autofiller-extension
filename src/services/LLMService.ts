@@ -286,29 +286,25 @@ Return ONLY valid JSON in this exact format:
       fieldId: string
       label: string
       fieldType: string // 'text' | 'textarea' | 'select' | 'checkbox' | 'radio'
+      required?: boolean
       placeholder?: string
       options?: string[] // for select/radio
       sectionTitle?: string
     }>
   }): Promise<AIFillResult[]> {
     const enabled = await isLLMEnabled()
-    if (!enabled) return []
+    if (!enabled) throw new Error('AI not enabled or not logged in')
 
     if (context.unfilledFields.length === 0) return []
 
     const prompt = this.buildSuperFillPrompt(context)
 
-    try {
-      const response = await callLLMWithText(prompt, {
-        systemPrompt: 'You are a helpful assistant filling out a job application form. Respond with valid JSON only. Be concise and professional.',
-        maxTokens: 2000,
-        temperature: 0.1,
-      })
-      return this.parseSuperFillResponse(response, context.unfilledFields)
-    } catch (error) {
-      console.error('[LLMService] SuperFill error:', error)
-      return []
-    }
+    const response = await callLLMWithText(prompt, {
+      systemPrompt: 'You fill job application forms. Return valid JSON only. For text/select fields, give the shortest factual value (e.g. "1 month", "Yes", "Online Search"). Only write full sentences for textarea fields that explicitly ask open-ended questions.',
+      maxTokens: 2000,
+      temperature: 0.1,
+    })
+    return this.parseSuperFillResponse(response, context.unfilledFields)
   }
 
   /**
@@ -327,21 +323,16 @@ Return ONLY valid JSON in this exact format:
     }
   }): Promise<string | null> {
     const enabled = await isLLMEnabled()
-    if (!enabled) return null
+    if (!enabled) throw new Error('AI not enabled or not logged in')
 
     const prompt = this.buildSingleFieldPrompt(context)
 
-    try {
-      const response = await callLLMWithText(prompt, {
-        systemPrompt: 'You are a helpful assistant filling out a job application form. Respond with valid JSON only.',
-        maxTokens: 500,
-        temperature: 0.3,
-      })
-      return this.parseSingleFieldResponse(response)
-    } catch (error) {
-      console.error('[LLMService] Single field fill error:', error)
-      return null
-    }
+    const response = await callLLMWithText(prompt, {
+      systemPrompt: 'You fill job application forms. Return valid JSON only. For text/select fields, give the shortest factual value (e.g. "1 month", "Yes"). Only write full sentences for textarea fields that explicitly ask open-ended questions.',
+      maxTokens: 500,
+      temperature: 0.3,
+    })
+    return this.parseSingleFieldResponse(response)
   }
 
   private buildSuperFillPrompt(context: {
@@ -351,6 +342,7 @@ Return ONLY valid JSON in this exact format:
       fieldId: string
       label: string
       fieldType: string
+      required?: boolean
       placeholder?: string
       options?: string[]
       sectionTitle?: string
@@ -367,6 +359,7 @@ Return ONLY valid JSON in this exact format:
     const fieldsStr = context.unfilledFields
       .map(f => {
         let desc = `  - id: "${f.fieldId}", label: "${f.label}", type: ${f.fieldType}`
+        if (f.required) desc += `, required: true`
         if (f.placeholder) desc += `, placeholder: "${f.placeholder}"`
         if (f.options?.length) desc += `, options: [${f.options.slice(0, 20).map(o => `"${o}"`).join(', ')}]`
         if (f.sectionTitle) desc += `, section: "${f.sectionTitle}"`
@@ -387,11 +380,12 @@ ${fieldsStr}
 
 Rules:
 1. For select/radio fields, the value MUST match one of the provided options exactly.
-2. For text fields, provide appropriate professional values based on the user's profile.
+2. For text fields, provide the shortest factual answer (e.g. "2 weeks", "Yes", "3 years"). Never write sentences.
 3. For textarea fields (like "Why do you want to work here?"), write a brief, professional, personalized answer (2-3 sentences).
 4. If you cannot determine a reasonable value, set confidence to 0.
 5. For questions about salary, set confidence to 0 (let user decide).
 6. For "How did you hear about us" type questions, use "Online Search" or similar.
+7. For optional fields (not marked required) that are non-essential (e.g. "Preferred Name", "Nickname", "Middle Name"), set confidence to 0. Only fill optional fields when the user's profile has a clear matching value.
 
 Return JSON array:
 [
@@ -438,8 +432,9 @@ Field: ${fieldDesc}
 
 Rules:
 1. For select/radio, value MUST match one of the options exactly.
-2. For textarea (open-ended questions like "Why are you interested?"), write a professional, personalized answer (2-3 sentences).
-3. Use the user's profile and experience to personalize the answer.
+2. For text fields, give the shortest factual answer (e.g. "2 weeks", "Yes"). Never write sentences.
+3. For textarea (open-ended questions like "Why are you interested?"), write a professional, personalized answer (2-3 sentences).
+4. Use the user's profile and experience to personalize the answer.
 
 Return JSON:
 { "value": "...", "confidence": 0.0-1.0 }`
