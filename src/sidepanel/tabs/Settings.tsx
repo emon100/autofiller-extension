@@ -441,6 +441,7 @@ export default function Settings() {
       />
 
       {/* Developer Mode */}
+      {__DEV_MODE__ && (
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -593,6 +594,7 @@ export default function Settings() {
           </div>
         )}
       </div>
+      )}
 
       {/* About - at the bottom */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
