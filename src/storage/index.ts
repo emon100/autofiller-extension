@@ -2,6 +2,7 @@ import { AnswerValue, Observation, SiteSettings, Taxonomy, PendingObservation, E
 import { ExperienceStorage, experienceStorage } from './experienceStorage'
 import { knowledgeNormalizer } from '@/services/KnowledgeNormalizer'
 import { profileStorage } from './profileStorage'
+import { backgroundFetch } from '@/utils/backgroundFetch'
 
 export { ExperienceStorage, experienceStorage }
 export { profileStorage, ProfileStorage } from './profileStorage'
@@ -352,13 +353,13 @@ export class AuthStorage {
     // Token expired or close to expiry — try refreshing
     if (state.refreshToken) {
       try {
-        const response = await fetch(`${API_BASE_URL}/extension/refresh`, {
+        const response = await backgroundFetch(`${API_BASE_URL}/extension/refresh`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken: state.refreshToken }),
         })
         if (response.ok) {
-          const data = await response.json() as AuthState
+          const data = JSON.parse(response.body) as AuthState
           await this.setAuthState(data)
           return data.accessToken
         }
@@ -378,7 +379,7 @@ export class AuthStorage {
     if (!token) return null
 
     try {
-      const response = await fetch(`${API_BASE_URL}/credits`, {
+      const response = await backgroundFetch(`${API_BASE_URL}/credits`, {
         headers: { 'Authorization': `Bearer ${token}` },
       })
 
@@ -387,7 +388,7 @@ export class AuthStorage {
         return null
       }
 
-      const credits = await response.json() as CreditsInfo
+      const credits = JSON.parse(response.body) as CreditsInfo
       await setStorage(STORAGE_KEYS.CREDITS_CACHE, credits)
       return credits
     } catch {
@@ -400,13 +401,13 @@ export class AuthStorage {
     if (!token) return { success: false, newBalance: 0, error: 'Not logged in' }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/credits`, {
+      const response = await backgroundFetch(`${API_BASE_URL}/credits`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount, type }),
       })
 
-      const result = await response.json()
+      const result = JSON.parse(response.body)
       if (!response.ok) {
         return { success: false, newBalance: result.balance || 0, error: result.error || 'Failed to consume credits' }
       }

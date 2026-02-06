@@ -244,6 +244,7 @@ function LinkedInStep({ done, onDone, onNext, onBack }: {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
   const [loggingIn, setLoggingIn] = useState(false)
   const [activeTabLinkedIn, setActiveTabLinkedIn] = useState<string | null>(null)
+  const [selectedMethod, setSelectedMethod] = useState<boolean | null>(null) // null=none, false=local, true=AI
 
   useEffect(() => {
     storage.auth.getAuthState().then(authState => {
@@ -343,8 +344,8 @@ function LinkedInStep({ done, onDone, onNext, onBack }: {
 
             {/* Local Processing Option */}
             <button
-              onClick={() => parseProfile(false)}
-              className="w-full p-3 border-2 border-green-200 rounded-xl hover:border-green-400 hover:bg-green-50/50 transition-colors text-left"
+              onClick={() => setSelectedMethod(false)}
+              className={`w-full p-3 border-2 rounded-xl transition-colors text-left ${selectedMethod === false ? 'border-green-500 bg-green-50/50' : 'border-green-200 hover:border-green-400 hover:bg-green-50/50'}`}
             >
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-green-100 rounded-lg">
@@ -356,14 +357,15 @@ function LinkedInStep({ done, onDone, onNext, onBack }: {
                     {t('onboarding.linkedin.localDesc')}
                   </p>
                 </div>
+                {selectedMethod === false && <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-1" />}
               </div>
             </button>
 
             {/* AI Processing Option */}
             {isLoggedIn ? (
               <button
-                onClick={() => parseProfile(true)}
-                className="w-full p-3 border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors text-left"
+                onClick={() => setSelectedMethod(true)}
+                className={`w-full p-3 border-2 rounded-xl transition-colors text-left ${selectedMethod === true ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50/50'}`}
               >
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-blue-100 rounded-lg">
@@ -378,6 +380,7 @@ function LinkedInStep({ done, onDone, onNext, onBack }: {
                       <AlertTriangle className="w-3 h-3 flex-shrink-0" /> {t('onboarding.linkedin.aiWarning')}
                     </p>
                   </div>
+                  {selectedMethod === true && <Check className="w-5 h-5 text-blue-600 flex-shrink-0 mt-1" />}
                 </div>
               </button>
             ) : (
@@ -407,12 +410,22 @@ function LinkedInStep({ done, onDone, onNext, onBack }: {
               </div>
             )}
 
-            <button
-              onClick={() => setStatus('idle')}
-              className="w-full py-2 text-sm text-gray-500 hover:text-gray-700"
-            >
-              {t('onboarding.linkedin.cancel')}
-            </button>
+            {/* Action buttons */}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => { setStatus('idle'); setSelectedMethod(null) }}
+                className="flex-1 py-2.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl"
+              >
+                {t('onboarding.linkedin.cancel')}
+              </button>
+              <button
+                onClick={() => { if (selectedMethod !== null) parseProfile(selectedMethod) }}
+                disabled={selectedMethod === null}
+                className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+              >
+                {t('onboarding.linkedin.parse')} <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         ) : !done && status !== 'done' ? (
           <>

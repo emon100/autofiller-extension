@@ -32,7 +32,8 @@ const isContentBuild = process.env.BUILD_TARGET === 'content'
 const isProduction = process.env.BUILD_MODE === 'production'
 
 const obfuscator = isProduction ? obfuscatorPlugin({
-  global: false,
+  global: true,
+  include: ['sidepanel.js', 'background.js', 'content.js'],
   options: {
     controlFlowFlattening: true,
     controlFlowFlatteningThreshold: 0.5,
@@ -49,6 +50,7 @@ const obfuscator = isProduction ? obfuscatorPlugin({
     debugProtectionInterval: 0,
     transformObjectKeys: false,
     unicodeEscapeSequence: false,
+    reservedStrings: ['\\.js$', '\\.mjs$'],
     target: 'browser',
     compact: true,
     simplify: true,
@@ -104,11 +106,7 @@ export default defineConfig({
         drop_debugger: true,     // 移除 debugger
         pure_funcs: ['console.log', 'console.info', 'console.debug'],
       },
-      mangle: {
-        properties: {
-          regex: /^_/,           // 混淆以 _ 开头的私有属性
-        },
-      },
+      mangle: true,
       format: {
         comments: false,         // 移除所有注释
       },

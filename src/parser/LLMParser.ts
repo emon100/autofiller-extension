@@ -2,6 +2,7 @@ import { FieldContext, CandidateType, Taxonomy, IFieldParser } from '@/types'
 import { collectAncestorContext } from '@/scanner'
 import { parseJSONSafe } from '@/utils/jsonRepair'
 import { storage, isExtensionContextValid } from '@/storage'
+import { backgroundFetch } from '@/utils/backgroundFetch'
 
 const API_BASE_URL = 'https://www.onefil.help/api'
 
@@ -631,13 +632,11 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
 
     // 禁用thinking模式
     if (config.disableThinking) {
-      // 智谱AI GLM系列模型使用 enable_thinking 参数
       requestBody.enable_thinking = false
-      // 某些版本可能使用 thinking 对象
       requestBody.thinking = { type: 'disabled' }
     }
 
-    const response = await fetch(endpoint, {
+    const response = await backgroundFetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -647,17 +646,11 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`API error ${response.status}: ${errorText}`)
+      throw new Error(`API error ${response.status}: ${response.body}`)
     }
 
-    let content: string
-    if (needsStream) {
-      content = await this.parseStreamResponse(response)
-    } else {
-      const data = await response.json()
-      content = data.choices?.[0]?.message?.content || ''
-    }
+    const data = JSON.parse(response.body)
+    const content = data.choices?.[0]?.message?.content || ''
     return this.parseSingleResponse(content)
   }
 
@@ -666,7 +659,7 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
     const endpoint = config.endpoint || PROVIDER_ENDPOINTS.anthropic
     const model = config.model || DEFAULT_MODELS.anthropic
 
-    const response = await fetch(endpoint, {
+    const response = await backgroundFetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -682,11 +675,10 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Anthropic API error ${response.status}: ${errorText}`)
+      throw new Error(`Anthropic API error ${response.status}: ${response.body}`)
     }
 
-    const data = await response.json()
+    const data = JSON.parse(response.body)
     const content = data.content?.[0]?.text || ''
     return this.parseSingleResponse(content)
   }
@@ -702,7 +694,7 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
 
     console.log(`[LLMParser] Calling backend API for ${fields.length} fields`)
 
-    const response = await fetch(`${API_BASE_URL}/llm/classify`, {
+    const response = await backgroundFetch(`${API_BASE_URL}/llm/classify`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -712,14 +704,14 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
     })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
+      const errorData = (() => { try { return JSON.parse(response.body) } catch { return {} } })()
       if (response.status === 402) {
         throw new Error(`Insufficient credits: ${errorData.balance || 0} remaining`)
       }
       throw new Error(`Backend API error ${response.status}: ${errorData.error || 'Unknown'}`)
     }
 
-    const data = await response.json()
+    const data = JSON.parse(response.body)
     if (!data.success || !Array.isArray(data.results)) {
       throw new Error('Invalid backend response')
     }
@@ -756,13 +748,11 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
 
     // 禁用thinking模式
     if (config.disableThinking) {
-      // 智谱AI GLM系列模型使用 enable_thinking 参数
       requestBody.enable_thinking = false
-      // 某些版本可能使用 thinking 对象
       requestBody.thinking = { type: 'disabled' }
     }
 
-    const response = await fetch(endpoint, {
+    const response = await backgroundFetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -772,17 +762,11 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`API error ${response.status}: ${errorText}`)
+      throw new Error(`API error ${response.status}: ${response.body}`)
     }
 
-    let content: string
-    if (needsStream) {
-      content = await this.parseStreamResponse(response)
-    } else {
-      const data = await response.json()
-      content = data.choices?.[0]?.message?.content || ''
-    }
+    const data = JSON.parse(response.body)
+    const content = data.choices?.[0]?.message?.content || ''
     return this.parseBatchResponse(content)
   }
 
@@ -793,7 +777,7 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
 
     console.log(`[LLMParser] Calling Anthropic batch at ${endpoint} with model ${model}`)
 
-    const response = await fetch(endpoint, {
+    const response = await backgroundFetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -809,11 +793,10 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Anthropic API error ${response.status}: ${errorText}`)
+      throw new Error(`Anthropic API error ${response.status}: ${response.body}`)
     }
 
-    const data = await response.json()
+    const data = JSON.parse(response.body)
     const content = data.content?.[0]?.text || ''
     return this.parseBatchResponse(content)
   }
@@ -855,50 +838,6 @@ Note: "Ancestor text candidates" shows text found in parent elements - this ofte
 
     console.log('[LLMParser] Parsed result is not an array')
     return []
-  }
-
-  /**
-   * 解析流式响应 (SSE 格式)
-   */
-  private async parseStreamResponse(response: Response): Promise<string> {
-    const reader = response.body?.getReader()
-    if (!reader) {
-      throw new Error('No response body')
-    }
-
-    const decoder = new TextDecoder()
-    let content = ''
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim()
-            if (data === '[DONE]') continue
-
-            try {
-              const json = JSON.parse(data)
-              const delta = json.choices?.[0]?.delta?.content
-              if (delta) {
-                content += delta
-              }
-            } catch {
-              // 忽略解析错误的行
-            }
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock()
-    }
-
-    return content
   }
 
   clearCache(): void {

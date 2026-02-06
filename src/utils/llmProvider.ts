@@ -8,6 +8,8 @@
  * - llmHelpers
  */
 
+import { backgroundFetch } from './backgroundFetch'
+
 // ============================================================================
 // Type Definitions
 // ============================================================================
@@ -141,7 +143,7 @@ export async function callOpenAICompatible(
     requestBody.thinking = { type: 'disabled' }
   }
 
-  const response = await fetch(endpoint, {
+  const response = await backgroundFetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -151,16 +153,10 @@ export async function callOpenAICompatible(
   })
 
   if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`API error ${response.status}: ${errorText}`)
+    throw new Error(`API error ${response.status}: ${response.body}`)
   }
 
-  // Handle streaming response
-  if (requestBody.stream) {
-    return parseStreamResponse(response)
-  }
-
-  const data = await response.json()
+  const data = JSON.parse(response.body)
   return data.choices?.[0]?.message?.content || ''
 }
 
@@ -175,7 +171,7 @@ export async function callAnthropic(
   const endpoint = config.endpoint || PROVIDER_ENDPOINTS.anthropic
   const model = config.model || DEFAULT_MODELS.anthropic
 
-  const response = await fetch(endpoint, {
+  const response = await backgroundFetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -191,11 +187,10 @@ export async function callAnthropic(
   })
 
   if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Anthropic API error ${response.status}: ${errorText}`)
+    throw new Error(`Anthropic API error ${response.status}: ${response.body}`)
   }
 
-  const data = await response.json()
+  const data = JSON.parse(response.body)
   return data.content?.[0]?.text || ''
 }
 
@@ -217,50 +212,6 @@ export async function callLLM(
   }
 
   return callOpenAICompatible(config, prompt, systemPrompt, options)
-}
-
-/**
- * Parse SSE streaming response
- */
-export async function parseStreamResponse(response: Response): Promise<string> {
-  const reader = response.body?.getReader()
-  if (!reader) {
-    throw new Error('No response body')
-  }
-
-  const decoder = new TextDecoder()
-  let content = ''
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      const chunk = decoder.decode(value, { stream: true })
-      const lines = chunk.split('\n')
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim()
-          if (data === '[DONE]') continue
-
-          try {
-            const json = JSON.parse(data)
-            const delta = json.choices?.[0]?.delta?.content
-            if (delta) {
-              content += delta
-            }
-          } catch {
-            // Ignore parse errors for incomplete chunks
-          }
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock()
-  }
-
-  return content
 }
 
 // ============================================================================
