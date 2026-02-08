@@ -28,7 +28,7 @@ export default function TermsOfServicePage() {
       {/* Content */}
       <div className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Terms of Service</h1>
-        <p className="text-gray-500 mb-8">Last updated: February 4, 2025</p>
+        <p className="text-gray-500 mb-8">Last updated: February 8, 2026</p>
 
         <div className="prose prose-gray max-w-none">
           <h2>1. Agreement to Terms</h2>
@@ -79,61 +79,139 @@ export default function TermsOfServicePage() {
             We reserve the right to suspend or terminate accounts that violate these Terms.
           </p>
 
-          <h2>5. Subscription and Payments</h2>
+          <h2>5. Subscription, Payments and Refunds</h2>
 
-          <h3>5.1 Free Tier</h3>
+          <h3>5.1 Merchant of Record</h3>
+          <p>
+            All payments for OneFillr are processed by our Merchant of Record,{' '}
+            <a
+              href="https://www.paddle.com"
+              className="text-blue-600 hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Paddle.com
+            </a>
+            , who acts as the authorised reseller of our products. When you make a purchase,
+            you are purchasing from Paddle, and the product is licensed to you by OneFillr.
+            By placing an order, you agree to{' '}
+            <a
+              href="https://www.paddle.com/legal/invoiced-consumer-terms"
+              className="text-blue-600 hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Paddle's Consumer Terms and Conditions
+            </a>
+            .
+          </p>
+          <p>
+            If you are a Consumer, you will benefit from any mandatory provisions of the law
+            of the country in which you are resident. Nothing in these Terms affects your
+            rights as a Consumer to rely on such mandatory provisions of local law.
+          </p>
+
+          <h3>5.2 Free Tier</h3>
           <p>
             We offer a free tier with limited features and usage credits. Free tier users are
             subject to usage limits that may change at our discretion.
           </p>
 
-          <h3>5.2 Paid Subscriptions</h3>
+          <h3>5.3 Payment and Taxes</h3>
           <p>
-            Paid subscriptions provide additional features and higher usage limits. By purchasing
-            a subscription, you agree to:
+            Paddle will charge your chosen payment method for any paid transactions, including
+            any applicable taxes according to the tax jurisdiction in which the transaction
+            takes place. You agree to receipt of all invoices and receipts in electronic
+            format, including email. Product prices may change at any time.
           </p>
-          <ul>
-            <li>Pay all applicable fees at the prices in effect at the time of purchase</li>
-            <li>Provide valid payment information</li>
-            <li>Authorize recurring charges for subscription plans</li>
-          </ul>
-
-          <h3>5.3 Billing</h3>
           <p>
-            Subscriptions are billed in advance on a monthly or annual basis, depending on the plan
-            selected. Payments are processed through our payment provider (Paddle).
+            When providing payment information, you must ensure that it is up-to-date and
+            accurate. OneFillr and Paddle will not be responsible for non-receipt of the
+            product due to incorrect information provided by you.
           </p>
 
-          <h3>5.4 Refunds</h3>
+          <h3>5.4 Paid Subscriptions</h3>
           <p>
-            Refunds are handled in accordance with applicable consumer protection laws and our
-            refund policy:
+            Paid subscriptions provide additional features and higher usage limits. Paid
+            subscriptions automatically renew until cancelled. We will notify you if the
+            price of a paid subscription increases and, if required, seek your consent to
+            continue.
           </p>
-          <ul>
-            <li>
-              <strong>14-day money-back guarantee:</strong> Request a full refund within 14 days
-              of your initial purchase if you're not satisfied.
-            </li>
-            <li>
-              <strong>Pro-rated refunds:</strong> Annual subscriptions may be eligible for
-              pro-rated refunds after the 14-day period.
-            </li>
-            <li>
-              <strong>No refunds for:</strong> Used credits, partial months, or violations of
-              these Terms.
-            </li>
-          </ul>
+          <p>
+            If you wish to cancel your subscription, please do so through your account
+            dashboard or by contacting Paddle at least 48 hours before the end of the
+            current billing period. Your cancellation will take effect at the next payment
+            date. There are no refunds on unused subscription periods.
+          </p>
+          <p>
+            If Paddle cannot charge your payment method for any reason (such as expiration or
+            insufficient funds), and you have not cancelled your paid subscription, you remain
+            responsible for any uncollected amounts.
+          </p>
 
-          <h3>5.5 Cancellation</h3>
+          <h3>5.5 Consumer Right to Cancel</h3>
           <p>
-            You may cancel your subscription at any time through your account dashboard. Upon
-            cancellation:
+            If you are a Consumer, you have the right to cancel your purchase and receive a
+            refund within 14 days without giving any reason. The cancellation period will
+            expire after 14 days from the day after completion of the transaction.
           </p>
-          <ul>
-            <li>You retain access until the end of your current billing period</li>
-            <li>No further charges will be made</li>
-            <li>Unused credits do not roll over and are not refundable</li>
-          </ul>
+          <p>
+            To cancel your order, you must inform Paddle of your decision by
+            contacting{' '}
+            <a
+              href="https://paddle.net"
+              className="text-blue-600 hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Paddle Support
+            </a>
+            . To meet the cancellation deadline, it is sufficient that you send your
+            communication concerning your exercise of the cancellation right before the
+            expiration of the 14-day period. Please note that in respect of subscription
+            services, your right to cancel is only present following the initial subscription
+            and not upon each automatic renewal.
+          </p>
+
+          <h3>5.6 Effect of Cancellation</h3>
+          <p>
+            If you cancel as permitted above, Paddle will reimburse to you all payments
+            received from you. The reimbursement will be made without undue delay, and not
+            later than 14 days after the day on which Paddle is informed about your decision
+            to cancel. The reimbursement will be made using the same means of payment as
+            you used for the initial transaction and you will not incur any fees as a result
+            of the reimbursement.
+          </p>
+
+          <h3>5.7 Exception to the Right to Cancel</h3>
+          <p>
+            Your right as a Consumer to cancel your order does not apply to the supply of
+            Digital Content that you have started to download, stream or otherwise acquire,
+            and to products which you have had the benefit of.
+          </p>
+
+          <h3>5.8 Refund Policy</h3>
+          <p>
+            Refunds are provided at the sole discretion of Paddle and on a case-by-case
+            basis. Paddle will refuse a refund request if there is evidence of fraud,
+            refund abuse, or other manipulative behaviour.
+          </p>
+          <p>
+            This does not affect your rights as a Consumer in relation to products which
+            are not as described, faulty, or not fit for purpose.
+          </p>
+          <p>
+            For full details, please refer to{' '}
+            <a
+              href="https://www.paddle.com/legal/invoiced-consumer-terms"
+              className="text-blue-600 hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Paddle's Consumer Terms
+            </a>
+            .
+          </p>
 
           <h2>6. Acceptable Use</h2>
           <p>You agree not to use the Service to:</p>
@@ -228,7 +306,7 @@ export default function TermsOfServicePage() {
 
           <h2>11. Limitation of Liability</h2>
           <p>
-            TO THE MAXIMUM EXTENT PERMITTED BY LAW, AUTOFILLER SHALL NOT BE LIABLE FOR:
+            TO THE MAXIMUM EXTENT PERMITTED BY LAW, ONEFILLR SHALL NOT BE LIABLE FOR:
           </p>
           <ul>
             <li>Any indirect, incidental, special, consequential, or punitive damages</li>

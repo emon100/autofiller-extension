@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Shield, Database, Trash2, RefreshCw, ExternalLink, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Shield, Database, Trash2, RefreshCw, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { storage } from '@/storage'
-import { getConsentState, setConsentState, createConsentPreferences, ConsentPreferences } from '@/consent'
+
 import { t } from '@/i18n'
 
 const PRIVACY_POLICY_URL = 'https://www.onefil.help/privacy'
@@ -12,13 +12,7 @@ interface DataSummary {
   observationsCount: number
 }
 
-interface PrivacySectionProps {
-  llmEnabled: boolean
-  llmProvider: string
-}
-
-export default function PrivacySection({ llmEnabled, llmProvider }: PrivacySectionProps) {
-  const [consent, setConsent] = useState<ConsentPreferences | null>(null)
+export default function PrivacySection() {
   const [dataSummary, setDataSummary] = useState<DataSummary>({ answersCount: 0, experiencesCount: 0, observationsCount: 0 })
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
@@ -32,13 +26,11 @@ export default function PrivacySection({ llmEnabled, llmProvider }: PrivacySecti
   async function loadData() {
     setLoading(true)
     try {
-      const [consentState, answers, experiences, observations] = await Promise.all([
-        getConsentState(),
+      const [answers, experiences, observations] = await Promise.all([
         storage.answers.getAll(),
         storage.experiences.getAll(),
         storage.observations.getRecent(1000),
       ])
-      setConsent(consentState)
       setDataSummary({
         answersCount: answers.length,
         experiencesCount: experiences.length,
@@ -51,17 +43,7 @@ export default function PrivacySection({ llmEnabled, llmProvider }: PrivacySecti
     }
   }
 
-  async function handleToggleLLMConsent() {
-    if (!consent) return
 
-    const newConsent = createConsentPreferences({
-      dataCollection: consent.dataCollection,
-      llmDataSharing: !consent.llmDataSharing,
-      acknowledgedPrivacyPolicy: consent.acknowledgedPrivacyPolicy,
-    })
-    await setConsentState(newConsent)
-    setConsent(newConsent)
-  }
 
   async function handleDeleteAllData() {
     setDeleting(true)
@@ -144,42 +126,7 @@ export default function PrivacySection({ llmEnabled, llmProvider }: PrivacySecti
             </div>
           </div>
 
-          {/* LLM Data Sharing Warning */}
-          {llmEnabled && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm text-amber-800">
-                    <strong>{t('privacy.aiEnabled')}</strong>
-                  </p>
-                  <p className="text-xs text-amber-700 mt-1">
-                    {t('privacy.aiDataSentTo')} <strong>{llmProvider}</strong>
-                  </p>
-                  <p className="text-xs text-amber-600 mt-1">
-                    {t('privacy.aiDataNote')}
-                  </p>
-                </div>
-              </div>
-              {consent && (
-                <div className="mt-3 flex items-center justify-between">
-                  <span className="text-xs text-amber-700">{t('privacy.allowAiSharing')}</span>
-                  <button
-                    onClick={handleToggleLLMConsent}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                      consent.llmDataSharing ? 'bg-amber-500' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                        consent.llmDataSharing ? 'translate-x-5' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+
 
           {/* Delete All Data */}
           <div className="border-t border-gray-100 pt-4">

@@ -138,10 +138,10 @@ export class FloatingWidget {
     this.isDragging = true
     this.dragStart = { x: e.clientX, y: e.clientY }
     this.dragStartPos = { ...this.position }
-    
+
     document.addEventListener('mousemove', this.handleMouseMove)
     document.addEventListener('mouseup', this.handleMouseUp)
-    
+
     if (this.container) {
       this.container.style.transition = 'none'
     }
@@ -149,16 +149,16 @@ export class FloatingWidget {
 
   private handleMouseMove(e: MouseEvent): void {
     if (!this.isDragging) return
-    
+
     const deltaX = this.dragStart.x - e.clientX
     const deltaY = this.dragStart.y - e.clientY
-    
+
     const maxRight = window.innerWidth - 100
     const maxBottom = window.innerHeight - 100
-    
+
     this.position.right = Math.max(10, Math.min(maxRight, this.dragStartPos.right + deltaX))
     this.position.bottom = Math.max(10, Math.min(maxBottom, this.dragStartPos.bottom + deltaY))
-    
+
     this.updateContainerPosition()
   }
 
@@ -166,7 +166,7 @@ export class FloatingWidget {
     this.isDragging = false
     document.removeEventListener('mousemove', this.handleMouseMove)
     document.removeEventListener('mouseup', this.handleMouseUp)
-    
+
     if (this.container) {
       this.container.style.transition = ''
     }
@@ -210,8 +210,11 @@ export class FloatingWidget {
     // Minimized state - show small button to restore
     if (this.isMinimized) {
       return `
-        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-          <button id="af-btn-restore" class="af-btn-hover" style="width: 40px; height: 40px; background: linear-gradient(to right, #3b82f6, #2563eb); border-radius: 50%; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); display: flex; align-items: center; justify-content: center; color: white; transition: transform 0.15s, box-shadow 0.15s;" title="Show OneFillr">
+        <div class="af-widget-bar-container" style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; position: relative;">
+          <button id="af-btn-close-widget" class="af-close-btn" title="Hide 1Fillr">
+            ${ICONS.close}
+          </button>
+          <button id="af-btn-restore" class="af-btn-hover" style="width: 40px; height: 40px; background: linear-gradient(to right, #3b82f6, #2563eb); border-radius: 50%; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); display: flex; align-items: center; justify-content: center; color: white; transition: transform 0.15s, box-shadow 0.15s;" title="Show 1Fillr">
             ${ICONS.sparkles}
           </button>
         </div>
@@ -219,7 +222,10 @@ export class FloatingWidget {
     }
 
     return `
-      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+      <div class="af-widget-bar-container" style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px; position: relative;">
+        <button id="af-btn-close-widget" class="af-close-btn" title="Hide 1Fillr">
+          ${ICONS.close}
+        </button>
         <div style="background: white; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border: 1px solid #e5e7eb; overflow: hidden;">
           <div style="display: flex; align-items: center;">
             <div id="af-drag-handle" style="padding: 12px 8px; cursor: grab; color: #6b7280; border-right: 1px solid #f3f4f6; user-select: none;">
@@ -227,15 +233,15 @@ export class FloatingWidget {
             </div>
             <button id="af-btn-save" class="af-btn-hover" style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: #374151; display: flex; align-items: center; gap: 8px; transition: background 0.15s;">
               <span style="color: #3b82f6;">${ICONS.sparkles}</span>
-              <span>Save</span>
+              <span>${t('widget.save')}</span>
             </button>
             <div style="width: 1px; height: 24px; background: #e5e7eb;"></div>
             <button id="af-btn-fill" class="af-btn-hover" style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: white; background: ${this.showAISuperFill ? 'linear-gradient(to right, #7c3aed, #6d28d9)' : 'linear-gradient(to right, #3b82f6, #2563eb)'}; display: flex; align-items: center; gap: 8px;">
               ${this.showAISuperFill ? ICONS.sparkles : ICONS.check}
-              <span>${this.showAISuperFill ? 'AI SuperFill' : 'Fill'}</span>
+              <span>${this.showAISuperFill ? 'AI SuperFill' : t('widget.fill')}</span>
             </button>
             <div style="width: 1px; height: 24px; background: #e5e7eb;"></div>
-            <button id="af-btn-minimize" class="af-btn-hover" style="padding: 12px 10px; font-size: 14px; color: #9ca3af; display: flex; align-items: center; transition: color 0.15s;" title="Minimize OneFillr">
+            <button id="af-btn-minimize" class="af-btn-hover" style="padding: 12px 10px; font-size: 14px; color: #9ca3af; display: flex; align-items: center; transition: color 0.15s;" title="Minimize 1Fillr">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
             </button>
           </div>
@@ -254,7 +260,7 @@ export class FloatingWidget {
       const hasConflict = field.existingValue && field.existingValue !== field.value
       const conflictStyle = hasConflict ? 'background: rgba(239,68,68,0.1); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px;' : ''
       const rowStyle = field.sensitive ? 'background: rgba(251,191,36,0.1); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: 4px;' : conflictStyle
-      
+
       return `
       <div class="af-animate-slideIn" style="display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-bottom: 1px solid #bfdbfe; animation-delay: ${index * 50}ms; ${rowStyle}" data-field-id="${field.id}">
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -457,6 +463,7 @@ export class FloatingWidget {
     const closeDbBtn = document.getElementById('af-btn-close-db')
     const minimizeBtn = document.getElementById('af-btn-minimize')
     const restoreBtn = document.getElementById('af-btn-restore')
+    const closeWidgetBtn = document.getElementById('af-btn-close-widget')
 
     dragHandle?.addEventListener('mousedown', (e) => this.handleMouseDown(e))
     saveBtn?.addEventListener('click', () => this.handleSave())
@@ -475,6 +482,7 @@ export class FloatingWidget {
     closeDbBtn?.addEventListener('click', () => this.showPhase('widget'))
     minimizeBtn?.addEventListener('click', () => this.minimize())
     restoreBtn?.addEventListener('click', () => this.restore())
+    closeWidgetBtn?.addEventListener('click', () => this.hide())
 
     document.querySelectorAll('[data-delete-field]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -542,7 +550,7 @@ export class FloatingWidget {
 
       // Check if it's an extension context error
       if (error instanceof ExtensionContextInvalidatedError ||
-          (error instanceof Error && error.message.includes('Extension context invalidated'))) {
+        (error instanceof Error && error.message.includes('Extension context invalidated'))) {
         showToast('Extension updated. Please refresh the page.', 'warning')
       } else {
         showToast('Error detecting fields', 'warning')
@@ -625,7 +633,7 @@ export class FloatingWidget {
         this.showPhase('widget')
 
         if (error instanceof ExtensionContextInvalidatedError ||
-            (error instanceof Error && error.message.includes('Extension context invalidated'))) {
+          (error instanceof Error && error.message.includes('Extension context invalidated'))) {
           showToast('Extension updated. Please refresh the page.', 'warning')
         } else {
           showToast('Error filling fields', 'warning')
@@ -704,7 +712,7 @@ export class FloatingWidget {
         fillBtn.removeAttribute('disabled')
 
         if (error instanceof ExtensionContextInvalidatedError ||
-            (error instanceof Error && error.message.includes('Extension context invalidated'))) {
+          (error instanceof Error && error.message.includes('Extension context invalidated'))) {
           showToast('Extension updated. Please refresh the page.', 'warning')
         } else {
           showToast('Error filling fields', 'warning')
@@ -756,7 +764,7 @@ export class FloatingWidget {
       this.showAISuperFill = false
 
       if (error instanceof ExtensionContextInvalidatedError ||
-          (error instanceof Error && error.message.includes('Extension context invalidated'))) {
+        (error instanceof Error && error.message.includes('Extension context invalidated'))) {
         showToast('Extension updated. Please refresh the page.', 'warning')
       } else if (error instanceof Error && error.message.includes('credits')) {
         showToast('Insufficient credits for AI fill', 'warning')
@@ -776,10 +784,10 @@ export class FloatingWidget {
     if (debug.fieldsScanned === 0) {
       return 'No form fields found on this page.'
     }
-    
+
     const unknownCount = debug.fieldsParsed.filter(f => f.type === 'UNKNOWN').length
     const noAnswersCount = debug.fieldsParsed.filter(f => f.reason?.includes('No matching answers')).length
-    
+
     if (unknownCount === debug.fieldsScanned) {
       return `Found ${debug.fieldsScanned} fields but couldn't identify their types.`
     }
@@ -789,7 +797,7 @@ export class FloatingWidget {
     if (debug.suggestionsCreated > 0 || debug.sensitiveFieldsFound > 0) {
       return `Found ${debug.suggestionsCreated + debug.sensitiveFieldsFound} fields requiring manual selection (see badges).`
     }
-    
+
     return 'No matching fields found. Check console for debug details.'
   }
 
@@ -835,7 +843,7 @@ export class FloatingWidget {
 
       // Show prompt to enable autofill for this site
       setTimeout(() => {
-        showToast(t('toast.enableAutofillPrompt'), 'info', {
+        showToast(t('toast.enableAutofillPrompt'), 'prominent', {
           action: {
             label: t('toast.enableAutofillAction'),
             onClick: async () => {
@@ -883,7 +891,7 @@ export class FloatingWidget {
       console.error('[AutoFiller] Confirm error:', error)
 
       if (error instanceof ExtensionContextInvalidatedError ||
-          (error instanceof Error && error.message.includes('Extension context invalidated'))) {
+        (error instanceof Error && error.message.includes('Extension context invalidated'))) {
         showToast('Extension updated. Please refresh the page.', 'warning')
       } else {
         showToast('Error saving fields', 'warning')

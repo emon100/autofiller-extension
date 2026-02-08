@@ -1,4 +1,4 @@
-export type ToastType = 'success' | 'warning' | 'info'
+export type ToastType = 'success' | 'warning' | 'info' | 'prominent'
 
 export interface ToastAction {
   label: string
@@ -48,18 +48,22 @@ export function showToast(
   const bgColors: Record<ToastType, string> = {
     success: '#16a34a',
     warning: '#f59e0b',
-    info: '#1f2937'
+    info: '#1f2937',
+    prominent: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)'
   }
+
+  const isProminent = type === 'prominent'
   toast.style.cssText = `
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px;
+    padding: ${isProminent ? '16px 20px' : '12px 16px'};
     border-radius: 12px;
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    box-shadow: ${isProminent ? '0 20px 25px -5px rgba(59,130,246,0.3), 0 8px 10px -6px rgba(139,92,246,0.2)' : '0 10px 15px -3px rgba(0,0,0,0.1)'};
     color: white;
-    font-size: 14px;
-    background: ${bgColors[type]};
+    font-size: ${isProminent ? '15px' : '14px'};
+    ${isProminent ? `background: ${bgColors[type]}` : `background: ${bgColors[type]}`};
+    ${isProminent ? 'animation: af-pulse-glow 2s ease-in-out infinite;' : ''}
   `
 
   const textSpan = document.createElement('span')
@@ -128,7 +132,8 @@ export function showToast(
 
   container.appendChild(toast)
 
-  setTimeout(() => removeToast(id), 5000)
+  // Prominent toasts stay longer
+  setTimeout(() => removeToast(id), isProminent ? 8000 : 5000)
 
   return id
 }

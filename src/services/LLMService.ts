@@ -255,22 +255,22 @@ Return ONLY valid JSON in this exact format:
       workExperiences: cleaned.workExperiences?.length
         ? cleaned.workExperiences
         : original.workExperiences.map(w => ({
-            company: w.company,
-            title: w.title,
-            location: w.location,
-            startDate: w.startDate,
-            endDate: w.endDate,
-            description: w.description,
-          })),
+          company: w.company,
+          title: w.title,
+          location: w.location,
+          startDate: w.startDate,
+          endDate: w.endDate,
+          description: w.description,
+        })),
       educations: cleaned.educations?.length
         ? cleaned.educations
         : original.educations.map(e => ({
-            school: e.school,
-            degree: e.degree,
-            major: e.field,
-            startDate: e.startDate,
-            endDate: e.endDate,
-          })),
+          school: e.school,
+          degree: e.degree,
+          major: e.field,
+          startDate: e.startDate,
+          endDate: e.endDate,
+        })),
       skills: cleaned.skills?.length ? cleaned.skills : original.skills,
     }
   }
@@ -381,11 +381,19 @@ ${fieldsStr}
 Rules:
 1. For select/radio fields, the value MUST match one of the provided options exactly.
 2. For text fields, provide the shortest factual answer (e.g. "2 weeks", "Yes", "3 years"). Never write sentences.
-3. For textarea fields (like "Why do you want to work here?"), write a brief, professional, personalized answer (2-3 sentences).
+3. For textarea fields asking behavioral or soft-skill questions (e.g. "Why do you want to work here?", "Describe a challenge you overcame", "Tell us about yourself"):
+   - Write a specific, relevant answer (3-5 sentences) that directly addresses the question.
+   - Reference the user's actual work experience, skills, and background from their profile.
+   - Do NOT give generic or vague answers. Tailor each response to what is being asked.
+   - For "Why this role/company?" questions, connect the user's experience to the role.
+   - For "Tell me about yourself" questions, focus on professional background and key achievements.
 4. If you cannot determine a reasonable value, set confidence to 0.
 5. For questions about salary, set confidence to 0 (let user decide).
 6. For "How did you hear about us" type questions, use "Online Search" or similar.
 7. For optional fields (not marked required) that are non-essential (e.g. "Preferred Name", "Nickname", "Middle Name"), set confidence to 0. Only fill optional fields when the user's profile has a clear matching value.
+8. For address fields (street, city, state, zip, country), use the user's stored address/location values exactly. Do NOT fabricate or guess address components.
+9. For location/city fields, extract the city name from the user's location profile value.
+10. For select/dropdown fields with many options (like country, state, degree), pick the option that is the closest semantic match to the user's profile data. For location dropdowns, match by city/state/country name.
 
 Return JSON array:
 [
@@ -431,10 +439,16 @@ ${expStr || '  (none)'}
 Field: ${fieldDesc}
 
 Rules:
-1. For select/radio, value MUST match one of the options exactly.
+1. For select/radio, value MUST match one of the options exactly. Pick the closest semantic match.
 2. For text fields, give the shortest factual answer (e.g. "2 weeks", "Yes"). Never write sentences.
-3. For textarea (open-ended questions like "Why are you interested?"), write a professional, personalized answer (2-3 sentences).
+3. For textarea (open-ended questions like "Why are you interested?", "Describe a challenge", "Tell us about yourself"):
+   - Write a specific, professional, personalized answer (3-5 sentences).
+   - Reference the user's actual experience, skills, and achievements from their profile.
+   - Do NOT give generic answers. Directly address what is being asked.
+   - For behavioral questions, use the STAR method (Situation, Task, Action, Result) concisely.
 4. Use the user's profile and experience to personalize the answer.
+5. For address/location fields, use the user's stored location values exactly. Never fabricate addresses.
+6. For location dropdowns, pick the closest matching option to the user's city/state/country.
 
 Return JSON:
 { "value": "...", "confidence": 0.0-1.0 }`

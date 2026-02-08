@@ -25,14 +25,14 @@ function createContextMenus() {
     // AI fill single field - shown on editable elements
     chrome.contextMenus.create({
       id: CONTEXT_MENU_IDS.AI_FILL_FIELD,
-      title: 'OneFillr: AI fill this',
+      title: '1Fillr: AI fill this',
       contexts: ['editable'],
     })
 
     // Open side panel
     chrome.contextMenus.create({
       id: CONTEXT_MENU_IDS.OPEN_SIDEPANEL,
-      title: 'Open OneFillr panel',
+      title: 'Open 1Fillr panel',
       contexts: ['page'],
     })
   })

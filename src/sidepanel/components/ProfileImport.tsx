@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Upload, Linkedin, CheckCircle2, AlertCircle, Loader2, ExternalLink, RefreshCw, Shield, Sparkles, HardDrive } from 'lucide-react'
+import { Upload, Linkedin, CheckCircle2, AlertCircle, Loader2, ExternalLink, RefreshCw } from 'lucide-react'
 import { ResumeParser, resumeParser } from '@/profileParser'
 import { storage } from '@/storage'
 import type { ParsedProfile, AnswerValue, ExperienceEntry } from '@/types'
@@ -159,8 +159,8 @@ export default function ProfileImport({ onImportComplete }: ProfileImportProps):
   }
 
   function handleParseClick(): void {
-    setStatus('consent')
-    setError(null)
+    // Always use AI for best results
+    parseLinkedInPage(true)
   }
 
   async function parseLinkedInPage(useAI: boolean): Promise<void> {
@@ -252,7 +252,7 @@ export default function ProfileImport({ onImportComplete }: ProfileImportProps):
       {(status === 'idle' || status === 'checking') && (
         <div className="space-y-3">
           <div className="flex rounded-lg bg-gray-100 p-1">
-            <ModeTab label="Resume" active={mode === 'resume'} onClick={() => setMode('resume')} />
+            <ModeTab label="Resume/CV" active={mode === 'resume'} onClick={() => setMode('resume')} />
             <ModeTab label="LinkedIn" active={mode === 'linkedin'} onClick={() => setMode('linkedin')} />
           </div>
 
@@ -269,7 +269,7 @@ export default function ProfileImport({ onImportComplete }: ProfileImportProps):
                 className="hidden"
               />
               <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm font-medium text-gray-700">Upload Resume</p>
+              <p className="text-sm font-medium text-gray-700">Upload Resume/CV</p>
               <p className="text-xs text-gray-500 mt-1">PDF, Word, or Image</p>
             </div>
           )}
@@ -346,100 +346,25 @@ export default function ProfileImport({ onImportComplete }: ProfileImportProps):
         </div>
       )}
 
-      {status === 'consent' && (
-        <div className="space-y-3">
-          <div className="text-center">
-            <Shield className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-            <h3 className="text-sm font-semibold text-gray-800">Choose Processing Method</h3>
-            <p className="text-xs text-gray-500 mt-1">
-              How would you like to process your LinkedIn profile?
-            </p>
-          </div>
 
-          <div className="space-y-2">
-            <button
-              onClick={() => parseLinkedInPage(true)}
-              className="w-full p-3 border-2 border-blue-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-colors text-left"
-            >
-              <div className="flex items-start gap-3">
-                <div className="p-1.5 bg-blue-100 rounded-lg">
-                  <Sparkles className="w-4 h-4 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-800">AI-Enhanced Processing</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Better accuracy for names, dates, and formatting
-                  </p>
-                  <div className="mt-1.5 p-1.5 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-xs text-amber-700">
-                      <strong>Note:</strong> Data sent to AI service. NOT stored or used for training.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => parseLinkedInPage(false)}
-              className="w-full p-3 border-2 border-gray-200 rounded-xl hover:border-gray-400 hover:bg-gray-50/50 transition-colors text-left"
-            >
-              <div className="flex items-start gap-3">
-                <div className="p-1.5 bg-gray-100 rounded-lg">
-                  <HardDrive className="w-4 h-4 text-gray-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-800">Local Processing Only</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    All processing happens on your device
-                  </p>
-                  <div className="mt-1.5 p-1.5 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-xs text-green-700">
-                      <strong>Privacy:</strong> No data leaves your browser.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </button>
-          </div>
-
-          <button
-            onClick={() => setStatus('idle')}
-            className="w-full px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
-          >
-            Cancel
-          </button>
-
-          <p className="text-xs text-gray-400 text-center">
-            By continuing, you agree to our{' '}
-            <a href="https://www.onefil.help/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-              Privacy Policy
-            </a>
-          </p>
-        </div>
-      )}
 
       {status === 'parsing' && (
-        <LoadingState message={mode === 'linkedin' ? 'Parsing LinkedIn profile...' : 'Parsing resume...'} />
+        <LoadingState message={mode === 'linkedin' ? 'Parsing LinkedIn profile...' : 'Parsing resume/CV...'} />
       )}
 
       {status === 'previewing' && parsedProfile && (
         <div className="space-y-3">
           <PreviewSection title="Basic Info" count={parsedProfile.singleAnswers.length}>
-            {parsedProfile.singleAnswers.slice(0, 5).map((a, i) => (
+            {parsedProfile.singleAnswers.map((a, i) => (
               <div key={i} className="flex justify-between text-xs py-1">
                 <span className="text-gray-500">{a.type}</span>
                 <span className="text-gray-800 truncate ml-2 max-w-[150px]">{a.value}</span>
               </div>
             ))}
-            {parsedProfile.singleAnswers.length > 5 && (
-              <p className="text-xs text-gray-400 text-center">
-                +{parsedProfile.singleAnswers.length - 5} more
-              </p>
-            )}
           </PreviewSection>
 
           <PreviewSection title="Work Experience" count={workExperiences.length}>
-            {workExperiences.slice(0, 3).map((exp, i) => (
+            {workExperiences.map((exp, i) => (
               <ImportExperienceItem
                 key={i}
                 title={exp.fields.JOB_TITLE || 'Unknown Title'}
@@ -449,7 +374,7 @@ export default function ProfileImport({ onImportComplete }: ProfileImportProps):
           </PreviewSection>
 
           <PreviewSection title="Education" count={educationExperiences.length}>
-            {educationExperiences.slice(0, 3).map((exp, i) => (
+            {educationExperiences.map((exp, i) => (
               <ImportExperienceItem
                 key={i}
                 title={exp.fields.SCHOOL || 'Unknown School'}

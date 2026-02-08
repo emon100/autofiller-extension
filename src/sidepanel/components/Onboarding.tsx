@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Zap, Linkedin, FileText, FormInput, Sparkles, ArrowRight, ArrowLeft, Check, ExternalLink, Database, Shield, Brain, Lock, HardDrive, LogIn, Loader2, Settings, MousePointerClick, AlertTriangle, type LucideIcon } from 'lucide-react'
+import { Zap, Linkedin, FileText, FormInput, Sparkles, ArrowRight, ArrowLeft, Check, ExternalLink, Database, Shield, Brain, Lock, LogIn, Loader2, Settings, MousePointerClick, type LucideIcon } from 'lucide-react'
 import { Taxonomy } from '@/types'
 import { storage } from '@/storage'
 import { t } from '@/i18n'
@@ -240,18 +240,39 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
 function LinkedInStep({ done, onDone, onNext, onBack }: {
   done: boolean; onDone: () => void; onNext: () => void; onBack: () => void
 }) {
-  const [status, setStatus] = useState<'idle' | 'choosing' | 'parsing' | 'done' | 'error' | 'detecting'>('idle')
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
-  const [loggingIn, setLoggingIn] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'parsing' | 'done' | 'error' | 'detecting'>('idle')
   const [activeTabLinkedIn, setActiveTabLinkedIn] = useState<string | null>(null)
-  const [selectedMethod, setSelectedMethod] = useState<boolean | null>(null) // null=none, false=local, true=AI
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
+  const [llmReady, setLlmReady] = useState<boolean | null>(null)
+  const [loggingIn, setLoggingIn] = useState(false)
+  const [loginError, setLoginError] = useState('')
 
   useEffect(() => {
-    storage.auth.getAuthState().then(authState => {
-      setIsLoggedIn(!!(authState && authState.expiresAt > Date.now()))
-    })
     checkActiveTab()
+    checkAuth()
   }, [])
+
+  async function checkAuth() {
+    const authState = await storage.auth.getAuthState()
+    const loggedIn = !!(authState && authState.expiresAt > Date.now())
+    setIsLoggedIn(loggedIn)
+    const enabled = await isLLMEnabled()
+    setLlmReady(enabled)
+  }
+
+  async function handleLogin() {
+    setLoggingIn(true)
+    setLoginError('')
+    const result = await launchLogin()
+    if (result.success) {
+      setIsLoggedIn(true)
+      const enabled = await isLLMEnabled()
+      setLlmReady(enabled)
+    } else if (result.error) {
+      setLoginError(result.error)
+    }
+    setLoggingIn(false)
+  }
 
   async function checkActiveTab() {
     try {
@@ -297,16 +318,7 @@ function LinkedInStep({ done, onDone, onNext, onBack }: {
     // cleanup on unmount is not critical here since it's a one-time action
   }
 
-  async function handleLogin() {
-    setLoggingIn(true)
-    const result = await launchLogin()
-    if (result.success) {
-      setIsLoggedIn(true)
-    } else if (result.error) {
-      console.error('LinkedIn login error:', result.error)
-    }
-    setLoggingIn(false)
-  }
+
 
   async function parseProfile(withAI: boolean) {
     setStatus('parsing')
@@ -338,96 +350,7 @@ function LinkedInStep({ done, onDone, onNext, onBack }: {
         title={t('onboarding.linkedin.title')} subtitle={t('onboarding.linkedin.subtitle')} />
 
       <div className="bg-white rounded-xl p-4 space-y-3">
-        {status === 'choosing' ? (
-          <div className="space-y-3">
-            <p className="text-sm text-gray-700 text-center font-medium">{t('onboarding.linkedin.chooseMethod')}</p>
-
-            {/* Local Processing Option */}
-            <button
-              onClick={() => setSelectedMethod(false)}
-              className={`w-full p-3 border-2 rounded-xl transition-colors text-left ${selectedMethod === false ? 'border-green-500 bg-green-50/50' : 'border-green-200 hover:border-green-400 hover:bg-green-50/50'}`}
-            >
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <HardDrive className="w-5 h-5 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-800">{t('onboarding.linkedin.localOption')}</p>
-                  <p className="text-xs text-green-700 mt-0.5">
-                    {t('onboarding.linkedin.localDesc')}
-                  </p>
-                </div>
-                {selectedMethod === false && <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-1" />}
-              </div>
-            </button>
-
-            {/* AI Processing Option */}
-            {isLoggedIn ? (
-              <button
-                onClick={() => setSelectedMethod(true)}
-                className={`w-full p-3 border-2 rounded-xl transition-colors text-left ${selectedMethod === true ? 'border-blue-500 bg-blue-50/50' : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50/50'}`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Sparkles className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-800">{t('onboarding.linkedin.aiOption')}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {t('onboarding.linkedin.aiDesc')}
-                    </p>
-                    <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3 flex-shrink-0" /> {t('onboarding.linkedin.aiWarning')}
-                    </p>
-                  </div>
-                  {selectedMethod === true && <Check className="w-5 h-5 text-blue-600 flex-shrink-0 mt-1" />}
-                </div>
-              </button>
-            ) : (
-              <div className="w-full p-3 border-2 border-gray-200 rounded-xl bg-gray-50/50 text-left">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Sparkles className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-800">{t('onboarding.linkedin.aiOption')}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {t('onboarding.linkedin.aiDesc')}
-                    </p>
-                    <button
-                      onClick={handleLogin}
-                      disabled={loggingIn}
-                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {loggingIn ? (
-                        <><Loader2 className="w-3 h-3 animate-spin" /> {t('onboarding.resume.loggingIn')}</>
-                      ) : (
-                        <><LogIn className="w-3 h-3" /> {t('onboarding.linkedin.loginForAi')}</>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Action buttons */}
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => { setStatus('idle'); setSelectedMethod(null) }}
-                className="flex-1 py-2.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-xl"
-              >
-                {t('onboarding.linkedin.cancel')}
-              </button>
-              <button
-                onClick={() => { if (selectedMethod !== null) parseProfile(selectedMethod) }}
-                disabled={selectedMethod === null}
-                className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-              >
-                {t('onboarding.linkedin.parse')} <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        ) : !done && status !== 'done' ? (
+        {!done && status !== 'done' ? (
           <>
             {activeTabLinkedIn ? (
               <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
@@ -457,8 +380,8 @@ function LinkedInStep({ done, onDone, onNext, onBack }: {
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${activeTabLinkedIn ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600'}`}>2</div>
               <p className={`text-sm flex-1 ${activeTabLinkedIn ? 'text-blue-700 font-medium' : 'text-gray-700'}`}>{t('onboarding.linkedin.step2')}</p>
               <button
-                onClick={() => setStatus('choosing')}
-                disabled={status === 'parsing'}
+                onClick={() => parseProfile(true)}
+                disabled={status === 'parsing' || (!llmReady && !isLoggedIn)}
                 className="px-3 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {status === 'parsing' ? t('onboarding.linkedin.parsing') : t('onboarding.linkedin.parse')}
@@ -470,6 +393,29 @@ function LinkedInStep({ done, onDone, onNext, onBack }: {
               </p>
             )}
             <PrivacyBadge variant="ai-optional" />
+
+            {/* Login prompt if not logged in */}
+            {isLoggedIn === false && !llmReady && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <LogIn className="w-4 h-4 text-blue-500" />
+                  <p className="text-xs font-medium text-gray-700">{t('onboarding.resume.loginRequired')}</p>
+                </div>
+                <p className="text-[11px] text-gray-500">{t('onboarding.resume.loginDesc')}</p>
+                <button
+                  onClick={handleLogin}
+                  disabled={loggingIn}
+                  className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loggingIn ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('onboarding.resume.loggingIn')}</>
+                  ) : (
+                    <><LogIn className="w-3.5 h-3.5" /> {t('onboarding.resume.loginButton')}</>
+                  )}
+                </button>
+                {loginError && <p className="text-[10px] text-red-600">{loginError}</p>}
+              </div>
+            )}
           </>
         ) : (
           <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg">
@@ -628,22 +574,42 @@ function ResumeStep({ done, onDone, onNext, onBack }: {
               </div>
             </div>
 
-            <label className="block cursor-pointer">
-              <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-green-400 hover:bg-green-50/50 transition-colors">
-                <FileText className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm font-medium text-gray-700">
-                  {status === 'parsing' ? t('onboarding.resume.processing') : t('onboarding.resume.clickUpload')}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">{t('onboarding.resume.fileTypes')}</p>
-              </div>
-              <input
-                type="file"
-                accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp"
-                onChange={handleFile}
-                className="hidden"
-                disabled={status === 'parsing'}
-              />
-            </label>
+            {/* Drag and Drop Upload Area */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault()
+                e.currentTarget.classList.add('border-green-400', 'bg-green-50/50')
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault()
+                e.currentTarget.classList.remove('border-green-400', 'bg-green-50/50')
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                e.currentTarget.classList.remove('border-green-400', 'bg-green-50/50')
+                const file = e.dataTransfer.files?.[0]
+                if (file) {
+                  handleFile({ target: { files: [file] } } as any)
+                }
+              }}
+            >
+              <label className="block cursor-pointer">
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-green-400 hover:bg-green-50/50 transition-colors">
+                  <FileText className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-gray-700">
+                    {status === 'parsing' ? t('onboarding.resume.processing') : t('onboarding.resume.clickUpload')}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">{t('onboarding.resume.fileTypes')}</p>
+                </div>
+                <input
+                  type="file"
+                  accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp"
+                  onChange={handleFile}
+                  className="hidden"
+                  disabled={status === 'parsing'}
+                />
+              </label>
+            </div>
           </>
         ) : (
           <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg">
@@ -760,6 +726,7 @@ function FeaturesStep({ onComplete, onBack }: { onComplete: () => void; onBack: 
   const features = [
     { icon: Database, color: 'blue', title: t('onboarding.features.localKnowledge'), desc: t('onboarding.features.localKnowledgeDesc') },
     { icon: Sparkles, color: 'purple', title: t('onboarding.features.smartFill'), desc: t('onboarding.features.smartFillDesc') },
+    { icon: MousePointerClick, color: 'blue', title: t('onboarding.features.rightClickFill'), desc: t('onboarding.features.rightClickFillDesc') },
     { icon: Brain, color: 'green', title: t('onboarding.features.autoLearn'), desc: t('onboarding.features.autoLearnDesc') },
     { icon: Shield, color: 'amber', title: t('onboarding.features.privacyFirst'), desc: t('onboarding.features.privacyFirstDesc') },
   ]

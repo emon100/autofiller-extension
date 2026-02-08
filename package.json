@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
+    "csv-parse": "^6.1.0",
     "json-repair-js": "^1.0.0",
     "lucide-react": "^0.562.0",
     "mammoth": "^1.6.0",
