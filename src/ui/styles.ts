@@ -45,6 +45,10 @@ export const WIDGET_STYLES = `
   0%, 80%, 100% { transform: scale(0); }
   40% { transform: scale(1); }
 }
+@keyframes af-pulse-glow {
+  0%, 100% { box-shadow: 0 20px 25px -5px rgba(59,130,246,0.3), 0 8px 10px -6px rgba(139,92,246,0.2); }
+  50% { box-shadow: 0 20px 30px -5px rgba(59,130,246,0.5), 0 8px 15px -6px rgba(139,92,246,0.4); }
+}
 
 .af-animate-fadeIn { animation: af-fadeIn 0.3s ease-out forwards; }
 .af-animate-slideIn { animation: af-slideIn 0.3s ease-out forwards; }
@@ -126,6 +130,7 @@ export const WIDGET_STYLES = `
 .af-toast-success { background: #16a34a; }
 .af-toast-warning { background: #f59e0b; }
 .af-toast-info { background: #1f2937; }
+.af-toast-prominent { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); animation: af-pulse-glow 2s ease-in-out infinite; }
 
 .af-filling-popup {
   background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
@@ -182,5 +187,34 @@ export const WIDGET_STYLES = `
   margin-top: 12px;
   font-size: 11px;
   color: rgba(255,255,255,0.6);
+}
+
+.af-close-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 10;
+  cursor: pointer;
+  border: 1px solid #e5e7eb;
+}
+
+.af-widget-bar-container:hover .af-close-btn {
+  opacity: 1;
+}
+
+.af-close-btn:hover {
+  color: #ef4444;
+  transform: scale(1.1);
 }
 `

@@ -34,8 +34,23 @@ export interface Plan {
 export function groupProductsByPlan(products: Product[]): Plan[] {
   const planMap = new Map<string, Plan>();
 
+  // Initialize with Free plan
+  planMap.set('free', {
+    id: 'free',
+    name: 'Free',
+    description: 'Perfect for trying out OneFillr',
+    credits: '200 credits',
+    features: ['Basic auto-fill', 'Local data storage', 'Standard support'],
+    popular: false,
+    monthlyPrice: 0,
+    yearlyPrice: 0,
+    monthlyPriceId: '',
+    yearlyPriceId: '',
+    isSubscription: false,
+  });
+
   for (const product of products) {
-    // 跳过价格为 0 的产品（通常是 Paddle price ID 配置有误）
+    // 跳过价格为 0 的产品（通常是 Paddle price ID 配置有误，或者是我们硬编码的 Free 计划）
     if (product.price_amount <= 0) continue;
 
     const planName = product.name.split(' ')[0];
@@ -72,7 +87,7 @@ export function groupProductsByPlan(products: Product[]): Plan[] {
 
   // 一次性购买：月付/年付价格相同
   for (const plan of Array.from(planMap.values())) {
-    if (!plan.isSubscription) {
+    if (!plan.isSubscription && plan.id !== 'free') {
       plan.yearlyPrice ||= plan.monthlyPrice;
       plan.yearlyPriceId ||= plan.monthlyPriceId;
     }

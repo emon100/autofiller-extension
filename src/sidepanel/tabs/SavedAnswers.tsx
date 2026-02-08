@@ -18,6 +18,42 @@ const DUPLICATE_COLORS = [
   { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700', ring: 'ring-pink-300' },
 ]
 
+// Detect overlapping date ranges within a list of experiences
+function findOverlaps(experiences: ExperienceEntry[]): Map<string, string> {
+  const overlaps = new Map<string, string>()
+
+  function parseDate(d?: string): number | null {
+    if (!d) return null
+    if (d === 'present') return Date.now()
+    const [y, m] = d.split('-').map(Number)
+    return y && m ? new Date(y, m - 1).getTime() : null
+  }
+
+  for (let i = 0; i < experiences.length; i++) {
+    const a = experiences[i]
+    const aStart = parseDate(a.startDate)
+    const aEnd = parseDate(a.endDate) ?? aStart
+    if (aStart === null) continue
+
+    for (let j = i + 1; j < experiences.length; j++) {
+      const b = experiences[j]
+      const bStart = parseDate(b.startDate)
+      const bEnd = parseDate(b.endDate) ?? bStart
+      if (bStart === null) continue
+
+      // Overlap if one starts before the other ends
+      if (aStart <= bEnd! && bStart <= aEnd!) {
+        const isWork = a.groupType === 'WORK'
+        const aName = isWork ? (a.fields.JOB_TITLE || a.fields.COMPANY_NAME || `#${i + 1}`) : (a.fields.SCHOOL || `#${i + 1}`)
+        const bName = isWork ? (b.fields.JOB_TITLE || b.fields.COMPANY_NAME || `#${j + 1}`) : (b.fields.SCHOOL || `#${j + 1}`)
+        if (!overlaps.has(a.id)) overlaps.set(a.id, bName)
+        if (!overlaps.has(b.id)) overlaps.set(b.id, aName)
+      }
+    }
+  }
+  return overlaps
+}
+
 interface CategoryConfig {
   name: string
   icon: typeof User
@@ -424,6 +460,11 @@ export default function SavedAnswers() {
       })
   }
 
+  const workExperiences = useMemo(() => getExperiencesByType('WORK'), [experiences, searchQuery])
+  const educationExperiences = useMemo(() => getExperiencesByType('EDUCATION'), [experiences, searchQuery])
+  const workOverlaps = useMemo(() => findOverlaps(workExperiences), [workExperiences])
+  const eduOverlaps = useMemo(() => findOverlaps(educationExperiences), [educationExperiences])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -432,12 +473,29 @@ export default function SavedAnswers() {
     )
   }
 
-  const workExperiences = getExperiencesByType('WORK')
-  const educationExperiences = getExperiencesByType('EDUCATION')
   const hasAnyData = answers.length > 0 || experiences.length > 0
 
   return (
     <div className="space-y-2">
+      {/* Import Section */}
+      <div className="border border-gray-200 rounded-xl overflow-hidden">
+        <button
+          onClick={() => setShowImport(!showImport)}
+          className="w-full px-3 py-2 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Upload className="w-4 h-4 text-blue-500" />
+            <span className="text-sm font-medium text-gray-700">{t('tabs.import')}</span>
+          </div>
+          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${!showImport ? '-rotate-90' : ''}`} />
+        </button>
+        {showImport && (
+          <div className="p-3 border-t border-gray-200">
+            <ProfileImport onImportComplete={() => loadData()} />
+          </div>
+        )}
+      </div>
+
       {/* Profile Selector */}
       <div className="relative">
         <button
@@ -458,9 +516,8 @@ export default function SavedAnswers() {
             {profiles.map((profile) => (
               <div
                 key={profile.id}
-                className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-blue-50 ${
-                  profile.id === activeProfileId ? 'bg-blue-50' : ''
-                }`}
+                className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-blue-50 ${profile.id === activeProfileId ? 'bg-blue-50' : ''
+                  }`}
                 onClick={() => handleSwitchProfile(profile.id)}
               >
                 <div className="flex items-center gap-2">
@@ -516,24 +573,7 @@ export default function SavedAnswers() {
         )}
       </div>
 
-      {/* Import Section */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden">
-        <button
-          onClick={() => setShowImport(!showImport)}
-          className="w-full px-3 py-2 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <Upload className="w-4 h-4 text-blue-500" />
-            <span className="text-sm font-medium text-gray-700">{t('tabs.import')}</span>
-          </div>
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${!showImport ? '-rotate-90' : ''}`} />
-        </button>
-        {showImport && (
-          <div className="p-3 border-t border-gray-200">
-            <ProfileImport onImportComplete={() => loadData()} />
-          </div>
-        )}
-      </div>
+
 
       <div className="flex items-center gap-2 mb-3">
         <div className="flex-1 relative">
@@ -579,9 +619,8 @@ export default function SavedAnswers() {
                   <span className="text-xs text-gray-400">{workExperiences.length}</span>
                 </div>
                 <ChevronDown
-                  className={`w-4 h-4 text-gray-400 transition-transform ${
-                    !expandedCategories.has('Work Experience') ? '-rotate-90' : ''
-                  }`}
+                  className={`w-4 h-4 text-gray-400 transition-transform ${!expandedCategories.has('Work Experience') ? '-rotate-90' : ''
+                    }`}
                 />
               </button>
               {expandedCategories.has('Work Experience') && (
@@ -592,6 +631,7 @@ export default function SavedAnswers() {
                       experience={exp}
                       index={index}
                       onDelete={() => handleDeleteExperience(exp.id)}
+                      overlapWith={workOverlaps.get(exp.id)}
                     />
                   ))}
                   {workExperiences.length === 0 && (
@@ -617,9 +657,8 @@ export default function SavedAnswers() {
                   <span className="text-xs text-gray-400">{educationExperiences.length}</span>
                 </div>
                 <ChevronDown
-                  className={`w-4 h-4 text-gray-400 transition-transform ${
-                    !expandedCategories.has('Education Experience') ? '-rotate-90' : ''
-                  }`}
+                  className={`w-4 h-4 text-gray-400 transition-transform ${!expandedCategories.has('Education Experience') ? '-rotate-90' : ''
+                    }`}
                 />
               </button>
               {expandedCategories.has('Education Experience') && (
@@ -630,6 +669,7 @@ export default function SavedAnswers() {
                       experience={exp}
                       index={index}
                       onDelete={() => handleDeleteExperience(exp.id)}
+                      overlapWith={eduOverlaps.get(exp.id)}
                     />
                   ))}
                   {educationExperiences.length === 0 && (
@@ -653,17 +693,15 @@ export default function SavedAnswers() {
             return (
               <div
                 key={category.name}
-                className={`border rounded-xl overflow-hidden ${
-                  category.isSensitive
-                    ? 'border-amber-200 bg-amber-50/30'
-                    : 'border-gray-200'
-                }`}
+                className={`border rounded-xl overflow-hidden ${category.isSensitive
+                  ? 'border-amber-200 bg-amber-50/30'
+                  : 'border-gray-200'
+                  }`}
               >
                 <button
                   onClick={() => toggleCategory(category.name)}
-                  className={`w-full px-3 py-2 flex items-center justify-between hover:bg-gray-100 transition-colors ${
-                    category.isSensitive ? 'bg-amber-50 hover:bg-amber-100' : 'bg-gray-50'
-                  }`}
+                  className={`w-full px-3 py-2 flex items-center justify-between hover:bg-gray-100 transition-colors ${category.isSensitive ? 'bg-amber-50 hover:bg-amber-100' : 'bg-gray-50'
+                    }`}
                 >
                   <div className="flex items-center gap-2">
                     <Icon className={`w-4 h-4 ${category.iconColor}`} />
@@ -675,9 +713,8 @@ export default function SavedAnswers() {
                     )}
                   </div>
                   <ChevronDown
-                    className={`w-4 h-4 text-gray-400 transition-transform ${
-                      !isExpanded ? '-rotate-90' : ''
-                    }`}
+                    className={`w-4 h-4 text-gray-400 transition-transform ${!isExpanded ? '-rotate-90' : ''
+                      }`}
                   />
                 </button>
 
@@ -738,32 +775,47 @@ function AnswerItem({ answer, isSensitive, isEditing, duplicateColorIndex, onTog
   if (isEditing) {
     return (
       <div className="px-3 py-2 bg-blue-50">
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
+        <div className="flex items-start gap-2">
+          <textarea
             value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            className="flex-1 px-2 py-1 text-sm border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            onChange={(e) => {
+              setEditValue(e.target.value)
+              e.target.style.height = 'auto'
+              e.target.style.height = e.target.scrollHeight + 'px'
+            }}
+            className="flex-1 px-2 py-1 text-sm border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none overflow-hidden min-h-[38px]"
             autoFocus
+            rows={1}
+            ref={(el) => {
+              if (el) {
+                el.style.height = 'auto'
+                el.style.height = el.scrollHeight + 'px'
+              }
+            }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') onSaveEdit(editValue)
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                onSaveEdit(editValue)
+              }
               if (e.key === 'Escape') onCancelEdit()
             }}
           />
-          <button
-            onClick={() => onSaveEdit(editValue)}
-            className="p-1 text-green-600 hover:bg-green-100 rounded"
-            title="Save"
-          >
-            <Check className="w-4 h-4" />
-          </button>
-          <button
-            onClick={onCancelEdit}
-            className="p-1 text-gray-500 hover:bg-gray-100 rounded"
-            title="Cancel"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={() => onSaveEdit(editValue)}
+              className="p-1 text-green-600 hover:bg-green-100 rounded"
+              title="Save"
+            >
+              <Check className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onCancelEdit}
+              className="p-1 text-gray-500 hover:bg-gray-100 rounded"
+              title="Cancel"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         <span className="text-xs text-gray-400 mt-1 block">{getTypeLabel(answer.type)}</span>
       </div>
@@ -822,9 +874,11 @@ interface ExperienceItemProps {
   experience: ExperienceEntry
   index: number
   onDelete: () => void
+  overlapWith?: string // name of conflicting experience
 }
 
-function ExperienceItem({ experience, index, onDelete }: ExperienceItemProps) {
+function ExperienceItem({ experience, index, onDelete, overlapWith }: ExperienceItemProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
   const isWork = experience.groupType === 'WORK'
   const title = isWork
     ? experience.fields.JOB_TITLE || 'Untitled Position'
@@ -841,24 +895,34 @@ function ExperienceItem({ experience, index, onDelete }: ExperienceItemProps) {
     .join(' - ')
 
   return (
-    <div className="px-3 py-2 hover:bg-gray-50 group">
+    <div
+      className="px-3 py-2 hover:bg-gray-50 group cursor-pointer"
+      onClick={() => setIsExpanded(!isExpanded)}
+      title={title + (subtitle ? ` at ${subtitle}` : '')}
+    >
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+            <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">
               #{index + 1}
             </span>
-            <p className="text-sm font-medium text-gray-800 truncate">{title}</p>
+            <p className={`text-sm font-medium text-gray-800 ${isExpanded ? '' : 'truncate'}`}>{title}</p>
           </div>
           {subtitle && (
-            <p className="text-xs text-gray-600 mt-0.5 truncate">{subtitle}</p>
+            <p className={`text-xs text-gray-600 mt-0.5 ${isExpanded ? '' : 'truncate'}`}>{subtitle}</p>
           )}
           {dateRange && (
             <p className="text-xs text-gray-400 mt-0.5">{dateRange}</p>
           )}
+          {overlapWith && (
+            <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-amber-50 border border-amber-200 rounded text-[10px] text-amber-700">
+              <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+              <span>Overlapping dates with <strong>{overlapWith}</strong></span>
+            </div>
+          )}
         </div>
         <button
-          onClick={onDelete}
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
           className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 transition-all flex-shrink-0"
           title="Delete"
         >

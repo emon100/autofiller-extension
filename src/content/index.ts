@@ -62,7 +62,7 @@ export class AutoFiller {
     this.badgeManager = new BadgeManager({
       onCandidateSelect: (field, answer) => this.handleBadgeFill(field, answer),
       onUndo: (field) => this.undoField(field.element),
-      onDismiss: () => {},
+      onDismiss: () => { },
     })
     this.floatingWidget = new FloatingWidget({
       onSave: () => this.detectFieldsForWidget(),
@@ -87,7 +87,7 @@ export class AutoFiller {
   private setupRecorderCallbacks(): void {
     this.recorder.onObservation(async (observation, value, questionKey) => {
       const existingAnswer = await this.answerStorage.findByValue(questionKey.type, value)
-      
+
       let answer: AnswerValue
       if (existingAnswer) {
         answer = existingAnswer
@@ -145,16 +145,16 @@ export class AutoFiller {
     if (this.pendingFormSubmit) {
       const form = this.pendingFormSubmit
       this.pendingFormSubmit = null
-      
+
       this.isSubmittingProgrammatically = true
-      
+
       const submitBtn = form.querySelector<HTMLButtonElement>('button[type="submit"], input[type="submit"]')
       if (submitBtn) {
         submitBtn.click()
       } else {
         form.submit()
       }
-      
+
       setTimeout(() => {
         this.isSubmittingProgrammatically = false
       }, 100)
@@ -178,7 +178,75 @@ export class AutoFiller {
     }
   }
 
+  /**
+   * Detect if the current page is sensitive (login, registration, payment, etc.)
+   * where recording should be disabled to prevent accidental credential/payment capture.
+   */
+  private isSensitivePage(): boolean {
+    const url = window.location.href.toLowerCase()
+
+    // 1. URL pattern checks — auth, payment, and security pages
+    const sensitiveUrlPatterns = [
+      '/login', '/signin', '/sign-in', '/signup', '/sign-up',
+      '/register', '/logout', '/sign-out', '/auth',
+      '/password', '/reset-password', '/forgot-password', '/change-password',
+      '/checkout', '/payment', '/billing', '/pay/',
+      '/account/security', '/settings/security', '/settings/password',
+      'accounts.google.com', 'login.microsoftonline.com', 'github.com/login',
+      'appleid.apple.com', 'id.atlassian.com',
+      'auth.', 'sso.', 'oauth.', 'identity.',
+    ]
+    if (sensitiveUrlPatterns.some(p => url.includes(p))) return true
+
+    // 2. Password field presence
+    if (document.querySelector('input[type="password"]')) return true
+
+    // 3. Autocomplete attribute checks — credentials & financial inputs
+    const sensitiveAutocompleteSel = [
+      'current-password', 'new-password',
+      'cc-number', 'cc-name', 'cc-exp', 'cc-exp-month', 'cc-exp-year',
+      'cc-csc', 'cc-type',
+    ].map(v => `input[autocomplete="${v}"]`).join(',')
+    if (document.querySelector(sensitiveAutocompleteSel)) return true
+
+    // 4. Form action URL checks — forms posting to auth/payment endpoints
+    const authActionPatterns = ['/login', '/signin', '/auth', '/register', '/signup', '/checkout', '/payment', '/pay']
+    const hasAuthFormAction = Array.from(document.querySelectorAll('form')).some(form => {
+      const action = (form.getAttribute('action') || '').toLowerCase()
+      return authActionPatterns.some(p => action.includes(p))
+    })
+    if (hasAuthFormAction) return true
+
+    // 5. Sensitive terms in page content
+    const sensitiveTerms = [
+      'bank account', 'payment information', 'credit card',
+      'verification code', 'crypto seed', 'private key', 'mnemonic phrase',
+      'cvv', 'card number', 'routing number', 'account number',
+      'social security', 'ssn', 'tax id',
+    ]
+    const pageText = (document.body.innerText || '').toLowerCase().slice(0, 10000)
+    if (sensitiveTerms.some(term => pageText.includes(term))) return true
+
+    // 6. Check input placeholders and labels
+    const hasSensitiveInput = Array.from(document.querySelectorAll('input, textarea')).some(input => {
+      const placeholder = (input.getAttribute('placeholder') || '').toLowerCase()
+      const ariaLabel = (input.getAttribute('aria-label') || '').toLowerCase()
+      const label = input.id ? (document.querySelector(`label[for="${input.id}"]`)?.textContent || '').toLowerCase() : ''
+      return sensitiveTerms.some(term =>
+        placeholder.includes(term) || ariaLabel.includes(term) || label.includes(term)
+      )
+    })
+    if (hasSensitiveInput) return true
+
+    return false
+  }
   async initialize(): Promise<void> {
+    // Security check: Don't run on login/register/payment pages to prevent accidental credential theft
+    if (this.isSensitivePage()) {
+      console.log('[AutoFiller] Skipping initialization on potential sensitive page:', window.location.hostname)
+      return
+    }
+
     const settings = await this.siteSettingsStorage.getOrCreate(this.siteKey)
     const global = await this.getGlobalSettings()
 
@@ -595,7 +663,7 @@ export class AutoFiller {
     const messages: string[] = []
     if (savedCount > 0) messages.push(`${savedCount} new`)
     if (replacedCount > 0) messages.push(`${replacedCount} replaced`)
-    
+
     if (messages.length > 0) {
       showToast(`Saved: ${messages.join(', ')}`, 'success')
     } else if (skippedCount > 0) {
@@ -1325,7 +1393,7 @@ export class AutoFiller {
     for (const entry of this.fillHistory.reverse()) {
       restoreSnapshot(entry.field.element, entry.snapshot)
     }
-    
+
     this.fillHistory = []
     this.notifyUndone()
   }
@@ -1438,7 +1506,7 @@ export class AutoFiller {
         label: field.labelText || field.attributes.placeholder || field.attributes.name || 'Unknown',
         fieldType: field.element instanceof HTMLTextAreaElement ? 'textarea'
           : field.element instanceof HTMLSelectElement ? 'select'
-          : (field.element as HTMLInputElement).type || 'text',
+            : (field.element as HTMLInputElement).type || 'text',
       }
 
       const isRequired = field.attributes.required !== undefined
@@ -1521,7 +1589,7 @@ export class AutoFiller {
           label: fieldContext.labelText || fieldContext.attributes.placeholder || fieldContext.attributes.name || 'Unknown',
           fieldType: element instanceof HTMLTextAreaElement ? 'textarea'
             : element instanceof HTMLSelectElement ? 'select'
-            : (element as HTMLInputElement).type || 'text',
+              : (element as HTMLInputElement).type || 'text',
           placeholder: fieldContext.attributes.placeholder,
           options: fieldContext.optionsText,
           sectionTitle: fieldContext.sectionTitle,

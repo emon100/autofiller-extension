@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to OneFillr</title>
+  <title>Welcome to 1Fillr</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -399,15 +399,55 @@
     .panel-opened-badge svg {
       flex-shrink: 0;
     }
+
+    /* Animated arrow pointing to sidebar */
+    .sidebar-arrow {
+      position: fixed;
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      z-index: 1000;
+      animation: bounce-right 1.5s ease-in-out infinite;
+    }
+    .sidebar-arrow.show { display: flex; }
+    .sidebar-arrow-icon {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4);
+    }
+    .sidebar-arrow-label {
+      background: white;
+      border: 2px solid #3b82f6;
+      border-radius: 12px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1d4ed8;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    @keyframes bounce-right {
+      0%, 100% { transform: translateY(-50%) translateX(0); }
+      50% { transform: translateY(-50%) translateX(15px); }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="hero" id="heroSection">
       <div class="logo">
-        <img src="icons/icon128.png" alt="OneFillr">
+        <img src="icons/icon128.png" alt="1Fillr">
       </div>
-      <h1 id="title">Welcome to OneFillr</h1>
+      <h1 id="title">Welcome to 1Fillr</h1>
       <p class="subtitle" id="subtitle">Auto-fill job applications in seconds, with your data stored locally.</p>
 
       <div class="badges">
@@ -472,7 +512,7 @@
       </div>
     </div>
 
-    <p class="footer" id="footer">You can always access OneFillr by clicking its icon in the toolbar.</p>
+    <p class="footer" id="footer">You can always access 1Fillr by clicking its icon in the toolbar.</p>
 
     <!-- Success badge (shown after panel opened) -->
     <div class="panel-opened-badge section-hidden" id="panelOpenedBadge">
@@ -486,9 +526,9 @@
         <div class="pin-guide-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
         </div>
-        <span class="pin-guide-title" id="pinTitle">Pin OneFillr for Quick Access</span>
+        <span class="pin-guide-title" id="pinTitle">Pin 1Fillr for Quick Access</span>
       </div>
-      <p class="pin-guide-subtitle" id="pinSubtitle">Keep OneFillr one click away by pinning it to your browser toolbar.</p>
+      <p class="pin-guide-subtitle" id="pinSubtitle">Keep 1Fillr one click away by pinning it to your browser toolbar.</p>
 
       <!-- Toolbar mockup -->
       <div class="toolbar-mock">
@@ -498,8 +538,8 @@
             <div class="toolbar-puzzle highlight" title="Extensions">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.214 3.214c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.61a2.404 2.404 0 0 1-1.705.707 2.402 2.402 0 0 1-1.704-.706l-1.568-1.568a1.026 1.026 0 0 0-.877-.29c-.493.074-.84.504-1.02.968a2.5 2.5 0 1 1-3.237-3.237c.464-.18.894-.527.967-1.02a1.026 1.026 0 0 0-.289-.877l-1.568-1.568A2.402 2.402 0 0 1 1.998 12c0-.617.236-1.234.706-1.704L4.315 8.685a.98.98 0 0 1 .837-.276c.47.07.802.48.968.925a2.501 2.501 0 1 0 3.214-3.214c-.446-.166-.855-.497-.925-.968a.979.979 0 0 1 .276-.837l1.61-1.61a2.404 2.404 0 0 1 1.705-.707c.617 0 1.234.236 1.704.706l1.568 1.568c.23.23.556.338.877.29.493-.074.84-.504 1.02-.968a2.5 2.5 0 1 1 3.237 3.237c-.464.18-.894.527-.967 1.02Z"/></svg>
             </div>
-            <div class="toolbar-ext-icon" title="OneFillr">
-              <img src="icons/icon128.png" alt="OneFillr" width="16" height="16">
+            <div class="toolbar-ext-icon" title="1Fillr">
+              <img src="icons/icon128.png" alt="1Fillr" width="16" height="16">
             </div>
           </div>
         </div>
@@ -513,16 +553,27 @@
         </div>
         <div class="pin-step">
           <span class="pin-step-num">2</span>
-          <span class="pin-step-text" id="pinStep2">Find <strong>OneFillr</strong> and click the <strong>pin</strong> icon</span>
+          <span class="pin-step-text" id="pinStep2">Find <strong>1Fillr</strong> and click the <strong>pin</strong> icon</span>
         </div>
       </div>
 
       <!-- Alternative: right-click -->
       <div class="pin-alt">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 15l-2 5L9 9l11 4-5 2z"/><path d="m2 2 7.586 7.586"/></svg>
-        <span id="pinAlt">Also: right-click any form field and select <strong>OneFillr</strong> from the menu.</span>
+        <span id="pinAlt">Also: right-click any form field and select <strong>1Fillr</strong> from the menu.</span>
       </div>
     </div>
+  </div>
+
+  <!-- Animated arrow pointing to sidebar -->
+  <div class="sidebar-arrow" id="sidebarArrow">
+    <div class="sidebar-arrow-icon">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h14"/>
+        <path d="m12 5 7 7-7 7"/>
+      </svg>
+    </div>
+    <div class="sidebar-arrow-label" id="sidebarArrowLabel">Setup panel is here →</div>
   </div>
 
   <script src="welcome.js"></script>

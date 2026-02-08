@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { Key, Server, CheckCircle, Code2, Type, User, CreditCard, LogIn, LogOut, ExternalLink, Infinity, RefreshCw, Loader2, Globe, Sparkles, Gift, BookOpen, Zap } from 'lucide-react'
+import { Key, Server, CheckCircle, Code2, User, CreditCard, LogIn, LogOut, ExternalLink, Infinity, RefreshCw, Loader2, Gift } from 'lucide-react'
 import { storage } from '@/storage'
 import { AuthUser, CreditsInfo } from '@/types'
 import { launchLogin } from '@/utils/authLogin'
 import PrivacySection from '../components/PrivacySection'
-import { t, getUserPreference, setLocale, Locale } from '@/i18n'
+import { t } from '@/i18n'
 
 const WEBSITE_URL = 'https://www.onefil.help'
 
@@ -39,12 +39,10 @@ const PROVIDERS = [
 export default function Settings() {
   const [config, setConfig] = useState<LLMConfig>(DEFAULT_CONFIG)
   const [devModeEnabled, setDevModeEnabled] = useState(false)
-  const [fillAnimationEnabled, setFillAnimationEnabled] = useState(true)
-  const [globalRecordEnabled, setGlobalRecordEnabled] = useState(true)
-  const [globalAutofillEnabled, setGlobalAutofillEnabled] = useState(false)
+
+
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [language, setLanguage] = useState<Locale>(getUserPreference())
 
   // Account state
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -58,14 +56,9 @@ export default function Settings() {
 
   useEffect(() => {
     (async () => {
-      const result = await chrome.storage.local.get(['llmConfig', 'devSettings', 'fillAnimationConfig', 'globalSettings'])
+      const result = await chrome.storage.local.get(['llmConfig', 'devSettings'])
       if (result.llmConfig) setConfig({ ...DEFAULT_CONFIG, ...result.llmConfig })
       if (result.devSettings) setDevModeEnabled(result.devSettings.devModeEnabled ?? false)
-      if (result.fillAnimationConfig) setFillAnimationEnabled(result.fillAnimationConfig.enabled ?? true)
-      if (result.globalSettings) {
-        setGlobalRecordEnabled(result.globalSettings.recordEnabled ?? true)
-        setGlobalAutofillEnabled(result.globalSettings.autofillEnabled ?? false)
-      }
 
       const authState = await storage.auth.getAuthState()
       if (authState && authState.expiresAt > Date.now()) {
@@ -128,34 +121,11 @@ export default function Settings() {
     await chrome.storage.local.set({ devSettings: { devModeEnabled: newValue } })
   }
 
-  async function toggleFillAnimation() {
-    const newValue = !fillAnimationEnabled
-    setFillAnimationEnabled(newValue)
-    await chrome.storage.local.set({ fillAnimationConfig: { enabled: newValue } })
-  }
 
-  async function toggleGlobalRecord() {
-    const newValue = !globalRecordEnabled
-    setGlobalRecordEnabled(newValue)
-    const result = await chrome.storage.local.get('globalSettings')
-    const current = result.globalSettings || {}
-    await chrome.storage.local.set({ globalSettings: { ...current, recordEnabled: newValue } })
-  }
 
-  async function toggleGlobalAutofill() {
-    const newValue = !globalAutofillEnabled
-    setGlobalAutofillEnabled(newValue)
-    const result = await chrome.storage.local.get('globalSettings')
-    const current = result.globalSettings || {}
-    await chrome.storage.local.set({ globalSettings: { ...current, autofillEnabled: newValue } })
-  }
 
-  async function handleLanguageChange(newLocale: Locale) {
-    setLanguage(newLocale)
-    await setLocale(newLocale)
-    // Reload the page to apply the new language
-    window.location.reload()
-  }
+
+
 
   async function saveConfig() {
     setSaving(true)
@@ -313,306 +283,172 @@ export default function Settings() {
         )}
       </div>
 
-      {/* AI Enhancement Section - Simple toggle */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Sparkles className="w-5 h-5 text-purple-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <h3 className="font-medium text-gray-900">{t('settings.aiEnhancement')}</h3>
-              <p className="text-xs text-gray-500 truncate">
-                {user
-                  ? t('settings.aiEnhancementDesc')
-                  : t('settings.aiEnhancementLoginRequired')}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              const newConfig = { ...config, enabled: !config.enabled }
-              setConfig(newConfig)
-              chrome.storage.local.set({ llmConfig: newConfig })
-            }}
-            disabled={!user && !config.useCustomApi}
-            className={`flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              config.enabled ? 'bg-purple-600' : 'bg-gray-200'
-            } ${!user && !config.useCustomApi ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                config.enabled ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-        {config.enabled && user && !config.useCustomApi && (
-          <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
-            <CheckCircle className="w-3 h-3" />
-            {t('settings.usingBackendApi')}
-          </p>
-        )}
-      </div>
 
-      {/* Global Record Mode */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <BookOpen className="w-5 h-5 text-orange-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <h3 className="font-medium text-gray-900">{t('settings.recordMode')}</h3>
-              <p className="text-xs text-gray-500">{t('settings.recordModeDesc')}</p>
-            </div>
-          </div>
-          <button
-            onClick={toggleGlobalRecord}
-            className={`flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              globalRecordEnabled ? 'bg-orange-600' : 'bg-gray-200'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                globalRecordEnabled ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-      </div>
 
-      {/* Global Auto-Fill */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Zap className="w-5 h-5 text-blue-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <h3 className="font-medium text-gray-900">{t('settings.autoFill')}</h3>
-              <p className="text-xs text-gray-500">{t('settings.autoFillDesc')}</p>
-            </div>
-          </div>
-          <button
-            onClick={toggleGlobalAutofill}
-            className={`flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              globalAutofillEnabled ? 'bg-blue-600' : 'bg-gray-200'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                globalAutofillEnabled ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-      </div>
 
-      {/* Language Selector */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Globe className="w-5 h-5 text-blue-500 flex-shrink-0" />
-            <h3 className="font-medium text-gray-900">{t('settings.language')}</h3>
-          </div>
-          <select
-            value={language}
-            onChange={(e) => handleLanguageChange(e.target.value as Locale)}
-            className="flex-shrink-0 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="auto">{t('settings.language.auto')}</option>
-            <option value="en">{t('settings.language.en')}</option>
-            <option value="zh">{t('settings.language.zh')}</option>
-          </select>
-        </div>
-      </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Type className="w-5 h-5 text-green-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <h3 className="font-medium text-gray-900">{t('settings.typingAnimation')}</h3>
-              <p className="text-xs text-gray-500">{t('settings.typingAnimationDesc')}</p>
-            </div>
-          </div>
-          <button
-            onClick={toggleFillAnimation}
-            className={`flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              fillAnimationEnabled ? 'bg-green-600' : 'bg-gray-200'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                fillAnimationEnabled ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-      </div>
+
 
       {/* Privacy Section */}
-      <PrivacySection
-        llmEnabled={config.enabled}
-        llmProvider={config.useCustomApi ? (PROVIDERS.find(p => p.id === config.provider)?.name || config.provider) : 'Backend API'}
-      />
+      <PrivacySection />
 
       {/* Developer Mode */}
       {__DEV_MODE__ && (
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Code2 className="w-5 h-5 text-purple-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <h3 className="font-medium text-gray-900">{t('settings.devMode')}</h3>
-              <p className="text-xs text-gray-500">{t('settings.devModeDesc')}</p>
-            </div>
-          </div>
-          <button
-            onClick={toggleDevMode}
-            className={`flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              devModeEnabled ? 'bg-purple-600' : 'bg-gray-200'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                devModeEnabled ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-
-        {/* Custom LLM API - Only visible in dev mode */}
-        {devModeEnabled && (
-          <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  {t('settings.useCustomApi')}
-                </label>
-                <p className="text-xs text-gray-500">{t('settings.useCustomApiDesc')}</p>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Code2 className="w-5 h-5 text-purple-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <h3 className="font-medium text-gray-900">{t('settings.devMode')}</h3>
+                <p className="text-xs text-gray-500">{t('settings.devModeDesc')}</p>
               </div>
-              <button
-                onClick={() => setConfig(prev => ({ ...prev, useCustomApi: !prev.useCustomApi }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  config.useCustomApi ? 'bg-blue-600' : 'bg-gray-200'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    config.useCustomApi ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
             </div>
+            <button
+              onClick={toggleDevMode}
+              className={`flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${devModeEnabled ? 'bg-purple-600' : 'bg-gray-200'
+                }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${devModeEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+              />
+            </button>
+          </div>
 
-            {config.useCustomApi && (
-              <div className="space-y-3 pl-2 border-l-2 border-blue-200">
+          {/* Custom LLM API - Only visible in dev mode */}
+          {devModeEnabled && (
+            <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {t('settings.llm.provider')}
+                  <label className="block text-sm font-medium text-gray-700">
+                    {t('settings.useCustomApi')}
                   </label>
-                  <select
-                    value={config.provider}
-                    onChange={(e) => handleProviderChange(e.target.value as LLMConfig['provider'])}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                  >
-                    {PROVIDERS.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
+                  <p className="text-xs text-gray-500">{t('settings.useCustomApiDesc')}</p>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <div className="flex items-center gap-1">
-                      <Key className="w-3.5 h-3.5" />
-                      {t('settings.llm.apiKey')}
-                    </div>
-                  </label>
-                  <input
-                    type="password"
-                    value={config.apiKey}
-                    onChange={(e) => setConfig(prev => ({ ...prev, apiKey: e.target.value }))}
-                    placeholder="sk-..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                <button
+                  onClick={() => setConfig(prev => ({ ...prev, useCustomApi: !prev.useCustomApi }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.useCustomApi ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${config.useCustomApi ? 'translate-x-6' : 'translate-x-1'
+                      }`}
                   />
-                </div>
+                </button>
+              </div>
 
-                {currentProvider && currentProvider.models.length > 0 && (
+              {config.useCustomApi && (
+                <div className="space-y-3 pl-2 border-l-2 border-blue-200">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {t('settings.llm.model')}
+                      {t('settings.llm.provider')}
+                    </label>
+                    <select
+                      value={config.provider}
+                      onChange={(e) => handleProviderChange(e.target.value as LLMConfig['provider'])}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    >
+                      {PROVIDERS.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div className="flex items-center gap-1">
+                        <Key className="w-3.5 h-3.5" />
+                        {t('settings.llm.apiKey')}
+                      </div>
                     </label>
                     <input
-                      type="text"
-                      list={`models-${config.provider}`}
-                      value={config.model || ''}
-                      onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value }))}
-                      placeholder={t('settings.llm.modelPlaceholder')}
+                      type="password"
+                      value={config.apiKey}
+                      onChange={(e) => setConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                      placeholder="sk-..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                     />
-                    <datalist id={`models-${config.provider}`}>
-                      {currentProvider.models.map(m => (
-                        <option key={m} value={m} />
-                      ))}
-                    </datalist>
                   </div>
-                )}
 
-                {config.provider === 'custom' && (
-                  <>
+                  {currentProvider && currentProvider.models.length > 0 && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {t('settings.llm.modelName')}
+                        {t('settings.llm.model')}
                       </label>
                       <input
                         type="text"
+                        list={`models-${config.provider}`}
                         value={config.model || ''}
                         onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value }))}
-                        placeholder="e.g., gpt-4o-mini"
+                        placeholder={t('settings.llm.modelPlaceholder')}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                       />
+                      <datalist id={`models-${config.provider}`}>
+                        {currentProvider.models.map(m => (
+                          <option key={m} value={m} />
+                        ))}
+                      </datalist>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        <div className="flex items-center gap-1">
-                          <Server className="w-3.5 h-3.5" />
-                          {t('settings.llm.endpoint')}
-                        </div>
-                      </label>
-                      <input
-                        type="url"
-                        value={config.endpoint || ''}
-                        onChange={(e) => setConfig(prev => ({ ...prev, endpoint: e.target.value }))}
-                        placeholder="https://api.example.com/v1/chat/completions"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </>
-                )}
-
-                <button
-                  onClick={saveConfig}
-                  disabled={saving}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {saved ? (
-                    <>
-                      <CheckCircle className="w-4 h-4" />
-                      {t('settings.saved')}
-                    </>
-                  ) : (
-                    t('settings.save')
                   )}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+
+                  {config.provider === 'custom' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          {t('settings.llm.modelName')}
+                        </label>
+                        <input
+                          type="text"
+                          value={config.model || ''}
+                          onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value }))}
+                          placeholder="e.g., gpt-4o-mini"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <div className="flex items-center gap-1">
+                            <Server className="w-3.5 h-3.5" />
+                            {t('settings.llm.endpoint')}
+                          </div>
+                        </label>
+                        <input
+                          type="url"
+                          value={config.endpoint || ''}
+                          onChange={(e) => setConfig(prev => ({ ...prev, endpoint: e.target.value }))}
+                          placeholder="https://api.example.com/v1/chat/completions"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <button
+                    onClick={saveConfig}
+                    disabled={saving}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {saved ? (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        {t('settings.saved')}
+                      </>
+                    ) : (
+                      t('settings.save')
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {/* About - at the bottom */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <h3 className="font-medium text-gray-900 mb-2">{t('settings.about')}</h3>
         <p className="text-xs text-gray-500">
-          OneFillr v1.0.0
+          1Fillr v1.0.0
         </p>
         <p className="text-xs text-gray-500 mt-1">
           {t('settings.aboutDesc')}

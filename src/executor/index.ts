@@ -164,6 +164,34 @@ export async function fillSelect(
       }
     }
 
+    // Strategy 4: Word-overlap scoring (for location/degree dropdowns)
+    if (!matched) {
+      const valueWords = normalizedValue.split(/[\s,/\-()]+/).filter(w => w.length > 1)
+      let bestScore = 0
+      let bestOption: HTMLOptionElement | null = null
+
+      for (const option of element.options) {
+        const optionText = option.textContent?.toLowerCase().trim() || ''
+        if (!optionText || optionText === '' || optionText === 'select' || optionText.startsWith('--')) continue
+        const optionWords = optionText.split(/[\s,/\-()]+/).filter(w => w.length > 1)
+        let score = 0
+        for (const vw of valueWords) {
+          if (optionWords.some(ow => ow.includes(vw) || vw.includes(ow))) score++
+        }
+        if (score > bestScore) {
+          bestScore = score
+          bestOption = option
+        }
+      }
+
+      if (bestScore >= 1 && bestOption) {
+        element.value = bestOption.value
+        matched = true
+        strategy = 'word-overlap'
+        matchedOption = bestOption.textContent || bestOption.value
+      }
+    }
+
     const executorLog: ExecutorLog = {
       fieldLabel: label,
       widgetKind: 'select',
@@ -223,8 +251,8 @@ export async function fillRadio(
 
     for (const radio of radios) {
       const radioValue = radio.value.toLowerCase()
-      
-      const isMatch = 
+
+      const isMatch =
         radioValue === normalizedValue ||
         (normalizedValue === 'true' && radioValue === 'yes') ||
         (normalizedValue === 'false' && radioValue === 'no') ||
@@ -306,28 +334,80 @@ export async function fillCombobox(
 
   try {
     element.focus()
-    
+
     await new Promise(resolve => setTimeout(resolve, 50))
 
     setInputValue(element, value)
 
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // Wait longer for dynamic options to load
+    await new Promise(resolve => setTimeout(resolve, 300))
 
     const combobox = element.closest('[role="combobox"]')
     const listboxId = element.getAttribute('aria-controls')
-    const listbox = listboxId 
+    const listbox = listboxId
       ? document.getElementById(listboxId)
       : combobox?.querySelector('[role="listbox"]')
+
+    let matched = false
 
     if (listbox) {
       const options = listbox.querySelectorAll('[role="option"]')
       const normalizedValue = value.toLowerCase()
 
+      // Strategy 1: Contains match
       for (const option of options) {
         const optionText = option.textContent?.toLowerCase() || ''
         if (optionText.includes(normalizedValue) || normalizedValue.includes(optionText)) {
           (option as HTMLElement).click()
+          matched = true
           break
+        }
+      }
+
+      // Strategy 2: Word-overlap scoring
+      if (!matched && options.length > 0) {
+        const valueWords = normalizedValue.split(/[\s,/\-()]+/).filter(w => w.length > 1)
+        let bestScore = 0
+        let bestOption: HTMLElement | null = null
+
+        for (const option of options) {
+          const optionText = option.textContent?.toLowerCase().trim() || ''
+          const optionWords = optionText.split(/[\s,/\-()]+/).filter(w => w.length > 1)
+          let score = 0
+          for (const vw of valueWords) {
+            if (optionWords.some(ow => ow.includes(vw) || vw.includes(ow))) score++
+          }
+          if (score > bestScore) {
+            bestScore = score
+            bestOption = option as HTMLElement
+          }
+        }
+
+        if (bestScore >= 1 && bestOption) {
+          bestOption.click()
+          matched = true
+        }
+      }
+    }
+
+    // Retry with shorter input if no matches found (trigger different dynamic options)
+    if (!matched && value.length > 3) {
+      setInputValue(element, value.substring(0, 3))
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      const listbox2 = listboxId
+        ? document.getElementById(listboxId)
+        : combobox?.querySelector('[role="listbox"]')
+      if (listbox2) {
+        const options = listbox2.querySelectorAll('[role="option"]')
+        const normalizedValue = value.toLowerCase()
+        for (const option of options) {
+          const optionText = option.textContent?.toLowerCase() || ''
+          if (optionText.includes(normalizedValue) || normalizedValue.includes(optionText)) {
+            (option as HTMLElement).click()
+            matched = true
+            break
+          }
         }
       }
     }

@@ -1,7 +1,7 @@
 var isZh = (navigator.language || '').toLowerCase().startsWith('zh')
 
 if (isZh) {
-  document.getElementById('title').textContent = '欢迎使用 OneFillr'
+  document.getElementById('title').textContent = '欢迎使用 1Fillr'
   document.getElementById('subtitle').textContent = '秒速自动填写求职申请，数据安全存储在本地。'
   document.getElementById('badge1').textContent = '本地存储'
   document.getElementById('badge2').textContent = 'AI 可选'
@@ -16,12 +16,12 @@ if (isZh) {
   document.getElementById('feat3d').textContent = '从您的输入中学习'
   document.getElementById('feat4t').textContent = '智能匹配'
   document.getElementById('feat4d').textContent = '适用于所有求职网站'
-  document.getElementById('footer').textContent = '您随时可以通过点击工具栏中的图标来使用 OneFillr。'
-  document.getElementById('pinTitle').textContent = '固定 OneFillr 以便快速访问'
-  document.getElementById('pinSubtitle').textContent = '将 OneFillr 固定到浏览器工具栏，一键即可使用。'
+  document.getElementById('footer').textContent = '您随时可以通过点击工具栏中的图标来使用 1Fillr。'
+  document.getElementById('pinTitle').textContent = '固定 1Fillr 以便快速访问'
+  document.getElementById('pinSubtitle').textContent = '将 1Fillr 固定到浏览器工具栏，一键即可使用。'
   document.getElementById('pinStep1').innerHTML = '点击工具栏中的<strong>拼图图标</strong>'
-  document.getElementById('pinStep2').innerHTML = '找到 <strong>OneFillr</strong>，点击<strong>固定</strong>图标'
-  document.getElementById('pinAlt').innerHTML = '也可以：右键点击任意表单字段，在菜单中选择 <strong>OneFillr</strong>。'
+  document.getElementById('pinStep2').innerHTML = '找到 <strong>1Fillr</strong>，点击<strong>固定</strong>图标'
+  document.getElementById('pinAlt').innerHTML = '也可以：右键点击任意表单字段，在菜单中选择 <strong>1Fillr</strong>。'
 }
 
 function openPanel() {
@@ -29,7 +29,7 @@ function openPanel() {
   btn.disabled = true
   document.getElementById('ctaText').textContent = isZh ? '正在打开...' : 'Opening...'
 
-  chrome.runtime.sendMessage({ action: 'openSidePanel' }, function(response) {
+  chrome.runtime.sendMessage({ action: 'openSidePanel' }, function (response) {
     if (response && response.success) {
       // Hide welcome sections, show pin guide as main content
       document.getElementById('heroSection').classList.add('section-hidden')
@@ -46,6 +46,15 @@ function openPanel() {
 
       // Make pin guide prominent
       document.getElementById('pinGuide').classList.add('pin-guide-hero')
+
+      // Show animated arrow pointing to sidebar
+      var arrow = document.getElementById('sidebarArrow')
+      arrow.classList.add('show')
+      if (isZh) {
+        document.getElementById('sidebarArrowLabel').textContent = '设置面板在这里 →'
+      }
+      // Auto-hide arrow after 10 seconds
+      setTimeout(function () { arrow.classList.remove('show') }, 10000)
     } else {
       btn.disabled = false
       document.getElementById('ctaText').textContent = isZh ? '打开设置面板' : 'Open Setup Panel'

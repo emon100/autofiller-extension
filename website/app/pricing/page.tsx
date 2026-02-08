@@ -87,7 +87,7 @@ export default function PricingPage() {
       <main className="mx-auto max-w-7xl px-6 py-16">
         <div className="mx-auto max-w-2xl text-center">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900">Choose Your Plan</h1>
-          <p className="mt-4 text-lg text-gray-600">Start with 20 free credits. Upgrade anytime.</p>
+          <p className="mt-4 text-lg text-gray-600">Start with 200 free credits. Upgrade anytime.</p>
         </div>
 
         <div className="mt-10 flex justify-center">

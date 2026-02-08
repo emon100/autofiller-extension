@@ -1,80 +1,34 @@
 /**
  * Internationalization (i18n) module
  *
- * Automatically detects browser language and uses Chinese for zh-* locales,
- * English for all other locales. User can override in settings.
+ * Simplified: English only. Language switching removed.
  */
 
-export type Locale = 'en' | 'zh' | 'auto'
+export type Locale = 'en'
 
-const STORAGE_KEY = 'userLocale'
+// No-op: kept for API compatibility
+export async function initLocale(): Promise<void> { }
 
-// Detect browser language
-function detectBrowserLocale(): 'en' | 'zh' {
-  const lang = navigator.language || (navigator as any).userLanguage || 'en'
-  return lang.toLowerCase().startsWith('zh') ? 'zh' : 'en'
-}
-
-// Current locale (actual language being used)
-let currentLocale: 'en' | 'zh' = detectBrowserLocale()
-// User preference (may be 'auto')
-let userPreference: Locale = 'auto'
-
-// Initialize from storage
-export async function initLocale(): Promise<void> {
-  try {
-    const result = await chrome.storage.local.get(STORAGE_KEY)
-    if (result[STORAGE_KEY]) {
-      userPreference = result[STORAGE_KEY]
-      currentLocale = userPreference === 'auto' ? detectBrowserLocale() : userPreference
-    }
-  } catch {
-    // Use default
-  }
-}
-
-// Initialize synchronously for content scripts (best effort)
-try {
-  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-    chrome.storage.local.get(STORAGE_KEY).then(result => {
-      if (result[STORAGE_KEY]) {
-        userPreference = result[STORAGE_KEY]
-        currentLocale = userPreference === 'auto' ? detectBrowserLocale() : userPreference
-      }
-    }).catch(() => {})
-  }
-} catch {
-  // Ignore errors in non-extension context
-}
-
-export function getLocale(): 'en' | 'zh' {
-  return currentLocale
+export function getLocale(): 'en' {
+  return 'en'
 }
 
 export function getUserPreference(): Locale {
-  return userPreference
+  return 'en'
 }
 
-export async function setLocale(locale: Locale): Promise<void> {
-  userPreference = locale
-  currentLocale = locale === 'auto' ? detectBrowserLocale() : locale
-  try {
-    await chrome.storage.local.set({ [STORAGE_KEY]: locale })
-  } catch {
-    // Ignore storage errors
-  }
-}
+export async function setLocale(_locale: Locale): Promise<void> { }
 
 export function isZh(): boolean {
-  return currentLocale === 'zh'
+  return false
 }
 
 // Translation keys
 export const messages = {
   // App
   'app.title': {
-    en: 'OneFillr',
-    zh: 'OneFillr',
+    en: '1Fillr',
+    zh: '1Fillr',
   },
 
   // Language Settings
@@ -267,8 +221,8 @@ export const messages = {
     zh: '登录以管理您的积分和使用高级功能。',
   },
   'settings.loginBonus': {
-    en: '20 free credits on first sign-up to explore all features!',
-    zh: '首次注册赠送 20 积分，畅享全部功能！',
+    en: '200 free credits on first sign-up to explore all features!',
+    zh: '首次注册赠送 200 积分，畅享全部功能！',
   },
   'settings.login': {
     en: 'Sign In',
@@ -391,11 +345,11 @@ export const messages = {
     zh: '+{amount} 积分已到账！',
   },
   'settings.recordMode': {
-    en: 'Record Mode',
+    en: 'Learn Mode',
     zh: '记录模式',
   },
   'settings.recordModeDesc': {
-    en: 'Learn from your inputs when filling forms',
+    en: 'Learn from your form inputs to auto-fill next time',
     zh: '填写表单时从您的输入中学习',
   },
   'settings.autoFill': {
@@ -731,8 +685,8 @@ export const messages = {
 
   // Login prompts
   'toast.loginForAi': {
-    en: 'Sign in to try AI-enhanced filling — 20 free credits on sign-up!',
-    zh: '登录即可试用 AI 增强填充，注册赠送 20 积分！',
+    en: 'Sign in to try AI-enhanced filling — 200 free credits on sign-up!',
+    zh: '登录即可试用 AI 增强填充，注册赠送 200 积分！',
   },
   'toast.loginAction': {
     en: 'Sign In',
@@ -793,8 +747,8 @@ export const messages = {
 
   // Onboarding - Welcome Step
   'onboarding.welcome.title': {
-    en: 'Welcome to OneFillr!',
-    zh: '欢迎使用 OneFillr！',
+    en: 'Welcome to 1Fillr!',
+    zh: '欢迎使用 1Fillr！',
   },
   'onboarding.welcome.subtitle': {
     en: 'Auto-fill job applications in seconds',
@@ -905,7 +859,7 @@ export const messages = {
 
   // Onboarding - Resume Step
   'onboarding.resume.title': {
-    en: 'Upload Your Resume',
+    en: 'Upload Your Resume/CV',
     zh: '上传您的简历',
   },
   'onboarding.resume.subtitle': {
@@ -925,7 +879,7 @@ export const messages = {
     zh: 'PDF、Word 或图片',
   },
   'onboarding.resume.done': {
-    en: 'Resume imported!',
+    en: 'Resume/CV imported!',
     zh: '简历已导入！',
   },
   'onboarding.resume.loginRequired': {
@@ -933,8 +887,8 @@ export const messages = {
     zh: '登录后即可使用 AI 简历解析',
   },
   'onboarding.resume.loginDesc': {
-    en: 'Resume parsing requires AI services. Sign in to get started — 20 free credits included!',
-    zh: '简历解析需要 AI 服务支持。注册即送 20 积分，立即开始使用！',
+    en: 'Resume parsing requires AI services. Sign in to get started — 200 free credits included!',
+    zh: '简历解析需要 AI 服务支持。注册即送 200 积分，立即开始使用！',
   },
   'onboarding.resume.loginButton': {
     en: 'Sign In',
@@ -1023,8 +977,8 @@ export const messages = {
     zh: '点击并让浏览器自动填充...',
   },
   'onboarding.practice.save': {
-    en: 'Save to OneFillr',
-    zh: '保存到 OneFillr',
+    en: 'Save to 1Fillr',
+    zh: '保存到 1Fillr',
   },
   'onboarding.practice.saved': {
     en: 'Data saved!',
@@ -1045,8 +999,8 @@ export const messages = {
     zh: '一切就绪！',
   },
   'onboarding.features.subtitle': {
-    en: 'Here\'s what you can do with OneFillr',
-    zh: '以下是 OneFillr 的主要功能',
+    en: 'Here\'s what you can do with 1Fillr',
+    zh: '以下是 1Fillr 的主要功能',
   },
   'onboarding.features.localKnowledge': {
     en: 'Local Knowledge',
@@ -1079,6 +1033,14 @@ export const messages = {
   'onboarding.features.privacyFirstDesc': {
     en: 'Your data stays on your device by default',
     zh: '您的数据默认保存在本地设备上',
+  },
+  'onboarding.features.rightClickFill': {
+    en: 'Right-Click Autofill',
+    zh: '右键自动填充',
+  },
+  'onboarding.features.rightClickFillDesc': {
+    en: 'Fill individual fields via context menu',
+    zh: '通过右键菜单填充单个字段',
   },
   'onboarding.features.startUsing': {
     en: 'Start Using',
@@ -1127,12 +1089,12 @@ export const messages = {
     zh: '重复',
   },
   'profile.autoLearn': {
-    en: 'OneFillr Auto-Learns',
-    zh: 'OneFillr 自动学习',
+    en: '1Fillr Auto-Learns',
+    zh: '1Fillr 自动学习',
   },
   'profile.autoLearnDesc': {
-    en: "Don't worry about missing fields — OneFillr will automatically learn from the forms you fill out.",
-    zh: '不必担心缺失的字段 — OneFillr 会从您填写的表单中自动学习。',
+    en: "Don't worry about missing fields — 1Fillr will automatically learn from the forms you fill out.",
+    zh: '不必担心缺失的字段 — 1Fillr 会从您填写的表单中自动学习。',
   },
   'profile.editValue': {
     en: 'Edit',
@@ -1187,12 +1149,12 @@ export const messages = {
 
   // Pin Hint (side panel)
   'pinHint.title': {
-    en: 'Pin OneFillr for quick access',
-    zh: '固定 OneFillr 以便快速访问',
+    en: 'Pin 1Fillr for quick access',
+    zh: '固定 1Fillr 以便快速访问',
   },
   'pinHint.desc': {
-    en: 'Click the pin icon above to keep OneFillr always visible in this panel.',
-    zh: '点击上方的固定图标，让 OneFillr 始终显示在侧边栏中。',
+    en: 'Click the pin icon above to keep 1Fillr always visible in this panel.',
+    zh: '点击上方的固定图标，让 1Fillr 始终显示在侧边栏中。',
   },
 
   // Empty profile banner
@@ -1222,7 +1184,7 @@ export function t(key: MessageKey, params?: Record<string, string | number>): st
     return key as string
   }
 
-  let text: string = msg[currentLocale] || msg.en
+  let text: string = msg.en
 
   // Replace parameters
   if (params) {
@@ -1238,5 +1200,5 @@ export function t(key: MessageKey, params?: Record<string, string | number>): st
  * React hook for i18n (returns current locale for re-render)
  */
 export function useLocale(): Locale {
-  return currentLocale
+  return 'en'
 }

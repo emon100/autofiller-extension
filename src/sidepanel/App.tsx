@@ -1,12 +1,13 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { Tab } from '@headlessui/react'
-import { Database, Globe, Activity, Settings as SettingsIcon, Code2, Pin, X, Sparkles } from 'lucide-react'
+import { Database, Activity, Settings as SettingsIcon, Code2, Pin, X, Sparkles } from 'lucide-react'
 import SavedAnswers from './tabs/SavedAnswers'
-import ThisSite from './tabs/ThisSite'
+
 import ActivityLog from './tabs/ActivityLog'
 import Settings from './tabs/Settings'
 import ConsentModal from './components/ConsentModal'
 import Onboarding from './components/Onboarding'
+import PostOnboardingTutorial from './components/PostOnboardingTutorial'
 import { hasValidConsent } from '@/consent'
 import { t, initLocale } from '@/i18n'
 import { profileStorage, storage } from '@/storage'
@@ -57,6 +58,7 @@ export default function App() {
   const [localeReady, setLocaleReady] = useState(false)
   const [showPinHint, setShowPinHint] = useState(false)
   const [profileEmpty, setProfileEmpty] = useState(false)
+  const [tutorialComplete, setTutorialComplete] = useState<boolean | null>(null)
 
   useEffect(() => {
     async function init() {
@@ -68,6 +70,7 @@ export default function App() {
       await checkOnboarding()
       await checkPinHint()
       await checkProfileEmpty()
+      await checkTutorial()
     }
     init()
 
@@ -134,6 +137,15 @@ export default function App() {
     }
   }
 
+  async function checkTutorial() {
+    try {
+      const result = await chrome.storage.local.get('tutorialCompleted')
+      setTutorialComplete(result.tutorialCompleted ?? false)
+    } catch {
+      setTutorialComplete(false)
+    }
+  }
+
   async function restartOnboarding() {
     await chrome.storage.local.set({ onboardingComplete: false })
     setOnboardingComplete(false)
@@ -163,7 +175,6 @@ export default function App() {
 
   const baseTabs = [
     { name: t('tabs.localKnowledge'), icon: Database, component: SavedAnswers },
-    { name: t('tabs.thisSite'), icon: Globe, component: ThisSite },
     { name: t('tabs.activity'), icon: Activity, component: ActivityLog },
     { name: t('tabs.settings'), icon: SettingsIcon, component: Settings },
   ]
@@ -201,6 +212,15 @@ export default function App() {
           onComplete={handleOnboardingComplete}
           onSkip={handleOnboardingSkip}
         />
+      </div>
+    )
+  }
+
+  // Show tutorial after onboarding
+  if (tutorialComplete === false) {
+    return (
+      <div className="min-h-screen bg-white w-[360px] max-w-[360px] p-4">
+        <PostOnboardingTutorial onDone={() => setTutorialComplete(true)} />
       </div>
     )
   }
