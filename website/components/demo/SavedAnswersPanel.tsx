@@ -89,7 +89,7 @@ export function SavedAnswersPanel() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'onefillr-knowledge-base.json'
+    a.download = '1fillr-knowledge-base.json'
     a.click()
     URL.revokeObjectURL(url)
   }

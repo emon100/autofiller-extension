@@ -158,28 +158,186 @@ export default function ProfileImport({ onImportComplete }: ProfileImportProps):
     setError(null)
   }
 
+  const [parseProgress, setParseProgress] = useState<string>('')
+  const [, setPendingShowAllLinks] = useState<{ experience?: string; education?: string } | null>(null)
+
   function handleParseClick(): void {
     // Always use AI for best results
     parseLinkedInPage(true)
   }
 
+  async function waitForDetailPageLoad(tabId: number, detailType: 'experience' | 'education', maxAttempts = 20): Promise<boolean> {
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, 1500))
+      try {
+        const resp = await chrome.tabs.sendMessage(tabId, {
+          action: 'parseLinkedInDetailPage',
+          detailType,
+        })
+        if (resp?.success && resp.entries) {
+          return true
+        }
+      } catch {
+        // Content script not ready yet, keep waiting
+      }
+    }
+    return false
+  }
+
   async function parseLinkedInPage(useAI: boolean): Promise<void> {
     setStatus('parsing')
     setError(null)
+    setParseProgress('Parsing main profile page...')
 
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
       if (!tab?.id) throw new Error('No active tab found')
+      const tabId = tab.id
+      const originalUrl = tab.url || ''
 
-      const response = await chrome.tabs.sendMessage(tab.id, {
+      const response = await chrome.tabs.sendMessage(tabId, {
         action: 'parseLinkedInProfile',
         useLLMCleaning: useAI
       })
       if (!response?.success) throw new Error(response?.error || 'Failed to parse LinkedIn profile')
 
-      setParsedProfile(response.profile)
+      let finalProfile = response.profile
+
+      // Check if there are "Show all" links for more entries
+      const showAllLinks = response.showAllLinks as { experience?: string; education?: string } | undefined
+
+      if (showAllLinks?.experience || showAllLinks?.education) {
+        // Try to auto-navigate to detail pages
+        try {
+          // Parse work experience detail page
+          if (showAllLinks.experience) {
+            setParseProgress('Loading full work history...')
+            await chrome.tabs.sendMessage(tabId, {
+              action: 'navigateForLinkedInDetails',
+              url: showAllLinks.experience,
+            })
+
+            // Wait for the new page to load and parse
+            const loaded = await waitForDetailPageLoad(tabId, 'experience')
+            if (loaded) {
+              const detailResp = await chrome.tabs.sendMessage(tabId, {
+                action: 'parseLinkedInDetailPage',
+                detailType: 'experience',
+              })
+              if (detailResp?.success && detailResp.entries?.length > 0) {
+                const detailExperiences = detailResp.entries
+
+                // Re-convert to experience entries using the parser
+                const workEntries = detailExperiences.map((w: Record<string, string>, i: number) => {
+                  const now = Date.now()
+                  return {
+                    id: `linkedin-work-${now}-${i}`,
+                    groupType: 'WORK' as const,
+                    priority: i,
+                    startDate: w.startDate,
+                    endDate: w.endDate,
+                    fields: Object.fromEntries(
+                      Object.entries({
+                        COMPANY_NAME: w.company,
+                        JOB_TITLE: w.title,
+                        LOCATION: w.location,
+                        START_DATE: w.startDate,
+                        END_DATE: w.endDate,
+                        JOB_DESCRIPTION: w.description,
+                      }).filter(([, v]) => v)
+                    ),
+                    createdAt: now,
+                    updatedAt: now,
+                  }
+                })
+
+                // Replace work experiences in final profile
+                finalProfile = {
+                  ...finalProfile,
+                  experiences: [
+                    ...workEntries,
+                    ...finalProfile.experiences.filter((e: { groupType: string }) => e.groupType !== 'WORK'),
+                  ],
+                }
+                console.log(`[ProfileImport] Got ${workEntries.length} work entries from detail page`)
+              }
+            }
+          }
+
+          // Parse education detail page
+          if (showAllLinks.education) {
+            setParseProgress('Loading full education history...')
+            await chrome.tabs.sendMessage(tabId, {
+              action: 'navigateForLinkedInDetails',
+              url: showAllLinks.education,
+            })
+
+            const loaded = await waitForDetailPageLoad(tabId, 'education')
+            if (loaded) {
+              const detailResp = await chrome.tabs.sendMessage(tabId, {
+                action: 'parseLinkedInDetailPage',
+                detailType: 'education',
+              })
+              if (detailResp?.success && detailResp.entries?.length > 0) {
+                const detailEducations = detailResp.entries
+
+                const eduEntries = detailEducations.map((e: Record<string, string>, i: number) => {
+                  const now = Date.now()
+                  return {
+                    id: `linkedin-edu-${now}-${i}`,
+                    groupType: 'EDUCATION' as const,
+                    priority: i,
+                    startDate: e.startDate,
+                    endDate: e.endDate,
+                    fields: Object.fromEntries(
+                      Object.entries({
+                        SCHOOL: e.school,
+                        DEGREE: e.degree,
+                        MAJOR: e.field || e.major,
+                        START_DATE: e.startDate,
+                        END_DATE: e.endDate,
+                        GRAD_DATE: e.endDate !== 'present' ? e.endDate : undefined,
+                      }).filter(([, v]) => v)
+                    ),
+                    createdAt: now,
+                    updatedAt: now,
+                  }
+                })
+
+                finalProfile = {
+                  ...finalProfile,
+                  experiences: [
+                    ...finalProfile.experiences.filter((e: { groupType: string }) => e.groupType !== 'EDUCATION'),
+                    ...eduEntries,
+                  ],
+                }
+                console.log(`[ProfileImport] Got ${eduEntries.length} education entries from detail page`)
+              }
+            }
+          }
+
+          // Navigate back to original profile page
+          setParseProgress('Returning to profile page...')
+          try {
+            await chrome.tabs.sendMessage(tabId, {
+              action: 'navigateForLinkedInDetails',
+              url: originalUrl,
+            })
+          } catch {
+            // Navigation may cause content script to unload, that's ok
+          }
+        } catch (navError) {
+          console.warn('[ProfileImport] Auto-navigation failed, results may be incomplete:', navError)
+          // Store showAllLinks so user can manually navigate
+          setPendingShowAllLinks(showAllLinks)
+        }
+      }
+
+      setParsedProfile(finalProfile)
+      setParseProgress('')
       setStatus('previewing')
     } catch (err) {
+      setParseProgress('')
       showError(getErrorMessage(err, 'Failed to parse LinkedIn profile'))
     }
   }
@@ -349,7 +507,7 @@ export default function ProfileImport({ onImportComplete }: ProfileImportProps):
 
 
       {status === 'parsing' && (
-        <LoadingState message={mode === 'linkedin' ? 'Parsing LinkedIn profile...' : 'Parsing resume/CV...'} />
+        <LoadingState message={parseProgress || (mode === 'linkedin' ? 'Parsing LinkedIn profile...' : 'Parsing resume/CV...')} />
       )}
 
       {status === 'previewing' && parsedProfile && (

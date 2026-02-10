@@ -324,7 +324,7 @@ export class PendingObservationStorage {
 }
 
 // API base URL
-const API_BASE_URL = 'https://www.onefil.help/api'
+const API_BASE_URL = 'https://www.1fillr.co.uk/api'
 const TOKEN_BUFFER_MS = 5 * 60 * 1000 // 5 minutes
 
 export class AuthStorage {

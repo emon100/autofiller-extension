@@ -7,11 +7,11 @@ import { storage, AnswerStorage, ObservationStorage, SiteSettingsStorage, experi
 import { BadgeManager } from '@/ui/BadgeManager'
 import { FloatingWidget, DetectedField, FillAnimationState, showToast } from '@/ui'
 import { visibilityController } from '@/ui/WidgetVisibility'
-import { aiPromotionBubble } from '@/ui/AIPromotionBubble'
+// import { aiPromotionBubble } from '@/ui/AIPromotionBubble'
 import { FieldContext, AnswerValue, Taxonomy, SENSITIVE_TYPES, FillResult, FillPlan, CandidateType, PendingObservation, ExperienceGroupType, DEFAULT_FILL_ANIMATION_CONFIG, FillAnimationConfig } from '@/types'
 import { FillDebugInfo, createEmptyDebugInfo, saveDebugLog } from '@/utils/logger'
 import { llmService } from '@/services/LLMService'
-import { isLLMAvailable } from '@/utils/llmProvider'
+// import { isLLMAvailable } from '@/utils/llmProvider'
 
 const CONFIDENCE_THRESHOLD = 0.75
 
@@ -882,8 +882,8 @@ export class AutoFiller {
 
     await saveDebugLog('fill', debug)
 
-    // Show AI promotion bubble if appropriate
-    await this.maybeShowAIPromotion(debug)
+    // AI is now enabled by default, no need to show promotion
+    // await this.maybeShowAIPromotion(debug)
 
     // Check if we should auto-add more entries
     if (this.autoAddEnabled && !animated) {
@@ -893,38 +893,29 @@ export class AutoFiller {
     return { results, debug }
   }
 
-  /**
-   * Show AI promotion bubble if appropriate
-   * Shows when LLM is disabled and there are unrecognized fields
-   */
-  private async maybeShowAIPromotion(debug: FillDebugInfo): Promise<void> {
-    try {
-      const llmEnabled = await isLLMAvailable()
-
-      // Count unrecognized fields
-      const unrecognizedCount = debug.fieldsParsed.filter(
-        f => f.type === Taxonomy.UNKNOWN || !f.hasMatchingAnswers
-      ).length
-      const totalFields = debug.fieldsScanned
-      const filledCount = debug.fillResults
-
-      const shouldShow = await aiPromotionBubble.shouldShow(llmEnabled, unrecognizedCount, totalFields)
-
-      if (shouldShow) {
-        // Small delay to not interfere with fill completion feedback
-        setTimeout(() => {
-          aiPromotionBubble.show(filledCount, totalFields, () => {
-            // Open side panel to settings when user clicks "Try AI"
-            if (chrome.runtime?.sendMessage) {
-              chrome.runtime.sendMessage({ action: 'openSidePanel' })
-            }
-          })
-        }, 2000)
-      }
-    } catch (error) {
-      console.error('[AutoFiller] Error checking AI promotion:', error)
-    }
-  }
+  // AI promotion kept for future reuse but not called since AI is default
+  // private async maybeShowAIPromotion(debug: FillDebugInfo): Promise<void> {
+  //   try {
+  //     const llmEnabled = await isLLMAvailable()
+  //     const unrecognizedCount = debug.fieldsParsed.filter(
+  //       f => f.type === Taxonomy.UNKNOWN || !f.hasMatchingAnswers
+  //     ).length
+  //     const totalFields = debug.fieldsScanned
+  //     const filledCount = debug.fillResults
+  //     const shouldShow = await aiPromotionBubble.shouldShow(llmEnabled, unrecognizedCount, totalFields)
+  //     if (shouldShow) {
+  //       setTimeout(() => {
+  //         aiPromotionBubble.show(filledCount, totalFields, () => {
+  //           if (chrome.runtime?.sendMessage) {
+  //             chrome.runtime.sendMessage({ action: 'openSidePanel' })
+  //           }
+  //         })
+  //       }, 2000)
+  //     }
+  //   } catch (error) {
+  //     console.error('[AutoFiller] Error checking AI promotion:', error)
+  //   }
+  // }
 
   /**
    * Check if more experience entries are available and auto-click add buttons to fill them

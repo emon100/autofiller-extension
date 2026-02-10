@@ -133,13 +133,13 @@ export const WIDGET_STYLES = `
 .af-toast-prominent { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); animation: af-pulse-glow 2s ease-in-out infinite; }
 
 .af-filling-popup {
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   border-radius: 16px;
-  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.3);
-  border: 1px solid rgba(129, 140, 248, 0.3);
+  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.15);
+  border: 1px solid #93c5fd;
   width: 280px;
   overflow: hidden;
-  color: white;
+  color: #1e3a5f;
 }
 
 .af-filling-header {
@@ -152,11 +152,12 @@ export const WIDGET_STYLES = `
   font-weight: 600;
   margin-bottom: 8px;
   min-height: 32px;
+  color: #1d4ed8;
 }
 
 .af-filling-field {
   font-size: 13px;
-  color: rgba(255,255,255,0.7);
+  color: #4b5563;
   min-height: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -169,14 +170,14 @@ export const WIDGET_STYLES = `
 
 .af-progress-bar {
   height: 6px;
-  background: rgba(255,255,255,0.2);
+  background: rgba(59,130,246,0.15);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .af-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #818cf8, #c084fc);
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
   border-radius: 3px;
   transition: width 0.1s ease-out;
 }
@@ -186,7 +187,7 @@ export const WIDGET_STYLES = `
   justify-content: space-between;
   margin-top: 12px;
   font-size: 11px;
-  color: rgba(255,255,255,0.6);
+  color: #6b7280;
 }
 
 .af-close-btn {

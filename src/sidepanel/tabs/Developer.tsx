@@ -5,7 +5,7 @@ import { saveLLMLog, getLLMLogs, clearLLMLogs, LLMLogEntry, logLLMRequest, logLL
 import { storage } from '@/storage'
 import { profileStorage } from '@/storage/profileStorage'
 
-const API_BASE_URL = 'https://www.onefil.help/api'
+const API_BASE_URL = 'https://www.1fillr.co.uk/api'
 
 // Test profiles for development
 const TEST_PROFILES = {

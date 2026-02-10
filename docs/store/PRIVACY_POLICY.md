@@ -1,10 +1,10 @@
-# Onefillr Privacy Policy
+# 1Fillr Privacy Policy
 
 **Last Updated: February 2026**
 
 ## Overview
 
-Onefillr ("we", "our", or "the extension") is a browser extension designed to help users automatically fill job application forms. This privacy policy explains how we collect, use, and protect your data.
+1Fillr ("we", "our", or "the extension") is a browser extension designed to help users automatically fill job application forms. This privacy policy explains how we collect, use, and protect your data.
 
 ## Data Collection
 
@@ -62,8 +62,8 @@ If you enable AI-powered features (LLM classification), the following occurs:
 
 ## Third-Party Services
 
-### Onefillr Backend (Optional)
-If you create an Onefillr account for cloud sync:
+### 1Fillr Backend (Optional)
+If you create an 1Fillr account for cloud sync:
 - Email address for authentication
 - Encrypted profile data (if you enable sync)
 - Usage statistics (fill counts, not content)
@@ -95,7 +95,7 @@ You have the right to:
 
 ## Children's Privacy
 
-Onefillr is not intended for users under 13 years of age. We do not knowingly collect data from children.
+1Fillr is not intended for users under 13 years of age. We do not knowingly collect data from children.
 
 ## Changes to This Policy
 
@@ -104,8 +104,8 @@ We may update this policy occasionally. Significant changes will be announced vi
 ## Contact Us
 
 For privacy concerns or questions:
-- Email: privacy@onefillr.com
-- GitHub: https://github.com/onefillr/extension/issues
+- Email: privacy@1fillr.co.uk
+- GitHub: https://github.com/1fillr/extension/issues
 
 ## Compliance
 
@@ -116,4 +116,4 @@ This extension complies with:
 
 ---
 
-*By using Onefillr, you agree to this privacy policy.*
+*By using 1Fillr, you agree to this privacy policy.*

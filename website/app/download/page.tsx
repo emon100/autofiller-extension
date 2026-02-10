@@ -47,7 +47,7 @@ export default function DownloadPage() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 border-b">
         <Link href="/" className="flex items-center gap-2">
           <Zap className="h-8 w-8 text-blue-600" />
-          <span className="text-xl font-bold">OneFillr</span>
+          <span className="text-xl font-bold">1Fillr</span>
         </Link>
         <Link href="/" className="flex items-center gap-1 text-gray-600 hover:text-gray-900">
           <ArrowLeft className="h-4 w-4" />
@@ -71,7 +71,7 @@ export default function DownloadPage() {
 
           <div className="mt-8">
             <a
-              href="/onefillr-extension.zip"
+              href="/1fillr-extension.zip"
               download
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-8 py-4 text-lg font-semibold text-white shadow-lg hover:bg-blue-700 transition-colors"
             >
@@ -148,10 +148,10 @@ export default function DownloadPage() {
             {t('download.help.description')}
           </p>
           <a
-            href="mailto:support@onefil.help"
+            href="mailto:support@1fillr.co.uk"
             className="mt-6 inline-flex items-center gap-2 text-blue-600 hover:underline"
           >
-            support@onefil.help
+            support@1fillr.co.uk
             <ChevronRight className="h-4 w-4" />
           </a>
         </div>

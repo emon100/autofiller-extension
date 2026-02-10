@@ -4,7 +4,7 @@ import { storage } from '@/storage'
 
 import { t } from '@/i18n'
 
-const PRIVACY_POLICY_URL = 'https://www.onefil.help/privacy'
+const PRIVACY_POLICY_URL = 'https://www.1fillr.co.uk/privacy'
 
 interface DataSummary {
   answersCount: number

@@ -1,7 +1,7 @@
 import { WIDGET_STYLES } from './styles'
 import { showToast } from './Toast'
 import { TAXONOMY_OPTIONS } from '@/utils/typeLabels'
-import { isExtensionContextValid, ExtensionContextInvalidatedError, AuthStorage } from '@/storage'
+import { isExtensionContextValid, ExtensionContextInvalidatedError } from '@/storage'
 import { t } from '@/i18n'
 import type { FillDebugInfo } from '@/utils/logger'
 import type { FillAnimationStage } from '@/types'
@@ -73,8 +73,8 @@ export class FloatingWidget {
     progress: 0
   }
 
-  // AI SuperFill state
-  private showAISuperFill = false
+  // AI SuperFill state (kept for future reuse)
+  // private showAISuperFill = false
 
   constructor(callbacks: FloatingWidgetCallbacks = {}) {
     this.callbacks = callbacks
@@ -236,9 +236,9 @@ export class FloatingWidget {
               <span>${t('widget.save')}</span>
             </button>
             <div style="width: 1px; height: 24px; background: #e5e7eb;"></div>
-            <button id="af-btn-fill" class="af-btn-hover" style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: white; background: ${this.showAISuperFill ? 'linear-gradient(to right, #7c3aed, #6d28d9)' : 'linear-gradient(to right, #3b82f6, #2563eb)'}; display: flex; align-items: center; gap: 8px;">
-              ${this.showAISuperFill ? ICONS.sparkles : ICONS.check}
-              <span>${this.showAISuperFill ? 'AI SuperFill' : t('widget.fill')}</span>
+            <button id="af-btn-fill" class="af-btn-hover" style="padding: 12px 16px; font-size: 14px; font-weight: 500; color: white; background: linear-gradient(to right, #3b82f6, #2563eb); display: flex; align-items: center; gap: 8px;">
+              ${ICONS.check}
+              <span>${t('widget.fill')}</span>
             </button>
             <div style="width: 1px; height: 24px; background: #e5e7eb;"></div>
             <button id="af-btn-minimize" class="af-btn-hover" style="padding: 12px 10px; font-size: 14px; color: #9ca3af; display: flex; align-items: center; transition: color 0.15s;" title="Minimize 1Fillr">
@@ -376,28 +376,31 @@ export class FloatingWidget {
       done: 'Complete!'
     }[stage] || 'Processing...'
 
-    const stageEmoji = {
-      idle: '⏳',
-      scanning: '🔍',
-      thinking: '🧠',
-      filling: '✍️',
-      done: '✨'
-    }[stage] || '⚙️'
+    // SVG icons instead of emojis
+    const stageIcon = {
+      idle: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`,
+      scanning: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>`,
+      thinking: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>`,
+      filling: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`,
+      done: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>`,
+    }[stage] || `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`
 
     const dots = stage !== 'done' ? '<span class="af-dot-bounce"></span><span class="af-dot-bounce"></span><span class="af-dot-bounce"></span>' : ''
+
+    const fieldIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`
 
     return `
       <div class="af-filling-container" style="position: relative;">
         <div class="af-filling-popup">
           <div class="af-filling-header">
             <div class="af-filling-stage" data-stage="${stage}" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-              <span>${stageEmoji}</span>
+              <span>${stageIcon}</span>
               <span>${stageText}</span>
               <span style="display: inline-flex; gap: 3px; margin-left: 4px;">${dots}</span>
             </div>
             <div class="af-filling-field">
-              ${stage === 'filling' && currentFieldLabel ? `📝 ${this.escapeHtml(currentFieldLabel)}` : ''}
-              ${stage === 'done' ? '🎉 All fields filled!' : ''}
+              ${stage === 'filling' && currentFieldLabel ? `${fieldIcon}${this.escapeHtml(currentFieldLabel)}` : ''}
+              ${stage === 'done' ? 'All fields filled!' : ''}
             </div>
           </div>
           <div class="af-filling-progress">
@@ -410,7 +413,7 @@ export class FloatingWidget {
             </div>
           </div>
         </div>
-        <div style="position: absolute; bottom: -8px; right: 32px; width: 16px; height: 16px; background: linear-gradient(135deg, #1e1b4b, #312e81); border-right: 1px solid rgba(129, 140, 248, 0.3); border-bottom: 1px solid rgba(129, 140, 248, 0.3); transform: rotate(45deg);"></div>
+        <div style="position: absolute; bottom: -8px; right: 32px; width: 16px; height: 16px; background: linear-gradient(135deg, #eff6ff, #dbeafe); border-right: 1px solid #93c5fd; border-bottom: 1px solid #93c5fd; transform: rotate(45deg);"></div>
       </div>
     `
   }
@@ -435,7 +438,8 @@ export class FloatingWidget {
       const statsEl = this.container.querySelector('.af-filling-stats')
 
       if (fieldEl && this.fillAnimationState.currentFieldLabel) {
-        fieldEl.innerHTML = `📝 ${this.escapeHtml(this.fillAnimationState.currentFieldLabel)}`
+        const icon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`
+        fieldEl.innerHTML = `${icon}${this.escapeHtml(this.fillAnimationState.currentFieldLabel)}`
       }
 
       if (progressEl) {
@@ -468,11 +472,7 @@ export class FloatingWidget {
     dragHandle?.addEventListener('mousedown', (e) => this.handleMouseDown(e))
     saveBtn?.addEventListener('click', () => this.handleSave())
     fillBtn?.addEventListener('click', () => {
-      if (this.showAISuperFill) {
-        this.handleAIFill()
-      } else {
-        this.handleFill()
-      }
+      this.handleFill()
     })
     dbLink?.addEventListener('click', (e) => { e.preventDefault(); this.openSidePanel() })
     cancelBtn?.addEventListener('click', () => this.showPhase('widget'))
@@ -601,26 +601,20 @@ export class FloatingWidget {
             this.updateFillAnimationState({ stage: 'done', progress: 100 })
             showToast(`Filled ${count} fields successfully!`, 'success')
 
-            // Check if user is logged in, if not, prompt to login for AI features
-            this.checkAndPromptLogin()
             // Prompt to enable autofill for this site if not enabled
             this.checkAndPromptAutofill()
 
-            // Switch to AI SuperFill mode after showing complete state
-            setTimeout(() => {
-              if (this.callbacks.onAIFill) {
-                this.showAISuperFill = true
-              }
+            // Return to widget and auto-trigger AI fill for remaining empty fields
+            setTimeout(async () => {
               this.showPhase('widget')
-
-              // Auto-reset AI SuperFill after 30 seconds
-              if (this.showAISuperFill) {
-                setTimeout(() => {
-                  this.showAISuperFill = false
-                  if (this.currentPhase === 'widget') this.render()
-                }, 30000)
+              if (this.callbacks.onAIFill) {
+                try {
+                  await this.handleAIFill()
+                } catch {
+                  // AI fill is best-effort, don't disrupt flow
+                }
               }
-            }, 1500)
+            }, 500)
           } else {
             const reason = this.getFailureReason(debug)
             showToast(reason, 'info')
@@ -653,39 +647,22 @@ export class FloatingWidget {
           const { count, debug } = await this.callbacks.onFill(false)
 
           if (count > 0) {
-            fillBtn.innerHTML = `
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
-              <span>Done!</span>
-            `
-            fillBtn.style.background = 'linear-gradient(to right, #22c55e, #10b981)'
             showToast(`Filled ${count} fields successfully!`, 'success')
 
-            // Check if user is logged in, if not, prompt to login for AI features
-            this.checkAndPromptLogin()
             // Prompt to enable autofill for this site if not enabled
             this.checkAndPromptAutofill()
 
-            setTimeout(() => {
-              if (this.callbacks.onAIFill) {
-                this.showAISuperFill = true
+            // Reset button and auto-trigger AI fill
+            fillBtn.innerHTML = originalContent
+            fillBtn.style.opacity = '1'
+            fillBtn.removeAttribute('disabled')
+            if (this.callbacks.onAIFill) {
+              try {
+                await this.handleAIFill()
+              } catch {
+                // AI fill is best-effort
               }
-              fillBtn.innerHTML = this.showAISuperFill
-                ? `${ICONS.sparkles}<span>AI SuperFill</span>`
-                : originalContent
-              fillBtn.style.background = this.showAISuperFill
-                ? 'linear-gradient(to right, #7c3aed, #6d28d9)'
-                : 'linear-gradient(to right, #3b82f6, #2563eb)'
-              fillBtn.style.opacity = '1'
-              fillBtn.removeAttribute('disabled')
-
-              // Auto-reset AI SuperFill after 30 seconds
-              if (this.showAISuperFill) {
-                setTimeout(() => {
-                  this.showAISuperFill = false
-                  if (this.currentPhase === 'widget') this.render()
-                }, 30000)
-              }
-            }, 1500)
+            }
           } else {
             fillBtn.innerHTML = `
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
@@ -730,6 +707,9 @@ export class FloatingWidget {
       return
     }
 
+    // Save original state before modifying
+    const originalContent = fillBtn.innerHTML
+
     // Show loading state
     fillBtn.innerHTML = `
       <span class="af-animate-spin" style="width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; display: inline-block;"></span>
@@ -744,24 +724,19 @@ export class FloatingWidget {
 
         if (count > 0) {
           showToast(`AI filled ${count} additional fields!`, 'success')
-          fillBtn.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
-            <span>Done!</span>
-          `
-          fillBtn.style.background = 'linear-gradient(to right, #22c55e, #10b981)'
         } else {
           showToast('AI could not fill additional fields', 'info')
         }
 
-        // Reset back to normal Fill button
-        this.showAISuperFill = false
-        setTimeout(() => {
-          this.showPhase('widget')
-        }, 1500)
+        // Reset back to normal Fill button immediately
+        fillBtn.innerHTML = originalContent
+        fillBtn.style.opacity = '1'
+        fillBtn.removeAttribute('disabled')
+        this.showPhase('widget')
       }
     } catch (error) {
       console.error('[AutoFiller] AI Fill error:', error)
-      this.showAISuperFill = false
+      // AI fill failed, return to widget
 
       if (error instanceof ExtensionContextInvalidatedError ||
         (error instanceof Error && error.message.includes('Extension context invalidated'))) {
@@ -801,32 +776,29 @@ export class FloatingWidget {
     return 'No matching fields found. Check console for debug details.'
   }
 
-  private async checkAndPromptLogin(): Promise<void> {
-    try {
-      const authStorage = new AuthStorage()
-      const authState = await authStorage.getAuthState()
-
-      // If user is not logged in, show login prompt after a delay
-      if (!authState?.accessToken) {
-        setTimeout(() => {
-          showToast(t('toast.loginForAi'), 'info', {
-            action: {
-              label: t('toast.loginAction'),
-              onClick: () => {
-                // Open side panel for login
-                chrome.runtime.sendMessage({ action: 'openSidePanel' }).catch(() => {
-                  // Fallback: show hint to click extension icon
-                  showToast(t('toast.sidePanelHint'), 'info')
-                })
-              }
-            }
-          })
-        }, 2000)
-      }
-    } catch {
-      // Ignore errors - don't disrupt the fill success flow
-    }
-  }
+  // Login prompt kept for future reuse but not called automatically
+  // private async checkAndPromptLogin(): Promise<void> {
+  //   try {
+  //     const authStorage = new AuthStorage()
+  //     const authState = await authStorage.getAuthState()
+  //     if (!authState?.accessToken) {
+  //       setTimeout(() => {
+  //         showToast(t('toast.loginForAi'), 'info', {
+  //           action: {
+  //             label: t('toast.loginAction'),
+  //             onClick: () => {
+  //               chrome.runtime.sendMessage({ action: 'openSidePanel' }).catch(() => {
+  //                 showToast(t('toast.sidePanelHint'), 'info')
+  //               })
+  //             }
+  //           }
+  //         })
+  //       }, 2000)
+  //     }
+  //   } catch {
+  //     // Ignore errors
+  //   }
+  // }
 
   private async checkAndPromptAutofill(): Promise<void> {
     try {

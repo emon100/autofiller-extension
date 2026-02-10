@@ -8,9 +8,9 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'OneFillr - Job Application Autofill Chrome Extension',
+  title: '1Fillr - Job Application Autofill Chrome Extension',
   description:
-    'Save hours on job applications. Fill any application form in seconds with OneFillr - the smart Chrome extension for job seekers.',
+    'Save hours on job applications. Fill any application form in seconds with 1Fillr - the smart Chrome extension for job seekers.',
   keywords: [
     'job application autofill',
     'chrome extension',
@@ -20,23 +20,23 @@ export const metadata: Metadata = {
     'lever autofill',
     'workday autofill',
   ],
-  authors: [{ name: 'OneFillr Team' }],
+  authors: [{ name: '1Fillr Team' }],
   icons: {
     icon: '/icon.svg',
     apple: '/icon.svg',
   },
   openGraph: {
-    title: 'OneFillr - Job Application Autofill Chrome Extension',
+    title: '1Fillr - Job Application Autofill Chrome Extension',
     description:
       'Save hours on job applications. Fill any application form in seconds.',
-    url: 'https://www.onefil.help',
-    siteName: 'OneFillr',
+    url: 'https://www.1fillr.co.uk',
+    siteName: '1Fillr',
     locale: 'en_US',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'OneFillr - Job Application Autofill',
+    title: '1Fillr - Job Application Autofill',
     description:
       'Save hours on job applications. Fill any application form in seconds.',
   },

@@ -8,7 +8,7 @@
 import { storage } from '@/storage'
 import { AuthState } from '@/types'
 
-const WEBSITE_URL = 'https://www.onefil.help'
+const WEBSITE_URL = 'https://www.1fillr.co.uk'
 
 export interface LoginResult {
   success: boolean

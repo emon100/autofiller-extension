@@ -76,6 +76,10 @@ export interface LinkedInProfile {
   workExperiences: LinkedInWorkExperience[]
   educations: LinkedInEducation[]
   skills: string[]
+  showAllLinks?: {
+    experience?: string
+    education?: string
+  }
 }
 
 // 简历解析LLM响应格式

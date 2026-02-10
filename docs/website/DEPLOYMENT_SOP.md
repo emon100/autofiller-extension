@@ -1,7 +1,7 @@
-# OneFil.help 部署 SOP
+# 1fillr.co.uk 部署 SOP
 
-> 域名：`onefil.help`
-> 主站：`www.onefil.help`
+> 域名：`1fillr.co.uk`
+> 主站：`www.1fillr.co.uk`
 > 最后更新：2026-02-04
 
 ---
@@ -69,8 +69,8 @@ ns2.cloudflare.com
 ### 2.2 域名配置
 
 **Project Settings → Domains**:
-- `www.onefil.help` (主域名)
-- `onefil.help` (重定向到 www)
+- `www.1fillr.co.uk` (主域名)
+- `1fillr.co.uk` (重定向到 www)
 
 ### 2.3 环境变量
 
@@ -79,7 +79,7 @@ ns2.cloudflare.com
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase 项目 URL | `https://xxx.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase 匿名 Key | `eyJhbG...` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Service Role Key | `eyJhbG...` |
-| `NEXT_PUBLIC_SITE_URL` | 网站 URL | `https://www.onefil.help` |
+| `NEXT_PUBLIC_SITE_URL` | 网站 URL | `https://www.1fillr.co.uk` |
 | `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` | Paddle 客户端 Token | `live_xxx` |
 | `NEXT_PUBLIC_PADDLE_ENVIRONMENT` | Paddle 环境 | `production` 或 `sandbox` |
 | `PADDLE_WEBHOOK_SECRET` | Paddle Webhook 密钥 | `pdl_ntfset_xxx` |
@@ -114,11 +114,11 @@ supabase db push
 **Dashboard → Authentication → URL Configuration**:
 
 ```
-Site URL: https://www.onefil.help
+Site URL: https://www.1fillr.co.uk
 
 Redirect URLs:
-- https://www.onefil.help/auth/callback
-- https://onefil.help/auth/callback
+- https://www.1fillr.co.uk/auth/callback
+- https://1fillr.co.uk/auth/callback
 - chrome-extension://*/auth/callback
 ```
 
@@ -139,7 +139,7 @@ Redirect URLs:
 **Developer Tools → Notifications → Webhooks**:
 
 ```
-Destination URL: https://www.onefil.help/api/webhook/paddle
+Destination URL: https://www.1fillr.co.uk/api/webhook/paddle
 ```
 
 **订阅事件**:
@@ -176,7 +176,7 @@ Destination URL: https://www.onefil.help/api/webhook/paddle
 
 `src/sidepanel/tabs/Settings.tsx`:
 ```typescript
-const WEBSITE_URL = 'https://www.onefil.help'
+const WEBSITE_URL = 'https://www.1fillr.co.uk'
 ```
 
 ### 5.2 Manifest 权限
@@ -185,7 +185,7 @@ const WEBSITE_URL = 'https://www.onefil.help'
 ```json
 {
   "host_permissions": [
-    "https://www.onefil.help/*"
+    "https://www.1fillr.co.uk/*"
   ]
 }
 ```
@@ -212,8 +212,8 @@ const WEBSITE_URL = 'https://www.onefil.help'
 
 ### 6.2 功能验证
 
-- [ ] 访问 https://www.onefil.help 正常
-- [ ] 访问 https://onefil.help 重定向到 www
+- [ ] 访问 https://www.1fillr.co.uk 正常
+- [ ] 访问 https://1fillr.co.uk 重定向到 www
 - [ ] Google 登录正常
 - [ ] Dashboard 显示 credits 正常
 - [ ] Paddle 支付流程正常
@@ -241,7 +241,7 @@ const WEBSITE_URL = 'https://www.onefil.help'
 **症状**: Google 登录后跳转错误
 
 **排查**:
-1. 检查 Supabase Redirect URLs 是否包含 `https://www.onefil.help/auth/callback`
+1. 检查 Supabase Redirect URLs 是否包含 `https://www.1fillr.co.uk/auth/callback`
 2. 检查 Google OAuth 的 Authorized redirect URIs
 
 ### 7.3 扩展无法连接
@@ -296,5 +296,5 @@ const WEBSITE_URL = 'https://www.onefil.help'
 
 ## 十、联系方式
 
-- 技术支持邮箱: support@onefil.help
+- 技术支持邮箱: support@1fillr.co.uk
 - 文档位置: `/docs/website/`

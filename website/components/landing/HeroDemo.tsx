@@ -6,7 +6,7 @@ import { Sparkles, Check, ArrowRight, Zap, Play, RotateCcw, FileText, Linkedin, 
 import { useI18n } from '@/lib/i18n'
 
 /**
- * HeroDemo - 3-step demo of OneFillr core workflow
+ * HeroDemo - 3-step demo of 1Fillr core workflow
  * All user-visible text uses i18n via t()
  */
 

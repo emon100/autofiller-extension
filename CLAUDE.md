@@ -31,7 +31,7 @@ Production mode (`BUILD_MODE=production`): Enables terser minification, drops `c
 
 ## Project Overview
 
-**OneFillr** (package name: `autofiller-claude`) is a Chrome MV3 browser extension for auto-filling job application forms. Users fill forms once manually, and the extension learns "question semantic → answer semantic" mappings to auto-fill similar questions on any job site. It also supports importing profiles from LinkedIn pages and resume files (PDF/Word).
+**1Fillr** (package name: `autofiller-claude`) is a Chrome MV3 browser extension for auto-filling job application forms. Users fill forms once manually, and the extension learns "question semantic → answer semantic" mappings to auto-fill similar questions on any job site. It also supports importing profiles from LinkedIn pages and resume files (PDF/Word).
 
 ### Core Principles
 - **Speed**: Fill visible fields in 2-3 seconds, non-blocking
@@ -86,7 +86,7 @@ Additional features in AutoFiller:
 
 ### Background Script
 
-Routes messages between content scripts and side panel. Creates context menus ("AutoFill this form", "AI fill this field", "Open OneFillr panel"). Opens welcome page on install.
+Routes messages between content scripts and side panel. Creates context menus ("AutoFill this form", "AI fill this field", "Open 1Fillr panel"). Opens welcome page on install.
 
 ### Side Panel (React)
 
@@ -146,7 +146,7 @@ AuthState           - Auth tokens + user info
 **Multi-profile isolation**: Each profile gets namespaced keys (`answers-{profileId}`, `experiences-{profileId}`, `observations-{profileId}`). Default profile auto-created. Migration from global to profile-namespaced storage exists.
 
 **LLM Dual Mode**:
-- **Backend API**: For logged-in users with credits (requests go through OneFillr server)
+- **Backend API**: For logged-in users with credits (requests go through 1Fillr server)
 - **Custom API (BYOK)**: Users provide their own API key/endpoint
 
 ### Fill Execution Rules

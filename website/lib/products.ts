@@ -38,7 +38,7 @@ export function groupProductsByPlan(products: Product[]): Plan[] {
   planMap.set('free', {
     id: 'free',
     name: 'Free',
-    description: 'Perfect for trying out OneFillr',
+    description: 'Perfect for trying out 1Fillr',
     credits: '200 credits',
     features: ['Basic auto-fill', 'Local data storage', 'Standard support'],
     popular: false,

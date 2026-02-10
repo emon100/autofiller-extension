@@ -31,7 +31,7 @@
     "badge": "Local storage, privacy first",
     "titleFill": "Fill",
     "title10x": "10x Faster",
-    "subtitle": "Stop typing the same information over and over. OneFillr learns your profile once and fills any form in seconds.",
+    "subtitle": "Stop typing the same information over and over. 1Fillr learns your profile once and fills any form in seconds.",
     "ctaChrome": "Add to Chrome - It's Free",
     "ctaHowItWorks": "See How It Works",
     "freeCredits": "20 free fills included. No credit card required.",
@@ -61,7 +61,7 @@
     }
   },
   "demo": {
-    "heroTitle": "See How OneFillr Works",
+    "heroTitle": "See How 1Fillr Works",
     "heroSubtitle": "3 steps to demonstrate the complete auto-fill workflow",
     "startDemo": "Start Demo",
     "interactiveDemo": "Interactive Demo",
@@ -141,7 +141,7 @@
     },
     "learnsOnce": {
       "title": "Learns Once",
-      "description": "Fill out forms manually once, and OneFillr learns your answers for future applications."
+      "description": "Fill out forms manually once, and 1Fillr learns your answers for future applications."
     },
     "fullTransparency": {
       "title": "Full Transparency",
@@ -157,15 +157,15 @@
     "subtitle": "Get started in under a minute. No configuration required.",
     "step1": {
       "title": "Install the Extension",
-      "description": "Download OneFillr from the Download page and add to Chrome. Takes under 2 minutes."
+      "description": "Download 1Fillr from the Download page and add to Chrome. Takes under 2 minutes."
     },
     "step2": {
       "title": "Fill Out a Form Manually",
-      "description": "Apply to one job as usual. OneFillr watches and learns your answers."
+      "description": "Apply to one job as usual. 1Fillr watches and learns your answers."
     },
     "step3": {
       "title": "Auto-Fill Future Applications",
-      "description": "Click the OneFillr button on any job application. Done in seconds."
+      "description": "Click the 1Fillr button on any job application. Done in seconds."
     }
   },
   "pricing": {
@@ -191,7 +191,7 @@
     "contactUs": "contact us",
     "free": {
       "name": "Free",
-      "description": "Perfect for trying out OneFillr",
+      "description": "Perfect for trying out 1Fillr",
       "cta": "Get Started",
       "features": [
         "20 form fills",
@@ -205,20 +205,20 @@
     "title": "Frequently Asked Questions",
     "subtitle": "Got questions? We've got answers.",
     "q1": {
-      "question": "Is my data safe with OneFillr?",
+      "question": "Is my data safe with 1Fillr?",
       "answer": "Absolutely. Your data is stored locally on your device and never transmitted to our servers. We use industry-standard encryption for any sensitive information. You have full control over your data and can delete it at any time."
     },
     "q2": {
-      "question": "Which job sites does OneFillr support?",
-      "answer": "OneFillr works with all major Applicant Tracking Systems (ATS) including Greenhouse, Lever, Workday, Ashby, BambooHR, iCIMS, and hundreds more. It also works on custom job application forms."
+      "question": "Which job sites does 1Fillr support?",
+      "answer": "1Fillr works with all major Applicant Tracking Systems (ATS) including Greenhouse, Lever, Workday, Ashby, BambooHR, iCIMS, and hundreds more. It also works on custom job application forms."
     },
     "q3": {
       "question": "How does the learning work?",
-      "answer": "When you fill out a job application form, OneFillr observes which answers you provide for different types of questions. It learns the semantic relationship between questions and answers, so it can recognise similar questions on other sites even if they're worded differently."
+      "answer": "When you fill out a job application form, 1Fillr observes which answers you provide for different types of questions. It learns the semantic relationship between questions and answers, so it can recognise similar questions on other sites even if they're worded differently."
     },
     "q4": {
-      "question": "What if OneFillr fills something incorrectly?",
-      "answer": "Every filled field shows a visual badge. You can hover over any field to see what was filled and click to undo. OneFillr also won't auto-fill sensitive fields (like salary expectations) without your explicit confirmation."
+      "question": "What if 1Fillr fills something incorrectly?",
+      "answer": "Every filled field shows a visual badge. You can hover over any field to see what was filled and click to undo. 1Fillr also won't auto-fill sensitive fields (like salary expectations) without your explicit confirmation."
     },
     "q5": {
       "question": "Do I need to create an account?",
@@ -230,7 +230,7 @@
     }
   },
   "download": {
-    "title": "Download OneFillr Extension",
+    "title": "Download 1Fillr Extension",
     "subtitle": "As the extension is not yet on the Chrome Web Store, please follow the steps below to install manually. Takes less than 2 minutes.",
     "badge": "Free download · No registration required",
     "downloadBtn": "Download Extension (.zip)",
@@ -239,7 +239,7 @@
     "steps": {
       "s1": {
         "title": "Download the extension file",
-        "description": "Click the button above to download the OneFillr extension ZIP file."
+        "description": "Click the button above to download the 1Fillr extension ZIP file."
       },
       "s2": {
         "title": "Extract the ZIP file",
@@ -259,7 +259,7 @@
       },
       "s6": {
         "title": "Start using",
-        "description": "The OneFillr icon will appear in your browser toolbar. Visit any job site and click the icon to start auto-filling!"
+        "description": "The 1Fillr icon will appear in your browser toolbar. Visit any job site and click the icon to start auto-filling!"
       }
     },
     "notes": {
@@ -328,7 +328,7 @@
     "keepOneMethod": "You must keep at least one login method",
     "extensionSync": "Extension Sync",
     "extensionSyncDesc": "To sync your account with the Chrome extension:",
-    "extensionStep1": "Open the OneFillr extension",
+    "extensionStep1": "Open the 1Fillr extension",
     "extensionStep2": "Go to Settings",
     "extensionStep3": "Click 'Login to Sync'",
     "extensionStep4": "Login with the same account as here",
@@ -340,7 +340,7 @@
   "usageHistory": {
     "title": "Usage History",
     "noTransactions": "No transactions yet",
-    "startUsing": "Start using OneFillr to see your usage history"
+    "startUsing": "Start using 1Fillr to see your usage history"
   },
   "creditBalance": {
     "title": "Credit Balance",
@@ -352,7 +352,7 @@
     "renewsOn": "Renews on {date}"
   },
   "demoPage": {
-    "title": "OneFillr Demo",
+    "title": "1Fillr Demo",
     "subtitle": "Interactive Form Filling Demo",
     "knowledgeBase": "Knowledge Base",
     "fields": "{count} fields",
@@ -382,11 +382,11 @@
     "termsOfService": "Terms of Service",
     "cookiePolicy": "Cookie Policy",
     "connect": "Connect",
-    "copyright": "© {year} OneFillr. All rights reserved."
+    "copyright": "© {year} 1Fillr. All rights reserved."
   },
   "extension": {
     "connectTitle": "Connect Extension",
-    "connectSubtitle": "Link your OneFillr extension to your account",
+    "connectSubtitle": "Link your 1Fillr extension to your account",
     "connecting": "Connecting...",
     "pleaseSignIn": "Please sign in to connect your extension",
     "signIn": "Sign In",
@@ -394,7 +394,7 @@
     "copyTokenDesc": "Copy the token below and paste it in your extension settings",
     "copyToken": "Copy Token",
     "copied": "Copied!",
-    "afterCopy": "After copying, go to your OneFillr extension, click Settings, and paste the token",
+    "afterCopy": "After copying, go to your 1Fillr extension, click Settings, and paste the token",
     "connected": "Connected!",
     "connectedDesc": "Your extension is now linked to your account. You can close this window.",
     "needHelp": "Need help?",

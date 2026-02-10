@@ -1,9 +1,9 @@
-# Onefillr - Chrome Web Store Listing
+# 1Fillr - Chrome Web Store Listing
 
 ## Extension Name
-**Onefillr - Smart Job Application Autofill**
+**1Fillr - Smart Job Application Autofill**
 
-(Alternative: Onefillr - AI Form Filler for Job Seekers)
+(Alternative: 1Fillr - AI Form Filler for Job Seekers)
 
 ## Short Description (132 characters max)
 Fill job applications 10x faster. Learn your info once, auto-fill everywhere. AI-powered field recognition. Privacy-first design.
@@ -14,11 +14,11 @@ Fill job applications 10x faster. Learn your info once, auto-fill everywhere. AI
 
 **Stop typing the same information over and over.**
 
-Onefillr learns your profile once and intelligently fills job application forms across any website. Whether you're applying on LinkedIn, Indeed, Workday, Greenhouse, or company career pages - Onefillr handles them all.
+1Fillr learns your profile once and intelligently fills job application forms across any website. Whether you're applying on LinkedIn, Indeed, Workday, Greenhouse, or company career pages - 1Fillr handles them all.
 
 **🚀 Key Features**
 
-• **Smart Learning** - Fill a form once, Onefillr remembers your answers forever
+• **Smart Learning** - Fill a form once, 1Fillr remembers your answers forever
 • **Universal Compatibility** - Works on any job site, including complex multi-step applications
 • **AI-Powered Recognition** - Understands form fields even with unusual labels
 • **One-Click Fill** - Fill entire forms instantly with a single click
@@ -42,7 +42,7 @@ Onefillr learns your profile once and intelligently fills job application forms 
 
 **💡 How It Works**
 
-1. Install Onefillr
+1. Install 1Fillr
 2. Fill out your first job application normally
 3. Click "Save" when prompted
 4. On your next application, click "Fill" - done!
@@ -66,8 +66,8 @@ Bring your own API key (OpenAI, Claude, or others).
 ---
 
 **Questions or feedback?**
-• GitHub: github.com/onefillr
-• Email: support@onefillr.com
+• GitHub: github.com/1fillr
+• Email: support@1fillr.co.uk
 
 Made with ❤️ for job seekers everywhere.
 
@@ -77,7 +77,7 @@ Made with ❤️ for job seekers everywhere.
 
 **告别重复填写，让求职更高效**
 
-Onefillr 智能记住您的个人信息，一键填充任何求职网站的申请表。无论是 LinkedIn、Boss直聘、智联招聘还是企业官网 - Onefillr 全部支持。
+1Fillr 智能记住您的个人信息，一键填充任何求职网站的申请表。无论是 LinkedIn、Boss直聘、智联招聘还是企业官网 - 1Fillr 全部支持。
 
 **🚀 核心功能**
 
@@ -105,7 +105,7 @@ Productivity
 English, Chinese (Simplified)
 
 ## Single Purpose Statement
-Onefillr automatically fills job application forms using information the user has previously entered, saving time during the job application process.
+1Fillr automatically fills job application forms using information the user has previously entered, saving time during the job application process.
 
 ## Permission Justifications
 
