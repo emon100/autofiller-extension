@@ -333,81 +333,159 @@ export async function fillCombobox(
   const previousValue = element.value
 
   try {
+    // Step 1: Focus and click to open the dropdown
     element.focus()
+    element.click()
+    await new Promise(resolve => setTimeout(resolve, 100))
 
-    await new Promise(resolve => setTimeout(resolve, 50))
-
-    setInputValue(element, value)
-
-    // Wait longer for dynamic options to load
-    await new Promise(resolve => setTimeout(resolve, 300))
-
+    // Resolve combobox and listbox elements
     const combobox = element.closest('[role="combobox"]')
     const listboxId = element.getAttribute('aria-controls')
-    const listbox = listboxId
-      ? document.getElementById(listboxId)
-      : combobox?.querySelector('[role="listbox"]')
 
-    let matched = false
+    // Helper: find the listbox/dropdown options container
+    const findListbox = (): Element | null => {
+      if (listboxId) return document.getElementById(listboxId)
+      if (combobox) return combobox.querySelector('[role="listbox"]')
+      // Fallback: look for nearby dropdown containers
+      const parent = element.closest('[data-testid], .select-container, .dropdown, .combobox')
+      return parent?.querySelector('[role="listbox"], ul, .options, .dropdown-menu') || null
+    }
 
-    if (listbox) {
-      const options = listbox.querySelectorAll('[role="option"]')
-      const normalizedValue = value.toLowerCase()
+    // Helper: find visible option elements
+    const findOptions = (container: Element | null): NodeListOf<Element> | Element[] => {
+      if (!container) return []
+      const ariaOptions = container.querySelectorAll('[role="option"]')
+      if (ariaOptions.length > 0) return ariaOptions
+      // Fallback: li elements or div elements that look like options
+      return container.querySelectorAll('li, [data-option], .option')
+    }
 
-      // Strategy 1: Contains match
+    // Helper: score an option against the target value
+    const scoreOption = (optionText: string, target: string): number => {
+      const normOption = optionText.toLowerCase().trim()
+      const normTarget = target.toLowerCase().trim()
+      if (!normOption || normOption.startsWith('--') || normOption === 'select') return -1
+
+      // Exact match = highest score
+      if (normOption === normTarget) return 100
+
+      // Contains match
+      if (normOption.includes(normTarget)) return 80
+      if (normTarget.includes(normOption)) return 70
+
+      // Word overlap scoring
+      const targetWords = normTarget.split(/[\s,/\-()]+/).filter(w => w.length > 1)
+      const optionWords = normOption.split(/[\s,/\-()]+/).filter(w => w.length > 1)
+      let wordScore = 0
+      for (const tw of targetWords) {
+        if (optionWords.some(ow => ow.includes(tw) || tw.includes(ow))) wordScore++
+      }
+      if (wordScore > 0 && targetWords.length > 0) {
+        return 30 + (wordScore / targetWords.length) * 40
+      }
+
+      return 0
+    }
+
+    // Helper: find the best matching option from a set
+    const findBestMatch = (options: NodeListOf<Element> | Element[], target: string): { element: HTMLElement | null, score: number } => {
+      let bestScore = 0
+      let bestElement: HTMLElement | null = null
+
       for (const option of options) {
-        const optionText = option.textContent?.toLowerCase() || ''
-        if (optionText.includes(normalizedValue) || normalizedValue.includes(optionText)) {
-          (option as HTMLElement).click()
-          matched = true
-          break
+        const text = option.textContent || ''
+        const score = scoreOption(text, target)
+        if (score > bestScore) {
+          bestScore = score
+          bestElement = option as HTMLElement
         }
       }
 
-      // Strategy 2: Word-overlap scoring
-      if (!matched && options.length > 0) {
-        const valueWords = normalizedValue.split(/[\s,/\-()]+/).filter(w => w.length > 1)
-        let bestScore = 0
-        let bestOption: HTMLElement | null = null
+      return { element: bestElement, score: bestScore }
+    }
 
-        for (const option of options) {
-          const optionText = option.textContent?.toLowerCase().trim() || ''
-          const optionWords = optionText.split(/[\s,/\-()]+/).filter(w => w.length > 1)
-          let score = 0
-          for (const vw of valueWords) {
-            if (optionWords.some(ow => ow.includes(vw) || vw.includes(ow))) score++
-          }
-          if (score > bestScore) {
-            bestScore = score
-            bestOption = option as HTMLElement
-          }
+    // Step 2: Try progressively longer prefixes to trigger dynamic filtering
+    // This handles dropdowns where options load dynamically based on typed text
+    const prefixes = [
+      value.substring(0, 2),   // 2 chars: trigger initial filtering
+      value.substring(0, 4),   // 4 chars: narrow down results
+      value,                   // full value: most specific
+    ].filter(p => p.length > 0)
+
+    // Remove duplicate prefixes
+    const uniquePrefixes = [...new Set(prefixes)]
+
+    let matched = false
+    let bestOverallMatch: { element: HTMLElement | null, score: number } = { element: null, score: 0 }
+
+    for (const prefix of uniquePrefixes) {
+      // Type the prefix to trigger filtering
+      setInputValue(element, prefix)
+
+      // Wait for dynamic options to load
+      await new Promise(resolve => setTimeout(resolve, 350))
+
+      // Find and score options
+      const listbox = findListbox()
+      const options = findOptions(listbox)
+
+      if (options.length > 0) {
+        const match = findBestMatch(options, value)
+
+        // Track the best match across all iterations
+        if (match.score > bestOverallMatch.score) {
+          bestOverallMatch = match
         }
 
-        if (bestScore >= 1 && bestOption) {
-          bestOption.click()
+        // If we found an exact or strong match, click it immediately
+        if (match.score >= 70 && match.element) {
+          match.element.click()
           matched = true
+          await new Promise(resolve => setTimeout(resolve, 100))
+          break
         }
       }
     }
 
-    // Retry with shorter input if no matches found (trigger different dynamic options)
-    if (!matched && value.length > 3) {
-      setInputValue(element, value.substring(0, 3))
+    // Step 3: If no strong match was found during iteration, use the best partial match
+    if (!matched && bestOverallMatch.score >= 30 && bestOverallMatch.element) {
+      // Re-type the full value first to ensure we're in the right state
+      setInputValue(element, value)
       await new Promise(resolve => setTimeout(resolve, 300))
 
-      const listbox2 = listboxId
-        ? document.getElementById(listboxId)
-        : combobox?.querySelector('[role="listbox"]')
-      if (listbox2) {
-        const options = listbox2.querySelectorAll('[role="option"]')
-        const normalizedValue = value.toLowerCase()
-        for (const option of options) {
-          const optionText = option.textContent?.toLowerCase() || ''
-          if (optionText.includes(normalizedValue) || normalizedValue.includes(optionText)) {
-            (option as HTMLElement).click()
-            matched = true
-            break
-          }
+      // Check if the best match is still visible
+      const listbox = findListbox()
+      const options = findOptions(listbox)
+      const currentBest = findBestMatch(options, value)
+
+      if (currentBest.score >= 30 && currentBest.element) {
+        currentBest.element.click()
+        matched = true
+        await new Promise(resolve => setTimeout(resolve, 100))
+      } else {
+        // Click the previously-found best match
+        bestOverallMatch.element.click()
+        matched = true
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+    }
+
+    // Step 4: If still no match, try clicking on the first reasonable option
+    if (!matched) {
+      setInputValue(element, value)
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      const listbox = findListbox()
+      const options = findOptions(listbox)
+
+      // Pick the first non-placeholder option
+      for (const option of options) {
+        const text = (option.textContent || '').trim().toLowerCase()
+        if (text && !text.startsWith('--') && text !== 'select' && text !== 'choose') {
+          (option as HTMLElement).click()
+          matched = true
+          await new Promise(resolve => setTimeout(resolve, 100))
+          break
         }
       }
     }

@@ -8,7 +8,7 @@ allowed-tools: Bash(npm run build:prod:*), Bash(npm test:*), Bash(zip:*), Bash(g
 
 # Build & Package Extension
 
-Production build, test, zip packaging, and optional git push for the OneFillr Chrome extension.
+Production build, test, zip packaging, and optional git push for the 1Fillr Chrome extension.
 
 ## Steps
 
@@ -26,7 +26,7 @@ Production build, test, zip packaging, and optional git push for the OneFillr Ch
 
 3. **Package dist/ into zip** (excluding source maps):
    ```
-   cd dist && zip -r ../onefillr-extension.zip . -x "*.map"
+   cd dist && zip -r ../1fillr-extension.zip . -x "*.map"
    ```
 
 4. **Report** the zip file size and contents summary.
@@ -38,7 +38,7 @@ Production build, test, zip packaging, and optional git push for the OneFillr Ch
 
 ## Notes
 
-- The zip file is saved at the project root as `onefillr-extension.zip`
+- The zip file is saved at the project root as `1fillr-extension.zip`
 - Source maps (`*.map` files) are excluded from the zip to reduce size
 - Never include `node_modules/`, `.env`, or other sensitive files in the zip
 - The zip can be loaded directly in Chrome via `chrome://extensions` > "Load unpacked" (after unzipping)

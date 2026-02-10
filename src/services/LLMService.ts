@@ -149,20 +149,52 @@ Return JSON only:
   }
 
   private buildProfileCleaningPrompt(profile: LinkedInProfile): string {
+    // Build structured, clean text instead of dumping raw JSON
+    const workList = profile.workExperiences.length > 0
+      ? profile.workExperiences.map((w, i) =>
+        `${i + 1}. ${w.title} at ${w.company}${w.location ? ` (${w.location})` : ''}\n   ${w.startDate || '?'} - ${w.endDate || '?'}${w.current ? ' [current]' : ''}${w.description ? `\n   ${w.description.substring(0, 300)}` : ''}`
+      ).join('\n')
+      : '(none)'
+
+    const eduList = profile.educations.length > 0
+      ? profile.educations.map((e, i) =>
+        `${i + 1}. ${e.school}${e.degree ? ` — ${e.degree}` : ''}${e.field ? `, ${e.field}` : ''}\n   ${e.startDate || '?'} - ${e.endDate || '?'}${e.activities ? `\n   Activities: ${e.activities.substring(0, 200)}` : ''}`
+      ).join('\n')
+      : '(none)'
+
     return `Clean and normalize this LinkedIn profile data for use in job applications.
 
-Raw data:
-${JSON.stringify(profile, null, 2)}
+Profile data to clean:
+
+Name: ${profile.fullName}
+Headline: ${profile.headline || '(none)'}
+Location: ${profile.location || '(none)'}
+Email: ${profile.email || '(none)'}
+Phone: ${profile.phone || '(none)'}
+About: ${profile.about ? profile.about.substring(0, 500) : '(none)'}
+
+Work Experience:
+${workList}
+
+Education:
+${eduList}
+
+Skills: ${profile.skills.length > 0 ? profile.skills.join(', ') : '(none)'}
 
 Tasks:
 1. Standardize name format (First Last for Western, or proper Chinese name split)
-2. Normalize date formats to YYYY-MM (e.g., "Jul 2022" -> "2022-07")
+2. Normalize date formats to YYYY-MM (e.g., "Jul 2022" -> "2022-07", "2022年7月" -> "2022-07")
 3. Clean up degree names (e.g., "Bachelor's degree" -> "Bachelor's", "本科" -> "Bachelor's")
 4. Extract city from location if possible
-5. Standardize company/school names (remove extra text like "· Full-time")
+5. Standardize company/school names (remove extra text like "· Full-time", "· 全职")
 6. Fix any encoding issues or HTML artifacts
 7. Normalize phone to E.164 format if possible
 8. Make job titles consistent (capitalize properly)
+
+IMPORTANT:
+- Return null for any fields you are uncertain about. Do NOT guess or fabricate data.
+- If a field contains noise or UI artifacts (e.g., connection counts, button labels), return null for it.
+- Only include data that was clearly present in the input above.
 
 Return ONLY valid JSON in this exact format:
 {
@@ -391,9 +423,27 @@ Rules:
 5. For questions about salary, set confidence to 0 (let user decide).
 6. For "How did you hear about us" type questions, use "Online Search" or similar.
 7. For optional fields (not marked required) that are non-essential (e.g. "Preferred Name", "Nickname", "Middle Name"), set confidence to 0. Only fill optional fields when the user's profile has a clear matching value.
-8. For address fields (street, city, state, zip, country), use the user's stored address/location values exactly. Do NOT fabricate or guess address components.
-9. For location/city fields, extract the city name from the user's location profile value.
-10. For select/dropdown fields with many options (like country, state, degree), pick the option that is the closest semantic match to the user's profile data. For location dropdowns, match by city/state/country name.
+
+CRITICAL — Semantic relevance:
+8. ONLY use data that is semantically relevant to the field's label/category. Each field must be filled ONLY with data from the matching category:
+   - Pronoun/gender fields → ONLY use pronoun/gender data (he/him, she/her, they/them, etc.)
+   - Name fields → ONLY use name data
+   - Location/address fields → ONLY use location/address data
+   - Phone fields → ONLY use phone data
+   NEVER fill a field with data from an unrelated category. If no matching data exists, set confidence to 0.
+
+CRITICAL — Intelligent field decomposition:
+9. When a user's profile contains a COMPOSITE value (e.g. a full address, full name, or location string), you MUST decompose it into the appropriate sub-fields based on each field's label. NEVER copy the entire composite value into every sub-field.
+   Example: If the user's address is "A Street, City of London, England, United Kingdom" and the form has:
+     - "Address line 1" → fill with "A Street" (the street address only)
+     - "Address line 2" → ONLY fill if there's a flat/unit/apartment number. Otherwise leave empty (confidence: 0)
+     - "Town/City" → fill with "City of London"
+     - "County" → fill with "England"
+     - "Country" → fill with "United Kingdom"
+     - "Postcode" → leave empty (confidence: 0) because no postcode exists in the data
+10. For address/location fields, extract ONLY the relevant component. Never repeat the full address string.
+11. If you cannot confidently extract a specific sub-component (e.g. postcode from an address that doesn't contain one), set confidence to 0.
+12. For select/dropdown fields with many options (like country, state, degree), pick the option that is the closest semantic match to the user's profile data. For location dropdowns, match by city/state/country name.
 
 Return JSON array:
 [
@@ -447,8 +497,10 @@ Rules:
    - Do NOT give generic answers. Directly address what is being asked.
    - For behavioral questions, use the STAR method (Situation, Task, Action, Result) concisely.
 4. Use the user's profile and experience to personalize the answer.
-5. For address/location fields, use the user's stored location values exactly. Never fabricate addresses.
-6. For location dropdowns, pick the closest matching option to the user's city/state/country.
+5. CRITICAL — Semantic relevance: ONLY use data that matches the field's category. Pronoun fields → only pronoun data. Name fields → only name data. Location fields → only location data. NEVER fill a field with data from an unrelated category.
+6. CRITICAL: If a profile value is a composite string (e.g. full address "A Street, City of London, England, UK"), extract ONLY the relevant sub-component for this specific field. For "Town/City" extract just the city, for "Address line 1" extract just the street, for "Address line 2" only fill if there's a flat/unit number. NEVER copy the full composite value.
+7. If you cannot confidently extract the relevant sub-component or find matching data, set confidence to 0.
+8. For location dropdowns, pick the closest matching option to the user's city/state/country.
 
 Return JSON:
 { "value": "...", "confidence": 0.0-1.0 }`

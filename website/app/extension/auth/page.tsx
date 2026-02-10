@@ -112,7 +112,7 @@ function ExtensionAuthContent() {
         <div className="mb-8 text-center">
           <div className="inline-flex items-center gap-2 mb-4">
             <Zap className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold">OneFillr</span>
+            <span className="text-2xl font-bold">1Fillr</span>
           </div>
           <h1 className="text-xl font-semibold text-gray-900">连接扩展</h1>
           <p className="mt-2 text-sm text-gray-600">登录以同步您的积分</p>

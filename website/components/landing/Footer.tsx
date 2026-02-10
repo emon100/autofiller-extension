@@ -16,7 +16,7 @@ export default function Footer() {
           <div className="md:col-span-2">
             <div className="flex items-center gap-2">
               <Zap className="h-6 w-6 text-blue-600" />
-              <span className="text-lg font-bold">OneFillr</span>
+              <span className="text-lg font-bold">1Fillr</span>
             </div>
             <p className="mt-4 max-w-md text-gray-600">
               {t('hero.subtitle')}

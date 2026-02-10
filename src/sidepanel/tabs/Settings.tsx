@@ -6,7 +6,7 @@ import { launchLogin } from '@/utils/authLogin'
 import PrivacySection from '../components/PrivacySection'
 import { t } from '@/i18n'
 
-const WEBSITE_URL = 'https://www.onefil.help'
+const WEBSITE_URL = 'https://www.1fillr.co.uk'
 
 interface LLMConfig {
   enabled: boolean

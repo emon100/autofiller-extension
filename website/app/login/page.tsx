@@ -165,7 +165,7 @@ export default function LoginPage() {
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
             <Zap className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold">OneFillr</span>
+            <span className="text-2xl font-bold">1Fillr</span>
           </Link>
           <h1 className="mt-6 text-2xl font-semibold text-gray-900">
             {authMode === 'login' ? '欢迎回来' : '创建账户'}

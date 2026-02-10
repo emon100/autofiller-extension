@@ -87,7 +87,7 @@ export default function DashboardClient({
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2">
             <Zap className="h-8 w-8 text-blue-600" />
-            <span className="text-xl font-bold">OneFillr</span>
+            <span className="text-xl font-bold">1Fillr</span>
           </Link>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">{user.email}</span>

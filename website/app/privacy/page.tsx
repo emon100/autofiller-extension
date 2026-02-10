@@ -3,8 +3,8 @@ import { Zap, ArrowLeft } from 'lucide-react';
 import Footer from '@/components/landing/Footer';
 
 export const metadata = {
-  title: 'Privacy Policy | OneFillr',
-  description: 'Learn how OneFillr collects, uses, and protects your personal information.',
+  title: 'Privacy Policy | 1Fillr',
+  description: 'Learn how 1Fillr collects, uses, and protects your personal information.',
 };
 
 const THIRD_PARTY_SERVICES = [
@@ -49,7 +49,7 @@ export default function PrivacyPolicyPage() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 border-b">
         <Link href="/" className="flex items-center gap-2">
           <Zap className="h-8 w-8 text-blue-600" />
-          <span className="text-xl font-bold">OneFillr</span>
+          <span className="text-xl font-bold">1Fillr</span>
         </Link>
         <Link
           href="/"
@@ -68,7 +68,7 @@ export default function PrivacyPolicyPage() {
         <div className="prose prose-gray max-w-none">
           <h2>Introduction</h2>
           <p>
-            OneFillr ("we", "our", or "us") is committed to protecting your privacy. This Privacy
+            1Fillr ("we", "our", or "us") is committed to protecting your privacy. This Privacy
             Policy explains how we collect, use, disclose, and safeguard your information when you
             use our Chrome extension and website (collectively, the "Service").
           </p>
@@ -87,7 +87,7 @@ export default function PrivacyPolicyPage() {
               email address and any profile information you choose to provide.
             </li>
             <li>
-              <strong>Form Data:</strong> The OneFillr extension stores information you enter
+              <strong>Form Data:</strong> The 1Fillr extension stores information you enter
               into job application forms (such as your name, email, phone number, education,
               and work experience) locally on your device to enable auto-filling functionality.
             </li>
@@ -120,7 +120,7 @@ export default function PrivacyPolicyPage() {
 
           <h3>Data Stored Locally</h3>
           <p>
-            <strong>Important:</strong> The OneFillr Chrome extension stores your form data
+            <strong>Important:</strong> The 1Fillr Chrome extension stores your form data
             (personal information for job applications) locally on your device using Chrome's
             storage API. This data is:
           </p>
@@ -200,7 +200,7 @@ export default function PrivacyPolicyPage() {
 
           <h2>AI-Powered Features</h2>
           <p>
-            OneFillr uses artificial intelligence to enhance form field recognition and profile data
+            1Fillr uses artificial intelligence to enhance form field recognition and profile data
             processing. When you use AI-powered features, the following applies:
           </p>
 
@@ -311,8 +311,8 @@ export default function PrivacyPolicyPage() {
 
           <p>
             To exercise any of these rights, please contact us at{' '}
-            <a href="mailto:privacy@onefil.help" className="text-blue-600 hover:underline">
-              privacy@onefil.help
+            <a href="mailto:privacy@1fillr.co.uk" className="text-blue-600 hover:underline">
+              privacy@1fillr.co.uk
             </a>
             .
           </p>
@@ -373,14 +373,14 @@ export default function PrivacyPolicyPage() {
           <ul>
             <li>
               <strong>Email:</strong>{' '}
-              <a href="mailto:privacy@onefil.help" className="text-blue-600 hover:underline">
-                privacy@onefil.help
+              <a href="mailto:privacy@1fillr.co.uk" className="text-blue-600 hover:underline">
+                privacy@1fillr.co.uk
               </a>
             </li>
             <li>
               <strong>Data Protection Officer:</strong>{' '}
-              <a href="mailto:dpo@onefil.help" className="text-blue-600 hover:underline">
-                dpo@onefil.help
+              <a href="mailto:dpo@1fillr.co.uk" className="text-blue-600 hover:underline">
+                dpo@1fillr.co.uk
               </a>
             </li>
           </ul>

@@ -1112,6 +1112,10 @@ export const messages = {
     en: 'Delete this profile and all its data?',
     zh: '删除此 Profile 及其所有数据？',
   },
+  'profile.duplicateName': {
+    en: 'A profile with this name already exists',
+    zh: '已存在同名的 Profile',
+  },
 
   // AI SuperFill
   'aiFill.superFill': {

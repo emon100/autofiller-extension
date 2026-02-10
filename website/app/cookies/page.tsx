@@ -3,8 +3,8 @@ import { Zap, ArrowLeft } from 'lucide-react';
 import Footer from '@/components/landing/Footer';
 
 export const metadata = {
-  title: 'Cookie Policy | OneFillr',
-  description: 'Learn about how OneFillr uses cookies and similar technologies.',
+  title: 'Cookie Policy | 1Fillr',
+  description: 'Learn about how 1Fillr uses cookies and similar technologies.',
 };
 
 export default function CookiePolicyPage() {
@@ -14,7 +14,7 @@ export default function CookiePolicyPage() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 border-b">
         <Link href="/" className="flex items-center gap-2">
           <Zap className="h-8 w-8 text-blue-600" />
-          <span className="text-xl font-bold">OneFillr</span>
+          <span className="text-xl font-bold">1Fillr</span>
         </Link>
         <Link
           href="/"
@@ -41,7 +41,7 @@ export default function CookiePolicyPage() {
 
           <h2>How We Use Cookies</h2>
           <p>
-            OneFillr uses cookies and similar technologies for the following purposes:
+            1Fillr uses cookies and similar technologies for the following purposes:
           </p>
 
           <h3>Strictly Necessary Cookies</h3>
@@ -176,7 +176,7 @@ export default function CookiePolicyPage() {
             contact us at:
           </p>
           <ul>
-            <li>Email: privacy@onefil.help</li>
+            <li>Email: privacy@1fillr.co.uk</li>
           </ul>
 
           <h2>Related Policies</h2>

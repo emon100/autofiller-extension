@@ -105,13 +105,13 @@ export default function ExtensionConnectPage() {
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
             <Zap className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold">OneFillr</span>
+            <span className="text-2xl font-bold">1Fillr</span>
           </Link>
           <h1 className="mt-6 text-2xl font-semibold text-gray-900">
             Connect Extension
           </h1>
           <p className="mt-2 text-gray-600">
-            Link your OneFillr extension to your account
+            Link your 1Fillr extension to your account
           </p>
         </div>
 
@@ -189,7 +189,7 @@ export default function ExtensionConnectPage() {
               </button>
 
               <p className="text-xs text-center text-gray-500">
-                After copying, go to your OneFillr extension, click Settings, and paste the token
+                After copying, go to your 1Fillr extension, click Settings, and paste the token
               </p>
             </div>
           )}
@@ -223,7 +223,7 @@ export default function ExtensionConnectPage() {
 
         <p className="mt-6 text-center text-sm text-gray-500">
           Need help?{' '}
-          <a href="mailto:support@onefil.help" className="text-blue-600 hover:underline">
+          <a href="mailto:support@1fillr.co.uk" className="text-blue-600 hover:underline">
             Contact support
           </a>
         </p>

@@ -75,7 +75,7 @@ export default function PricingPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2">
             <Zap className="h-8 w-8 text-blue-600" />
-            <span className="text-xl font-bold">OneFillr</span>
+            <span className="text-xl font-bold">1Fillr</span>
           </Link>
           <Link href="/" className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
             <ArrowLeft className="h-4 w-4" />
@@ -157,7 +157,7 @@ export default function PricingPage() {
         <div className="mt-16 text-center">
           <p className="text-gray-600">
             Have questions? <Link href="/#faq" className="text-blue-600 hover:underline">Check our FAQ</Link> or{' '}
-            <a href="mailto:support@onefil.help" className="text-blue-600 hover:underline">contact us</a>
+            <a href="mailto:support@1fillr.co.uk" className="text-blue-600 hover:underline">contact us</a>
           </p>
         </div>
       </main>

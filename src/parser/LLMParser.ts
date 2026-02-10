@@ -4,7 +4,7 @@ import { parseJSONSafe } from '@/utils/jsonRepair'
 import { storage, isExtensionContextValid } from '@/storage'
 import { backgroundFetch } from '@/utils/backgroundFetch'
 
-const API_BASE_URL = 'https://www.onefil.help/api'
+const API_BASE_URL = 'https://www.1fillr.co.uk/api'
 
 interface LLMConfig {
   enabled: boolean

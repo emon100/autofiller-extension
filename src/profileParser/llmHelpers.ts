@@ -2,7 +2,7 @@
 
 import { backgroundFetch } from '@/utils/backgroundFetch'
 
-const API_BASE_URL = 'https://www.onefil.help/api'
+const API_BASE_URL = 'https://www.1fillr.co.uk/api'
 
 export interface LLMConfig {
   enabled: boolean

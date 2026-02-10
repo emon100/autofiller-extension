@@ -56,7 +56,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const parser = new LinkedInParser()
         const profile = parser.parse(document)
         const parsedProfile = await parser.toParsedProfile(profile, useLLMCleaning)
-        sendResponse({ success: true, profile: parsedProfile })
+
+        // Include showAllLinks info so sidepanel can orchestrate multi-page parsing
+        sendResponse({
+          success: true,
+          profile: parsedProfile,
+          showAllLinks: profile.showAllLinks,
+          experienceCount: profile.workExperiences.length,
+          educationCount: profile.educations.length,
+        })
       } catch (err) {
         console.error('[AutoFiller] LinkedIn parse error:', err)
         sendResponse({ success: false, error: err instanceof Error ? err.message : String(err) })
@@ -65,6 +73,45 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       console.error('[AutoFiller] LinkedIn import error:', err)
       sendResponse({ success: false, error: String(err) })
     })
+    return true
+  }
+
+  // Parse a LinkedIn detail page (/details/experience or /details/education)
+  if (message.action === 'parseLinkedInDetailPage') {
+    const type = message.detailType as 'experience' | 'education'
+    import('@/profileParser/LinkedInParser').then(async ({ LinkedInParser }) => {
+      try {
+        const parser = new LinkedInParser()
+        const entries = parser.parseDetailPage(document, type)
+        console.log(`[AutoFiller] Parsed ${entries.length} ${type} entries from detail page`)
+        sendResponse({ success: true, entries, type })
+      } catch (err) {
+        console.error('[AutoFiller] Detail page parse error:', err)
+        sendResponse({ success: false, error: err instanceof Error ? err.message : String(err) })
+      }
+    }).catch(err => {
+      sendResponse({ success: false, error: String(err) })
+    })
+    return true
+  }
+
+  // Navigate to a URL and wait for page load (used for multi-page LinkedIn parsing)
+  if (message.action === 'navigateForLinkedInDetails') {
+    const targetUrl = message.url as string
+    if (!targetUrl) {
+      sendResponse({ success: false, error: 'No URL provided' })
+      return true
+    }
+
+    try {
+      // Navigate to the target page
+      window.location.href = targetUrl
+      // The content script will reload on the new page
+      // The sidepanel will handle the continuation via polling
+      sendResponse({ success: true, navigating: true })
+    } catch (err) {
+      sendResponse({ success: false, error: String(err) })
+    }
     return true
   }
 
@@ -127,7 +174,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       return true
 
     case 'getStatus':
-      sendResponse({ 
+      sendResponse({
         success: true,
         recording: true,
         autofill: true,

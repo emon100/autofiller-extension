@@ -41,8 +41,8 @@ function findOverlaps(experiences: ExperienceEntry[]): Map<string, string> {
       const bEnd = parseDate(b.endDate) ?? bStart
       if (bStart === null) continue
 
-      // Overlap if one starts before the other ends
-      if (aStart <= bEnd! && bStart <= aEnd!) {
+      // Overlap only if one truly starts before the other ends (adjacent dates are OK)
+      if (aStart < bEnd! && bStart < aEnd!) {
         const isWork = a.groupType === 'WORK'
         const aName = isWork ? (a.fields.JOB_TITLE || a.fields.COMPANY_NAME || `#${i + 1}`) : (a.fields.SCHOOL || `#${i + 1}`)
         const bName = isWork ? (b.fields.JOB_TITLE || b.fields.COMPANY_NAME || `#${j + 1}`) : (b.fields.SCHOOL || `#${j + 1}`)
@@ -196,7 +196,7 @@ function ProfileCompleteness({ answers, onSelectAnswer, onEditAnswer }: ProfileC
                                 className="flex-1 min-w-0 px-1.5 py-0.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                                 autoFocus
                                 onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && onEditAnswer) {
+                                  if (e.key === 'Enter' && !e.nativeEvent.isComposing && onEditAnswer) {
                                     onEditAnswer(answer.id, editValue)
                                     setEditingId(null)
                                   }
@@ -274,6 +274,7 @@ export default function SavedAnswers() {
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [newProfileName, setNewProfileName] = useState('')
   const [creatingProfile, setCreatingProfile] = useState(false)
+  const [profileError, setProfileError] = useState('')
   const [showImport, setShowImport] = useState(false)
 
   useEffect(() => {
@@ -315,6 +316,10 @@ export default function SavedAnswers() {
   }
 
   async function handleSwitchProfile(profileId: string) {
+    if (profileId === activeProfileId) {
+      setShowProfileMenu(false)
+      return
+    }
     await profileStorage.setActiveId(profileId)
     setActiveProfileId(profileId)
     setShowProfileMenu(false)
@@ -322,8 +327,15 @@ export default function SavedAnswers() {
   }
 
   async function handleCreateProfile() {
-    if (!newProfileName.trim()) return
-    const profile = await profileStorage.create(newProfileName.trim())
+    const trimmedName = newProfileName.trim()
+    if (!trimmedName) return
+    // Prevent duplicate profile names (case-insensitive)
+    if (profiles.some(p => p.name.toLowerCase() === trimmedName.toLowerCase())) {
+      setProfileError(t('profile.duplicateName'))
+      return
+    }
+    setProfileError('')
+    const profile = await profileStorage.create(trimmedName)
     setProfiles(prev => [...prev, profile])
     setNewProfileName('')
     setCreatingProfile(false)
@@ -543,22 +555,25 @@ export default function SavedAnswers() {
                   <input
                     type="text"
                     value={newProfileName}
-                    onChange={(e) => setNewProfileName(e.target.value)}
+                    onChange={(e) => { setNewProfileName(e.target.value); setProfileError('') }}
                     placeholder={t('profile.newName')}
-                    className="flex-1 min-w-0 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                    className={`flex-1 min-w-0 px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent ${profileError ? 'border-red-400' : 'border-gray-300'}`}
                     autoFocus
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleCreateProfile()
-                      if (e.key === 'Escape') { setCreatingProfile(false); setNewProfileName('') }
+                      if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleCreateProfile()
+                      if (e.key === 'Escape') { setCreatingProfile(false); setNewProfileName(''); setProfileError('') }
                     }}
                   />
                   <button onClick={handleCreateProfile} className="p-1 text-green-600 hover:bg-green-100 rounded">
                     <Check className="w-4 h-4" />
                   </button>
-                  <button onClick={() => { setCreatingProfile(false); setNewProfileName('') }} className="p-1 text-gray-500 hover:bg-gray-100 rounded">
+                  <button onClick={() => { setCreatingProfile(false); setNewProfileName(''); setProfileError('') }} className="p-1 text-gray-500 hover:bg-gray-100 rounded">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
+                {profileError && (
+                  <p className="text-xs text-red-500 mt-1 px-0.5">{profileError}</p>
+                )}
               </div>
             ) : (
               <button
@@ -793,7 +808,7 @@ function AnswerItem({ answer, isSensitive, isEditing, duplicateColorIndex, onTog
               }
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault()
                 onSaveEdit(editValue)
               }

@@ -3,8 +3,8 @@ import { Zap, ArrowLeft } from 'lucide-react';
 import Footer from '@/components/landing/Footer';
 
 export const metadata = {
-  title: 'Terms of Service | OneFillr',
-  description: 'Read the terms and conditions for using OneFillr services.',
+  title: 'Terms of Service | 1Fillr',
+  description: 'Read the terms and conditions for using 1Fillr services.',
 };
 
 export default function TermsOfServicePage() {
@@ -14,7 +14,7 @@ export default function TermsOfServicePage() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 border-b">
         <Link href="/" className="flex items-center gap-2">
           <Zap className="h-8 w-8 text-blue-600" />
-          <span className="text-xl font-bold">OneFillr</span>
+          <span className="text-xl font-bold">1Fillr</span>
         </Link>
         <Link
           href="/"
@@ -33,19 +33,19 @@ export default function TermsOfServicePage() {
         <div className="prose prose-gray max-w-none">
           <h2>1. Agreement to Terms</h2>
           <p>
-            By accessing or using OneFillr's services, including our Chrome extension and website
+            By accessing or using 1Fillr's services, including our Chrome extension and website
             (collectively, the "Service"), you agree to be bound by these Terms of Service
             ("Terms"). If you do not agree to these Terms, please do not use the Service.
           </p>
           <p>
-            These Terms constitute a legally binding agreement between you and OneFillr ("we",
+            These Terms constitute a legally binding agreement between you and 1Fillr ("we",
             "our", or "us"). We may update these Terms from time to time, and your continued use
             of the Service constitutes acceptance of any changes.
           </p>
 
           <h2>2. Description of Service</h2>
           <p>
-            OneFillr is a Chrome browser extension and related services that help users
+            1Fillr is a Chrome browser extension and related services that help users
             automatically fill job application forms. The Service includes:
           </p>
           <ul>
@@ -83,7 +83,7 @@ export default function TermsOfServicePage() {
 
           <h3>5.1 Merchant of Record</h3>
           <p>
-            All payments for OneFillr are processed by our Merchant of Record,{' '}
+            All payments for 1Fillr are processed by our Merchant of Record,{' '}
             <a
               href="https://www.paddle.com"
               className="text-blue-600 hover:underline"
@@ -93,7 +93,7 @@ export default function TermsOfServicePage() {
               Paddle.com
             </a>
             , who acts as the authorised reseller of our products. When you make a purchase,
-            you are purchasing from Paddle, and the product is licensed to you by OneFillr.
+            you are purchasing from Paddle, and the product is licensed to you by 1Fillr.
             By placing an order, you agree to{' '}
             <a
               href="https://www.paddle.com/legal/invoiced-consumer-terms"
@@ -126,7 +126,7 @@ export default function TermsOfServicePage() {
           </p>
           <p>
             When providing payment information, you must ensure that it is up-to-date and
-            accurate. OneFillr and Paddle will not be responsible for non-receipt of the
+            accurate. 1Fillr and Paddle will not be responsible for non-receipt of the
             product due to incorrect information provided by you.
           </p>
 
@@ -257,7 +257,7 @@ export default function TermsOfServicePage() {
 
           <h3>8.1 Our Intellectual Property</h3>
           <p>
-            The Service, including its design, features, code, and content, is owned by OneFillr
+            The Service, including its design, features, code, and content, is owned by 1Fillr
             and protected by intellectual property laws. You may not copy, modify, or distribute
             any part of the Service without our written permission.
           </p>
@@ -293,7 +293,7 @@ export default function TermsOfServicePage() {
 
           <h3>10.2 No Employment Guarantee</h3>
           <p>
-            OneFillr is a tool to assist with job applications. We do not guarantee that using
+            1Fillr is a tool to assist with job applications. We do not guarantee that using
             our Service will result in job interviews, offers, or employment.
           </p>
 
@@ -306,7 +306,7 @@ export default function TermsOfServicePage() {
 
           <h2>11. Limitation of Liability</h2>
           <p>
-            TO THE MAXIMUM EXTENT PERMITTED BY LAW, ONEFILLR SHALL NOT BE LIABLE FOR:
+            TO THE MAXIMUM EXTENT PERMITTED BY LAW, 1FILLR SHALL NOT BE LIABLE FOR:
           </p>
           <ul>
             <li>Any indirect, incidental, special, consequential, or punitive damages</li>
@@ -321,7 +321,7 @@ export default function TermsOfServicePage() {
 
           <h2>12. Indemnification</h2>
           <p>
-            You agree to indemnify and hold harmless OneFillr and its officers, directors,
+            You agree to indemnify and hold harmless 1Fillr and its officers, directors,
             employees, and agents from any claims, damages, losses, or expenses (including legal
             fees) arising from:
           </p>
@@ -364,22 +364,22 @@ export default function TermsOfServicePage() {
           <h3>14.1 Informal Resolution</h3>
           <p>
             Before filing a formal dispute, you agree to contact us at{' '}
-            <a href="mailto:legal@onefil.help" className="text-blue-600 hover:underline">
-              legal@onefil.help
+            <a href="mailto:legal@1fillr.co.uk" className="text-blue-600 hover:underline">
+              legal@1fillr.co.uk
             </a>{' '}
             to attempt to resolve the dispute informally.
           </p>
 
           <h3>14.2 Governing Law</h3>
           <p>
-            These Terms are governed by the laws of the jurisdiction where OneFillr is
+            These Terms are governed by the laws of the jurisdiction where 1Fillr is
             incorporated, without regard to conflict of law principles.
           </p>
 
           <h3>14.3 Jurisdiction</h3>
           <p>
             Any disputes arising from these Terms or the Service shall be resolved in the courts
-            of the jurisdiction where OneFillr is incorporated, unless otherwise required by
+            of the jurisdiction where 1Fillr is incorporated, unless otherwise required by
             applicable consumer protection laws.
           </p>
 
@@ -388,7 +388,7 @@ export default function TermsOfServicePage() {
           <h3>15.1 Entire Agreement</h3>
           <p>
             These Terms, together with our Privacy Policy and Cookie Policy, constitute the entire
-            agreement between you and OneFillr regarding the Service.
+            agreement between you and 1Fillr regarding the Service.
           </p>
 
           <h3>15.2 Severability</h3>
@@ -434,20 +434,20 @@ export default function TermsOfServicePage() {
           <ul>
             <li>
               <strong>General Inquiries:</strong>{' '}
-              <a href="mailto:support@onefil.help" className="text-blue-600 hover:underline">
-                support@onefil.help
+              <a href="mailto:support@1fillr.co.uk" className="text-blue-600 hover:underline">
+                support@1fillr.co.uk
               </a>
             </li>
             <li>
               <strong>Legal Matters:</strong>{' '}
-              <a href="mailto:legal@onefil.help" className="text-blue-600 hover:underline">
-                legal@onefil.help
+              <a href="mailto:legal@1fillr.co.uk" className="text-blue-600 hover:underline">
+                legal@1fillr.co.uk
               </a>
             </li>
             <li>
               <strong>Privacy Concerns:</strong>{' '}
-              <a href="mailto:privacy@onefil.help" className="text-blue-600 hover:underline">
-                privacy@onefil.help
+              <a href="mailto:privacy@1fillr.co.uk" className="text-blue-600 hover:underline">
+                privacy@1fillr.co.uk
               </a>
             </li>
           </ul>

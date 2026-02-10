@@ -28,6 +28,19 @@ export class LinkedInParser {
   }
 
   /**
+   * Check if current page is a LinkedIn detail page (experience/education)
+   */
+  static isLinkedInDetailPage(url: string = window.location.href): { type: 'experience' | 'education' } | null {
+    if (/linkedin\.com\/in\/[^/]+\/details\/experience/.test(url)) {
+      return { type: 'experience' }
+    }
+    if (/linkedin\.com\/in\/[^/]+\/details\/education/.test(url)) {
+      return { type: 'education' }
+    }
+    return null
+  }
+
+  /**
    * Check if this is the user's own profile (has edit buttons)
    */
   static isOwnProfile(root: Document | Element = document): boolean {
@@ -57,7 +70,80 @@ export class LinkedInParser {
     if (contactInfo.email) profile.email = contactInfo.email
     if (contactInfo.phone) profile.phone = contactInfo.phone
 
+    // Detect if there are "Show all" links for more entries
+    profile.showAllLinks = this.detectShowAllLinks(root)
+
     return profile
+  }
+
+  /**
+   * Detect "Show all" links for experience and education sections
+   * These link to /details/experience and /details/education pages with complete entries
+   */
+  detectShowAllLinks(root: Document | Element = document): { experience?: string; education?: string } {
+    const links: { experience?: string; education?: string } = {}
+
+    // Find all footer links ("显示全部" / "Show all" buttons)
+    const footerLinks = root.querySelectorAll('.pvs-list__footer-wrapper a[href], a[id*="navigation-index-see-all"], a[id*="navigation-index-edit-position"], a[id*="navigation-index-edit-education"]')
+    footerLinks.forEach(link => {
+      const href = (link as HTMLAnchorElement).href || link.getAttribute('href') || ''
+      if (href.includes('/details/experience')) {
+        links.experience = href
+      } else if (href.includes('/details/education')) {
+        links.education = href
+      }
+    })
+
+    return links
+  }
+
+  /**
+   * Parse the /details/experience or /details/education page
+   * These pages contain the full list of entries
+   */
+  parseDetailPage(root: Document | Element = document, type: 'experience' | 'education'): LinkedInWorkExperience[] | LinkedInEducation[] {
+    if (type === 'experience') {
+      return this.parseDetailExperiences(root)
+    } else {
+      return this.parseDetailEducations(root)
+    }
+  }
+
+  /**
+   * Parse work experiences from the /details/experience page
+   */
+  private parseDetailExperiences(root: Document | Element): LinkedInWorkExperience[] {
+    const experiences: LinkedInWorkExperience[] = []
+
+    // On detail pages, the main content is in a pvs-list container
+    const items = root.querySelectorAll('main [data-view-name="profile-component-entity"], .pvs-list__container [data-view-name="profile-component-entity"]')
+
+    items.forEach(item => {
+      const exp = this.parseWorkExperienceItem(item)
+      if (exp) {
+        experiences.push(exp)
+      }
+    })
+
+    return experiences
+  }
+
+  /**
+   * Parse education entries from the /details/education page
+   */
+  private parseDetailEducations(root: Document | Element): LinkedInEducation[] {
+    const educations: LinkedInEducation[] = []
+
+    const items = root.querySelectorAll('main [data-view-name="profile-component-entity"], .pvs-list__container [data-view-name="profile-component-entity"]')
+
+    items.forEach(item => {
+      const edu = this.parseEducationItem(item)
+      if (edu) {
+        educations.push(edu)
+      }
+    })
+
+    return educations
   }
 
   /**
@@ -234,7 +320,11 @@ export class LinkedInParser {
     for (const selector of selectors) {
       const el = root.querySelector(selector)
       if (el?.textContent) {
-        return this.cleanText(el.textContent)
+        const text = this.cleanText(el.textContent)
+        // Validate: headline should be meaningful text, not UI noise
+        if (text && this.isValidProfileValue(text) && text.length > 1) {
+          return text
+        }
       }
     }
 
@@ -251,8 +341,8 @@ export class LinkedInParser {
       const elements = root.querySelectorAll(selector)
       for (const el of elements) {
         const text = this.cleanText(el.textContent || '')
-        // Location typically contains city/country, not "connections" or "followers"
-        if (text && !text.includes('关注') && !text.includes('connection') && !text.includes('follower')) {
+        // Strong validation: location must look like a real place, not UI noise
+        if (text && this.isValidLocationValue(text)) {
           return text
         }
       }
@@ -278,11 +368,11 @@ export class LinkedInParser {
   private extractAbout(root: Document | Element): string {
     // About section
     const aboutSection = root.querySelector('#about')?.closest('section') ||
-                         root.querySelector('[id*="about"]')?.parentElement
+      root.querySelector('[id*="about"]')?.parentElement
 
     if (aboutSection) {
       const content = aboutSection.querySelector('.pv-shared-text-with-see-more span[aria-hidden="true"]') ||
-                      aboutSection.querySelector('.inline-show-more-text span[aria-hidden="true"]')
+        aboutSection.querySelector('.inline-show-more-text span[aria-hidden="true"]')
       if (content?.textContent) {
         return this.cleanText(content.textContent)
       }
@@ -320,7 +410,7 @@ export class LinkedInParser {
 
     // Find experience section
     const experienceSection = root.querySelector('#experience')?.closest('section') ||
-                              root.querySelector('[id="experience"]')?.parentElement?.parentElement
+      root.querySelector('[id="experience"]')?.parentElement?.parentElement
 
     if (!experienceSection) {
       return experiences
@@ -342,7 +432,7 @@ export class LinkedInParser {
   private parseWorkExperienceItem(item: Element): LinkedInWorkExperience | null {
     // Extract job title - look for the bold/title text
     const titleEl = item.querySelector('.t-bold span[aria-hidden="true"]') ||
-                    item.querySelector('.hoverable-link-text span[aria-hidden="true"]')
+      item.querySelector('.hoverable-link-text span[aria-hidden="true"]')
     const title = titleEl ? this.cleanText(titleEl.textContent || '') : ''
 
     if (!title) return null
@@ -395,7 +485,7 @@ export class LinkedInParser {
 
     // Find education section
     const educationSection = root.querySelector('#education')?.closest('section') ||
-                             root.querySelector('[id="education"]')?.parentElement?.parentElement
+      root.querySelector('[id="education"]')?.parentElement?.parentElement
 
     if (!educationSection) {
       return educations
@@ -417,7 +507,7 @@ export class LinkedInParser {
   private parseEducationItem(item: Element): LinkedInEducation | null {
     // Extract school name
     const schoolEl = item.querySelector('.t-bold span[aria-hidden="true"]') ||
-                     item.querySelector('.hoverable-link-text span[aria-hidden="true"]')
+      item.querySelector('.hoverable-link-text span[aria-hidden="true"]')
     const school = schoolEl ? this.cleanText(schoolEl.textContent || '') : ''
 
     if (!school) return null
@@ -437,7 +527,7 @@ export class LinkedInParser {
 
     // Extract date range
     const dateEl = item.querySelector('.t-black--light .pvs-entity__caption-wrapper[aria-hidden="true"]') ||
-                   item.querySelector('.t-14.t-normal.t-black--light span[aria-hidden="true"]')
+      item.querySelector('.t-14.t-normal.t-black--light span[aria-hidden="true"]')
     let startDate: string | undefined
     let endDate: string | undefined
 
@@ -462,7 +552,7 @@ export class LinkedInParser {
 
     // Find skills section
     const skillsSection = root.querySelector('#skills')?.closest('section') ||
-                          root.querySelector('[id="skills"]')?.parentElement?.parentElement
+      root.querySelector('[id="skills"]')?.parentElement?.parentElement
 
     if (!skillsSection) {
       return skills
@@ -473,7 +563,7 @@ export class LinkedInParser {
 
     skillItems.forEach(item => {
       const skillEl = item.querySelector('.t-bold span[aria-hidden="true"]') ||
-                      item.querySelector('.hoverable-link-text span[aria-hidden="true"]')
+        item.querySelector('.hoverable-link-text span[aria-hidden="true"]')
       if (skillEl?.textContent) {
         const skill = this.cleanText(skillEl.textContent)
         if (skill && !skills.includes(skill)) {
@@ -645,8 +735,109 @@ export class LinkedInParser {
   private cleanText(text: string): string {
     return text
       .replace(/<!---->/g, '')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '') // Zero-width chars
       .replace(/\s+/g, ' ')
       .trim()
+  }
+
+  /**
+   * Validate that a text value is a meaningful profile field, not LinkedIn UI noise.
+   * Filters out connection degree badges, follower counts, buttons, etc.
+   */
+  private isValidProfileValue(text: string): boolean {
+    if (!text || text.length === 0) return false
+
+    // Reject connection degree patterns ("1 度人脉 1 度", "1st", "2nd", "3rd")
+    if (/\d+\s*度\s*人脉/.test(text)) return false
+    if (/^\s*(1st|2nd|3rd|\d+度)\s*$/i.test(text)) return false
+
+    // Reject follower/connection count patterns
+    if (/\d+\+?\s*(connections?|followers?|following|位关注|位联系人|人脉)/i.test(text)) return false
+    if (/关注者?|联系人/i.test(text) && /\d+/.test(text)) return false
+
+    // Reject pure UI labels
+    if (/^(LOCATION|HEADLINE|ABOUT|SKILLS|EXPERIENCE|EDUCATION)$/i.test(text)) return false
+
+    // Reject navigation/button text
+    if (/^(显示全部|显示更多|Show all|Show more|See all|See more|查看|编辑|添加)$/i.test(text)) return false
+
+    // Reject if text is just a number or very short nonsense
+    if (/^\d+\s*$/.test(text)) return false
+
+    return true
+  }
+
+  /**
+   * Stronger validation specifically for location values.
+   * Locations should look like real places, not connection/follower info.
+   */
+  private isValidLocationValue(text: string): boolean {
+    if (!this.isValidProfileValue(text)) return false
+
+    // Reject connection/follower noise that might slip through
+    if (/关注|connection|follower|following|人脉|联系人/i.test(text)) return false
+    if (/度.*人脉|人脉.*度/i.test(text)) return false
+
+    // Reject text that's mostly numbers (e.g., "21" from connection count)
+    if (/^\d+[\s,]*$/.test(text)) return false
+
+    // Reject obvious non-location patterns
+    if (/^(动态|数据分析|档案浏览|搜索显示|Activity|Analytics)/i.test(text)) return false
+
+    // Must have at least 2 characters to be a valid location
+    if (text.length < 2) return false
+
+    return true
+  }
+
+  /**
+   * Extract clean, structured text from a LinkedIn section.
+   * Only uses aria-hidden="true" spans (visible text) and skips UI elements.
+   */
+  extractCleanSectionText(section: Element): string {
+    const textParts: string[] = []
+
+    // Skip these elements entirely
+    const skipSelectors = [
+      '.visually-hidden',
+      '.artdeco-button',
+      '.pvs-navigation__text',
+      '[role="button"]',
+      '.artdeco-dropdown',
+      '.pvs-list__footer-wrapper',
+    ]
+
+    const walker = document.createTreeWalker(
+      section,
+      NodeFilter.SHOW_ELEMENT,
+      {
+        acceptNode(node: Element): number {
+          // Skip hidden and UI elements
+          for (const sel of skipSelectors) {
+            if (node.matches?.(sel) || node.closest?.(sel)) {
+              return NodeFilter.FILTER_REJECT
+            }
+          }
+          return NodeFilter.FILTER_ACCEPT
+        },
+      }
+    )
+
+    let node: Element | null = walker.currentNode as Element
+    while (node) {
+      // Prefer aria-hidden="true" spans (visible text, avoids screen-reader dups)
+      if (node.getAttribute?.('aria-hidden') === 'true' &&
+        node.tagName === 'SPAN' &&
+        node.textContent) {
+        const text = this.cleanText(node.textContent)
+        if (text && this.isValidProfileValue(text)) {
+          textParts.push(text)
+        }
+      }
+      node = walker.nextNode() as Element | null
+    }
+
+    return textParts.join('\n')
   }
 }
 
