@@ -7,6 +7,22 @@ export const metadata = {
   description: 'Learn about how 1Fillr uses cookies and similar technologies.',
 };
 
+const TOC_ITEMS = [
+  { id: 'what-are-cookies', label: 'What Are Cookies' },
+  { id: 'how-we-use', label: 'How We Use Cookies' },
+  { id: 'third-party', label: 'Third-Party Cookies' },
+  { id: 'managing', label: 'Managing Your Cookie Preferences' },
+  { id: 'gdpr', label: 'Your Rights Under GDPR' },
+  { id: 'changes', label: 'Changes to This Policy' },
+  { id: 'contact', label: 'Contact Us' },
+];
+
+const THIRD_PARTY_COOKIES = [
+  { provider: 'Supabase', purpose: 'Authentication', category: 'Necessary' },
+  { provider: 'Paddle', purpose: 'Payment processing', category: 'Necessary' },
+  { provider: 'Google Analytics', purpose: 'Website analytics', category: 'Analytics' },
+];
+
 export default function CookiePolicyPage() {
   return (
     <main className="min-h-screen bg-white">
@@ -30,8 +46,20 @@ export default function CookiePolicyPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Cookie Policy</h1>
         <p className="text-gray-500 mb-8">Last updated: February 4, 2025</p>
 
-        <div className="prose prose-gray max-w-none">
-          <h2>What Are Cookies</h2>
+        {/* Table of Contents */}
+        <div className="legal-toc">
+          <p className="legal-toc-title">Table of Contents</p>
+          <nav className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+            {TOC_ITEMS.map((item) => (
+              <a key={item.id} href={`#${item.id}`}>
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        </div>
+
+        <div className="legal-prose">
+          <h2 id="what-are-cookies">What Are Cookies</h2>
           <p>
             Cookies are small text files that are stored on your device (computer, tablet, or mobile)
             when you visit a website. They are widely used to make websites work more efficiently,
@@ -39,7 +67,7 @@ export default function CookiePolicyPage() {
             use their site.
           </p>
 
-          <h2>How We Use Cookies</h2>
+          <h2 id="how-we-use">How We Use Cookies</h2>
           <p>
             1Fillr uses cookies and similar technologies for the following purposes:
           </p>
@@ -97,38 +125,30 @@ export default function CookiePolicyPage() {
             <li>Enabling social media sharing features</li>
           </ul>
 
-          <h2>Third-Party Cookies</h2>
+          <h2 id="third-party">Third-Party Cookies</h2>
           <p>
             Some cookies on our website are set by third-party services. These include:
           </p>
-          <table className="w-full text-sm">
+          <table>
             <thead>
-              <tr className="border-b">
-                <th className="text-left py-2">Provider</th>
-                <th className="text-left py-2">Purpose</th>
-                <th className="text-left py-2">Category</th>
+              <tr>
+                <th>Provider</th>
+                <th>Purpose</th>
+                <th>Category</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b">
-                <td className="py-2">Supabase</td>
-                <td className="py-2">Authentication</td>
-                <td className="py-2">Necessary</td>
-              </tr>
-              <tr className="border-b">
-                <td className="py-2">Paddle</td>
-                <td className="py-2">Payment processing</td>
-                <td className="py-2">Necessary</td>
-              </tr>
-              <tr className="border-b">
-                <td className="py-2">Google Analytics</td>
-                <td className="py-2">Website analytics</td>
-                <td className="py-2">Analytics</td>
-              </tr>
+              {THIRD_PARTY_COOKIES.map((cookie) => (
+                <tr key={cookie.provider}>
+                  <td>{cookie.provider}</td>
+                  <td>{cookie.purpose}</td>
+                  <td>{cookie.category}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
 
-          <h2>Managing Your Cookie Preferences</h2>
+          <h2 id="managing">Managing Your Cookie Preferences</h2>
           <p>
             You can manage your cookie preferences in several ways:
           </p>
@@ -139,7 +159,7 @@ export default function CookiePolicyPage() {
             </li>
             <li>
               <strong>Cookie Settings:</strong> You can change your preferences at any time by
-              clicking the "Cookie Settings" link in the footer.
+              clicking the &quot;Cookie Settings&quot; link in the footer.
             </li>
             <li>
               <strong>Browser Settings:</strong> Most browsers allow you to control cookies through
@@ -148,7 +168,7 @@ export default function CookiePolicyPage() {
             </li>
           </ul>
 
-          <h2>Your Rights Under GDPR</h2>
+          <h2 id="gdpr">Your Rights Under GDPR</h2>
           <p>
             If you are located in the European Economic Area (EEA), you have certain rights under
             the General Data Protection Regulation (GDPR):
@@ -156,38 +176,43 @@ export default function CookiePolicyPage() {
           <ul>
             <li>The right to access your personal data</li>
             <li>The right to rectify inaccurate data</li>
-            <li>The right to erasure ("right to be forgotten")</li>
+            <li>The right to erasure (&quot;right to be forgotten&quot;)</li>
             <li>The right to restrict processing</li>
             <li>The right to data portability</li>
             <li>The right to object to processing</li>
             <li>The right to withdraw consent at any time</li>
           </ul>
 
-          <h2>Changes to This Policy</h2>
+          <h2 id="changes">Changes to This Policy</h2>
           <p>
             We may update this Cookie Policy from time to time to reflect changes in our practices
             or for other operational, legal, or regulatory reasons. We will notify you of any
-            material changes by updating the "Last updated" date at the top of this policy.
+            material changes by updating the &quot;Last updated&quot; date at the top of this policy.
           </p>
 
-          <h2>Contact Us</h2>
+          <h2 id="contact">Contact Us</h2>
           <p>
             If you have any questions about our use of cookies or this Cookie Policy, please
             contact us at:
           </p>
-          <ul>
-            <li>Email: privacy@1fillr.co.uk</li>
-          </ul>
+          <div className="legal-section-card">
+            <ul>
+              <li>
+                <strong>Email:</strong>{' '}
+                <a href="mailto:privacy@1fillr.co.uk">privacy@1fillr.co.uk</a>
+              </li>
+            </ul>
+          </div>
 
           <h2>Related Policies</h2>
           <ul>
             <li>
-              <Link href="/privacy" className="text-blue-600 hover:underline">
+              <Link href="/privacy">
                 Privacy Policy
               </Link>
             </li>
             <li>
-              <Link href="/terms" className="text-blue-600 hover:underline">
+              <Link href="/terms">
                 Terms of Service
               </Link>
             </li>

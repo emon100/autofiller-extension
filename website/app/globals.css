@@ -103,3 +103,95 @@
 .animate-slide-out-right {
   animation: slide-out-right 0.3s ease-out forwards;
 }
+
+/* ===== Legal Page Typography ===== */
+.legal-prose h2 {
+  @apply text-xl font-bold text-gray-900 mt-10 mb-4 pb-3 border-b border-gray-200;
+}
+
+.legal-prose h2:first-child {
+  @apply mt-0;
+}
+
+.legal-prose h3 {
+  @apply text-base font-semibold text-gray-800 mt-6 mb-3;
+}
+
+.legal-prose p {
+  @apply text-[15px] leading-relaxed text-gray-600 mb-4;
+}
+
+.legal-prose ul {
+  @apply my-3 ml-1 space-y-2;
+}
+
+.legal-prose ul li {
+  @apply text-[15px] leading-relaxed text-gray-600 pl-5 relative;
+}
+
+.legal-prose ul li::before {
+  content: '';
+  @apply absolute left-0 top-[10px] w-1.5 h-1.5 rounded-full bg-blue-400;
+}
+
+.legal-prose a {
+  @apply text-blue-600 hover:text-blue-800 underline underline-offset-2 decoration-blue-300 hover:decoration-blue-600 transition-colors;
+}
+
+.legal-prose strong {
+  @apply font-semibold text-gray-800;
+}
+
+/* Legal page tables */
+.legal-prose table {
+  @apply w-full text-sm my-4 border border-gray-200 rounded-lg overflow-hidden;
+}
+
+.legal-prose thead {
+  @apply bg-gray-50;
+}
+
+.legal-prose thead th {
+  @apply text-left py-3 px-4 font-semibold text-gray-700 text-xs uppercase tracking-wider;
+}
+
+.legal-prose tbody tr {
+  @apply border-t border-gray-100 transition-colors hover:bg-gray-50/50;
+}
+
+.legal-prose tbody td {
+  @apply py-3 px-4 text-gray-600;
+}
+
+/* Highlighted callout box for important sections */
+.legal-callout {
+  @apply my-6 p-5 bg-blue-50/70 border border-blue-200 rounded-xl;
+}
+
+.legal-callout p,
+.legal-callout li {
+  @apply text-gray-700;
+}
+
+/* Section card styling */
+.legal-section-card {
+  @apply my-6 p-5 bg-gray-50/50 border border-gray-100 rounded-xl;
+}
+
+/* Table of contents */
+.legal-toc {
+  @apply my-8 p-5 bg-gray-50 border border-gray-200 rounded-xl;
+}
+
+.legal-toc-title {
+  @apply text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3;
+}
+
+.legal-toc a {
+  @apply block py-1.5 text-sm text-gray-600 hover:text-blue-600 transition-colors no-underline;
+}
+
+.legal-toc a:hover {
+  @apply translate-x-1;
+  transition: transform 0.15s ease;
+}

@@ -40,7 +40,7 @@ export function groupProductsByPlan(products: Product[]): Plan[] {
     name: 'Free',
     description: 'Perfect for trying out 1Fillr',
     credits: '200 credits',
-    features: ['Basic auto-fill', 'Local data storage', 'Standard support'],
+    features: ['Basic auto-fill', 'Secure data storage', 'Standard support'],
     popular: false,
     monthlyPrice: 0,
     yearlyPrice: 0,
