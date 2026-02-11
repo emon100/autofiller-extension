@@ -1,6 +1,6 @@
 'use client';
 
-import { Zap, Shield, Globe, RefreshCw, Eye, Lock, Database, Cpu, FileText, LucideIcon } from 'lucide-react';
+import { Zap, Shield, Globe, RefreshCw, Eye, Lock, Cpu, FileText, LucideIcon } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 
 interface FeatureCardProps {
@@ -39,7 +39,7 @@ export default function Features() {
   ];
 
   const privacyFeatures = [
-    { icon: Database, title: t('hero.privacy.localStorage'), description: t('hero.privacy.localStorageDesc') },
+    { icon: Shield, title: t('hero.privacy.localStorage'), description: t('hero.privacy.localStorageDesc') },
     { icon: Cpu, title: t('hero.privacy.aiLogic'), description: t('hero.privacy.aiLogicDesc') },
     { icon: FileText, title: t('hero.privacy.smartImport'), description: t('hero.privacy.smartImportDesc') },
   ];

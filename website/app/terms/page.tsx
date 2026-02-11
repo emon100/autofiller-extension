@@ -7,6 +7,26 @@ export const metadata = {
   description: 'Read the terms and conditions for using 1Fillr services.',
 };
 
+const TOC_ITEMS = [
+  { id: 'agreement', label: '1. Agreement to Terms' },
+  { id: 'description', label: '2. Description of Service' },
+  { id: 'eligibility', label: '3. Eligibility' },
+  { id: 'account', label: '4. Account Registration' },
+  { id: 'payments', label: '5. Subscription, Payments and Refunds' },
+  { id: 'acceptable-use', label: '6. Acceptable Use' },
+  { id: 'user-content', label: '7. User Content' },
+  { id: 'ip', label: '8. Intellectual Property' },
+  { id: 'third-party', label: '9. Third-Party Services' },
+  { id: 'disclaimers', label: '10. Disclaimers' },
+  { id: 'liability', label: '11. Limitation of Liability' },
+  { id: 'indemnification', label: '12. Indemnification' },
+  { id: 'termination', label: '13. Termination' },
+  { id: 'disputes', label: '14. Dispute Resolution' },
+  { id: 'general', label: '15. General Provisions' },
+  { id: 'changes', label: '16. Changes to Terms' },
+  { id: 'contact', label: '17. Contact Information' },
+];
+
 export default function TermsOfServicePage() {
   return (
     <main className="min-h-screen bg-white">
@@ -30,20 +50,32 @@ export default function TermsOfServicePage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Terms of Service</h1>
         <p className="text-gray-500 mb-8">Last updated: February 8, 2026</p>
 
-        <div className="prose prose-gray max-w-none">
-          <h2>1. Agreement to Terms</h2>
+        {/* Table of Contents */}
+        <div className="legal-toc">
+          <p className="legal-toc-title">Table of Contents</p>
+          <nav className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+            {TOC_ITEMS.map((item) => (
+              <a key={item.id} href={`#${item.id}`}>
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        </div>
+
+        <div className="legal-prose">
+          <h2 id="agreement">1. Agreement to Terms</h2>
           <p>
-            By accessing or using 1Fillr's services, including our Chrome extension and website
-            (collectively, the "Service"), you agree to be bound by these Terms of Service
-            ("Terms"). If you do not agree to these Terms, please do not use the Service.
+            By accessing or using 1Fillr&apos;s services, including our Chrome extension and website
+            (collectively, the &quot;Service&quot;), you agree to be bound by these Terms of Service
+            (&quot;Terms&quot;). If you do not agree to these Terms, please do not use the Service.
           </p>
           <p>
-            These Terms constitute a legally binding agreement between you and 1Fillr ("we",
-            "our", or "us"). We may update these Terms from time to time, and your continued use
+            These Terms constitute a legally binding agreement between you and 1Fillr (&quot;we&quot;,
+            &quot;our&quot;, or &quot;us&quot;). We may update these Terms from time to time, and your continued use
             of the Service constitutes acceptance of any changes.
           </p>
 
-          <h2>2. Description of Service</h2>
+          <h2 id="description">2. Description of Service</h2>
           <p>
             1Fillr is a Chrome browser extension and related services that help users
             automatically fill job application forms. The Service includes:
@@ -55,7 +87,7 @@ export default function TermsOfServicePage() {
             <li>AI-powered form field detection and matching</li>
           </ul>
 
-          <h2>3. Eligibility</h2>
+          <h2 id="eligibility">3. Eligibility</h2>
           <p>To use our Service, you must:</p>
           <ul>
             <li>Be at least 16 years of age</li>
@@ -64,7 +96,7 @@ export default function TermsOfServicePage() {
             <li>Provide accurate and complete registration information</li>
           </ul>
 
-          <h2>4. Account Registration</h2>
+          <h2 id="account">4. Account Registration</h2>
           <p>
             To access certain features, you may need to create an account. You agree to:
           </p>
@@ -79,14 +111,13 @@ export default function TermsOfServicePage() {
             We reserve the right to suspend or terminate accounts that violate these Terms.
           </p>
 
-          <h2>5. Subscription, Payments and Refunds</h2>
+          <h2 id="payments">5. Subscription, Payments and Refunds</h2>
 
           <h3>5.1 Merchant of Record</h3>
           <p>
             All payments for 1Fillr are processed by our Merchant of Record,{' '}
             <a
               href="https://www.paddle.com"
-              className="text-blue-600 hover:underline"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -97,11 +128,10 @@ export default function TermsOfServicePage() {
             By placing an order, you agree to{' '}
             <a
               href="https://www.paddle.com/legal/invoiced-consumer-terms"
-              className="text-blue-600 hover:underline"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Paddle's Consumer Terms and Conditions
+              Paddle&apos;s Consumer Terms and Conditions
             </a>
             .
           </p>
@@ -141,7 +171,7 @@ export default function TermsOfServicePage() {
             If you wish to cancel your subscription, please do so through your account
             dashboard or by contacting Paddle at least 48 hours before the end of the
             current billing period. Your cancellation will take effect at the next payment
-            date. There are no refunds on unused subscription periods.
+            date.
           </p>
           <p>
             If Paddle cannot charge your payment method for any reason (such as expiration or
@@ -160,7 +190,6 @@ export default function TermsOfServicePage() {
             contacting{' '}
             <a
               href="https://paddle.net"
-              className="text-blue-600 hover:underline"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -191,29 +220,33 @@ export default function TermsOfServicePage() {
           </p>
 
           <h3>5.8 Refund Policy</h3>
-          <p>
-            Refunds are provided at the sole discretion of Paddle and on a case-by-case
-            basis. Paddle will refuse a refund request if there is evidence of fraud,
-            refund abuse, or other manipulative behaviour.
-          </p>
-          <p>
-            This does not affect your rights as a Consumer in relation to products which
-            are not as described, faulty, or not fit for purpose.
-          </p>
-          <p>
-            For full details, please refer to{' '}
-            <a
-              href="https://www.paddle.com/legal/invoiced-consumer-terms"
-              className="text-blue-600 hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Paddle's Consumer Terms
-            </a>
-            .
-          </p>
+          <div className="legal-callout">
+            <p>
+              All refund requests are handled by our Merchant of Record, Paddle. You may
+              request a refund at any time by contacting{' '}
+              <a
+                href="https://paddle.net"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Paddle Support
+              </a>
+              .
+            </p>
+            <p>
+              For full details, please refer to{' '}
+              <a
+                href="https://www.paddle.com/legal/invoiced-consumer-terms"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Paddle&apos;s Consumer Terms
+              </a>
+              .
+            </p>
+          </div>
 
-          <h2>6. Acceptable Use</h2>
+          <h2 id="acceptable-use">6. Acceptable Use</h2>
           <p>You agree not to use the Service to:</p>
           <ul>
             <li>Violate any applicable laws or regulations</li>
@@ -227,11 +260,11 @@ export default function TermsOfServicePage() {
             <li>Use the Service for any illegal or unauthorized purpose</li>
           </ul>
 
-          <h2>7. User Content</h2>
+          <h2 id="user-content">7. User Content</h2>
 
           <h3>7.1 Your Data</h3>
           <p>
-            You retain ownership of all data you provide to the Service ("User Content"). By using
+            You retain ownership of all data you provide to the Service (&quot;User Content&quot;). By using
             the Service, you grant us a limited license to:
           </p>
           <ul>
@@ -253,7 +286,7 @@ export default function TermsOfServicePage() {
             us. Deleted data cannot be recovered.
           </p>
 
-          <h2>8. Intellectual Property</h2>
+          <h2 id="ip">8. Intellectual Property</h2>
 
           <h3>8.1 Our Intellectual Property</h3>
           <p>
@@ -268,7 +301,7 @@ export default function TermsOfServicePage() {
             non-exclusive, royalty-free license to use, modify, and incorporate such feedback.
           </p>
 
-          <h2>9. Third-Party Services</h2>
+          <h2 id="third-party">9. Third-Party Services</h2>
           <p>
             The Service may integrate with or link to third-party services (e.g., job application
             websites). We are not responsible for:
@@ -282,11 +315,11 @@ export default function TermsOfServicePage() {
             Your use of third-party services is subject to their respective terms and policies.
           </p>
 
-          <h2>10. Disclaimers</h2>
+          <h2 id="disclaimers">10. Disclaimers</h2>
 
           <h3>10.1 Service Availability</h3>
           <p>
-            THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND,
+            THE SERVICE IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; WITHOUT WARRANTIES OF ANY KIND,
             EXPRESS OR IMPLIED. We do not guarantee that the Service will be uninterrupted,
             error-free, or secure.
           </p>
@@ -304,7 +337,7 @@ export default function TermsOfServicePage() {
             require manual input.
           </p>
 
-          <h2>11. Limitation of Liability</h2>
+          <h2 id="liability">11. Limitation of Liability</h2>
           <p>
             TO THE MAXIMUM EXTENT PERMITTED BY LAW, 1FILLR SHALL NOT BE LIABLE FOR:
           </p>
@@ -319,7 +352,7 @@ export default function TermsOfServicePage() {
             to you.
           </p>
 
-          <h2>12. Indemnification</h2>
+          <h2 id="indemnification">12. Indemnification</h2>
           <p>
             You agree to indemnify and hold harmless 1Fillr and its officers, directors,
             employees, and agents from any claims, damages, losses, or expenses (including legal
@@ -332,7 +365,7 @@ export default function TermsOfServicePage() {
             <li>Your User Content</li>
           </ul>
 
-          <h2>13. Termination</h2>
+          <h2 id="termination">13. Termination</h2>
 
           <h3>13.1 Termination by You</h3>
           <p>
@@ -359,12 +392,12 @@ export default function TermsOfServicePage() {
             effect.
           </p>
 
-          <h2>14. Dispute Resolution</h2>
+          <h2 id="disputes">14. Dispute Resolution</h2>
 
           <h3>14.1 Informal Resolution</h3>
           <p>
             Before filing a formal dispute, you agree to contact us at{' '}
-            <a href="mailto:legal@1fillr.co.uk" className="text-blue-600 hover:underline">
+            <a href="mailto:legal@1fillr.co.uk">
               legal@1fillr.co.uk
             </a>{' '}
             to attempt to resolve the dispute informally.
@@ -383,7 +416,7 @@ export default function TermsOfServicePage() {
             applicable consumer protection laws.
           </p>
 
-          <h2>15. General Provisions</h2>
+          <h2 id="general">15. General Provisions</h2>
 
           <h3>15.1 Entire Agreement</h3>
           <p>
@@ -415,52 +448,48 @@ export default function TermsOfServicePage() {
             Service. You may contact us at the addresses provided below.
           </p>
 
-          <h2>16. Changes to Terms</h2>
+          <h2 id="changes">16. Changes to Terms</h2>
           <p>
             We may modify these Terms at any time. Material changes will be notified via:
           </p>
           <ul>
             <li>Email to registered users</li>
             <li>Prominent notice on the Service</li>
-            <li>Update to the "Last updated" date</li>
+            <li>Update to the &quot;Last updated&quot; date</li>
           </ul>
           <p>
             Your continued use of the Service after changes constitutes acceptance of the new
             Terms.
           </p>
 
-          <h2>17. Contact Information</h2>
+          <h2 id="contact">17. Contact Information</h2>
           <p>For questions about these Terms, please contact us:</p>
-          <ul>
-            <li>
-              <strong>General Inquiries:</strong>{' '}
-              <a href="mailto:support@1fillr.co.uk" className="text-blue-600 hover:underline">
-                support@1fillr.co.uk
-              </a>
-            </li>
-            <li>
-              <strong>Legal Matters:</strong>{' '}
-              <a href="mailto:legal@1fillr.co.uk" className="text-blue-600 hover:underline">
-                legal@1fillr.co.uk
-              </a>
-            </li>
-            <li>
-              <strong>Privacy Concerns:</strong>{' '}
-              <a href="mailto:privacy@1fillr.co.uk" className="text-blue-600 hover:underline">
-                privacy@1fillr.co.uk
-              </a>
-            </li>
-          </ul>
+          <div className="legal-section-card">
+            <ul>
+              <li>
+                <strong>General Inquiries:</strong>{' '}
+                <a href="mailto:support@1fillr.co.uk">support@1fillr.co.uk</a>
+              </li>
+              <li>
+                <strong>Legal Matters:</strong>{' '}
+                <a href="mailto:legal@1fillr.co.uk">legal@1fillr.co.uk</a>
+              </li>
+              <li>
+                <strong>Privacy Concerns:</strong>{' '}
+                <a href="mailto:privacy@1fillr.co.uk">privacy@1fillr.co.uk</a>
+              </li>
+            </ul>
+          </div>
 
           <h2>Related Policies</h2>
           <ul>
             <li>
-              <Link href="/privacy" className="text-blue-600 hover:underline">
+              <Link href="/privacy">
                 Privacy Policy
               </Link>
             </li>
             <li>
-              <Link href="/cookies" className="text-blue-600 hover:underline">
+              <Link href="/cookies">
                 Cookie Policy
               </Link>
             </li>

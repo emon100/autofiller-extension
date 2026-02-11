@@ -126,7 +126,7 @@ export function SavedAnswersPanel() {
           {answerList.length} 字段
         </span>
         <span className="px-2 py-1 bg-green-50 text-green-600 rounded">
-          本地存储
+          安全存储
         </span>
       </div>
 
@@ -270,7 +270,7 @@ export function SavedAnswersPanel() {
             清空全部
           </button>
           <span className="text-xs text-gray-400">
-            数据仅存储在本地
+            数据安全存储
           </span>
         </div>
       )}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Zap, User, Menu, X, LogOut, Shield, Database, Lock } from 'lucide-react';
+import { ArrowRight, Zap, User, Menu, X, LogOut, Shield, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useI18n } from '@/lib/i18n';
 import HeroDemo from './HeroDemo';
@@ -256,7 +256,7 @@ export default function Hero() {
           {/* Privacy Trust Badges */}
           <div className="mb-8 flex flex-wrap items-center justify-center gap-4 text-sm">
             <div className="flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-green-700">
-              <Database className="h-4 w-4" />
+              <Shield className="h-4 w-4" />
               <span>{t('hero.trustBadges.localStorage')}</span>
             </div>
             <div className="flex items-center gap-2 rounded-full bg-purple-50 px-4 py-2 text-purple-700">

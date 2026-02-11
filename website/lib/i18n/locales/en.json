@@ -28,7 +28,7 @@
     "backToHome": "Back to Home"
   },
   "hero": {
-    "badge": "Local storage, privacy first",
+    "badge": "AI-powered, privacy first",
     "titleFill": "Fill",
     "title10x": "10x Faster",
     "subtitle": "Stop typing the same information over and over. 1Fillr learns your profile once and fills any form in seconds.",
@@ -36,18 +36,18 @@
     "ctaHowItWorks": "See How It Works",
     "freeCredits": "20 free fills included. No credit card required.",
     "trustBadges": {
-      "localStorage": "Data stored locally",
-      "aiPrivacy": "AI processes logic only, not your data",
+      "localStorage": "Encrypted data protection",
+      "aiPrivacy": "AI-powered smart filling",
       "import": "LinkedIn / PDF import"
     },
     "privacy": {
       "title": "How We Protect Your Privacy",
-      "localStorage": "Local Storage",
-      "localStorageDesc": "Your personal information (name, email, work history, etc.) is stored only in your browser and never uploaded to any server.",
-      "aiLogic": "AI Processes Logic Only",
-      "aiLogicDesc": "We use AI to identify form field types (e.g., \"is this a name field or email field\"), but we never send your actual personal information to AI.",
+      "localStorage": "Data Encryption",
+      "localStorageDesc": "Your personal information is protected with industry-standard encryption, both in transit and at rest.",
+      "aiLogic": "AI-Powered Smart Fill",
+      "aiLogicDesc": "We use AI to intelligently match your profile data to form fields, ensuring accurate and fast filling across any job application platform.",
       "smartImport": "Smart Import",
-      "smartImportDesc": "Import information from LinkedIn pages or resume PDFs with one click. Imported data is also stored locally only."
+      "smartImportDesc": "Import information from LinkedIn pages or resume PDFs with one click. Your data is securely processed and stored."
     },
     "formTypes": {
       "jobApplications": "Job Applications",
@@ -70,7 +70,7 @@
     "steps": {
       "import": {
         "title": "Import Profile",
-        "description": "Import your information from LinkedIn or resume PDF to your local knowledge base"
+        "description": "Import your information from LinkedIn or resume PDF to your knowledge base"
       },
       "fillAndLearn": {
         "title": "Smart Fill + Learn",
@@ -84,9 +84,9 @@
     "linkedinUrl": "LinkedIn Profile URL",
     "parse": "Parse",
     "parsing": "Parsing LinkedIn page...",
-    "importToKb": "Import to local knowledge base",
+    "importToKb": "Import to knowledge base",
     "complete": "Complete",
-    "imported": "{count} fields imported to knowledge base, data stored locally only",
+    "imported": "{count} fields imported to knowledge base",
     "learnedNewContent": "Learned New Content",
     "learnedNewDesc": "Detected {count} new fields. Save to knowledge base?",
     "confirmSave": "Confirm Save",
@@ -137,7 +137,7 @@
     },
     "privacyFirst": {
       "title": "Privacy First",
-      "description": "Your data stays on your device. We never store or transmit your personal information."
+      "description": "Your data is encrypted and protected. We use industry-standard security to safeguard your information."
     },
     "learnsOnce": {
       "title": "Learns Once",
@@ -196,7 +196,7 @@
       "features": [
         "20 form fills",
         "All ATS platforms supported",
-        "Local data storage",
+        "Secure data storage",
         "Basic field recognition"
       ]
     }
@@ -206,7 +206,7 @@
     "subtitle": "Got questions? We've got answers.",
     "q1": {
       "question": "Is my data safe with 1Fillr?",
-      "answer": "Absolutely. Your data is stored locally on your device and never transmitted to our servers. We use industry-standard encryption for any sensitive information. You have full control over your data and can delete it at any time."
+      "answer": "Absolutely. We use industry-standard encryption to protect all your data, both in transit and at rest. You have full control over your data and can delete it at any time."
     },
     "q2": {
       "question": "Which job sites does 1Fillr support?",
@@ -222,7 +222,7 @@
     },
     "q5": {
       "question": "Do I need to create an account?",
-      "answer": "No account is required to use the free tier. Your data stays entirely on your device. An account is only needed if you want cloud sync or purchase additional credits."
+      "answer": "No account is required to use the free tier. An account is only needed if you want to purchase additional credits or access premium features."
     },
     "q6": {
       "question": "Can I get a refund?",
@@ -356,14 +356,14 @@
     "subtitle": "Interactive Form Filling Demo",
     "knowledgeBase": "Knowledge Base",
     "fields": "{count} fields",
-    "localStorage": "Local storage",
+    "localStorage": "Secure storage",
     "addField": "Add Field",
     "fieldType": "Field type (e.g. COMPANY)",
     "fieldValue": "Field value",
     "emptyKb": "Knowledge base is empty",
     "loadProfileOrFill": "Load a profile or fill forms to build your knowledge base",
     "clearAll": "Clear All",
-    "dataStoredLocally": "Data stored locally only",
+    "dataStoredLocally": "Data securely stored",
     "exportData": "Export data",
     "categories": {
       "personal": "Personal Info",

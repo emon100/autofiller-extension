@@ -28,7 +28,7 @@
     "backToHome": "返回首页"
   },
   "hero": {
-    "badge": "数据本地存储，隐私优先",
+    "badge": "AI 驱动，隐私优先",
     "titleFill": "填写",
     "title10x": "快 10 倍",
     "subtitle": "不再重复输入相同的信息。1Fillr 只需学习一次您的资料，即可在几秒内填写任何表单。",
@@ -36,18 +36,18 @@
     "ctaHowItWorks": "了解工作原理",
     "freeCredits": "包含 20 次免费填写，无需信用卡。",
     "trustBadges": {
-      "localStorage": "数据仅存本地",
-      "aiPrivacy": "AI 只处理逻辑，不读取隐私",
+      "localStorage": "加密数据保护",
+      "aiPrivacy": "AI 智能填写",
       "import": "LinkedIn / PDF 一键导入"
     },
     "privacy": {
       "title": "我们如何保护您的隐私",
-      "localStorage": "数据本地存储",
-      "localStorageDesc": "您的个人信息（姓名、邮箱、工作经历等）仅保存在您的浏览器中，从不上传到任何服务器。",
-      "aiLogic": "AI 只处理逻辑",
-      "aiLogicDesc": "我们使用 AI 来识别表单字段类型（如「这是姓名框还是邮箱框」），但从不向 AI 发送您的实际个人信息。",
+      "localStorage": "数据加密",
+      "localStorageDesc": "您的个人信息通过行业标准加密技术保护，传输和存储过程中均有安全保障。",
+      "aiLogic": "AI 智能填写",
+      "aiLogicDesc": "我们使用 AI 智能匹配您的个人资料和表单字段，确保在任何求职平台上都能准确快速地填写。",
       "smartImport": "智能导入",
-      "smartImportDesc": "支持从 LinkedIn 页面或简历 PDF 一键导入信息，导入后的数据同样仅存储在本地。"
+      "smartImportDesc": "支持从 LinkedIn 页面或简历 PDF 一键导入信息，数据安全处理并存储。"
     },
     "formTypes": {
       "jobApplications": "求职申请",
@@ -70,7 +70,7 @@
     "steps": {
       "import": {
         "title": "导入个人资料",
-        "description": "从 LinkedIn 或简历 PDF 一键导入您的信息到本地知识库"
+        "description": "从 LinkedIn 或简历 PDF 一键导入您的信息到知识库"
       },
       "fillAndLearn": {
         "title": "智能填写 + 学习",
@@ -84,9 +84,9 @@
     "linkedinUrl": "LinkedIn 个人主页链接",
     "parse": "解析",
     "parsing": "正在解析 LinkedIn 页面...",
-    "importToKb": "导入到本地知识库",
+    "importToKb": "导入到知识库",
     "complete": "完成",
-    "imported": "已导入 {count} 个字段到知识库，数据仅存储在本地",
+    "imported": "已导入 {count} 个字段到知识库",
     "learnedNewContent": "学习到新内容",
     "learnedNewDesc": "检测到 {count} 个新字段，是否保存到知识库？",
     "confirmSave": "确认保存",
@@ -137,7 +137,7 @@
     },
     "privacyFirst": {
       "title": "隐私优先",
-      "description": "您的数据保留在您的设备上。我们从不存储或传输您的个人信息。"
+      "description": "您的数据通过加密技术保护。我们使用行业标准安全措施保障您的信息。"
     },
     "learnsOnce": {
       "title": "一次学习",
@@ -196,7 +196,7 @@
       "features": [
         "20 次表单填写",
         "支持所有 ATS 平台",
-        "本地数据存储",
+        "安全数据存储",
         "基础字段识别"
       ]
     }
@@ -206,7 +206,7 @@
     "subtitle": "有问题？我们有答案。",
     "q1": {
       "question": "我的数据在 1Fillr 中安全吗？",
-      "answer": "绝对安全。您的数据存储在您的本地设备上，从不传输到我们的服务器。我们对任何敏感信息使用行业标准加密。您可以完全控制您的数据，并可以随时删除。"
+      "answer": "绝对安全。我们使用行业标准加密技术保护您的所有数据，传输和存储过程中均有安全保障。您可以完全控制您的数据，并可以随时删除。"
     },
     "q2": {
       "question": "1Fillr 支持哪些求职网站？",
@@ -222,7 +222,7 @@
     },
     "q5": {
       "question": "我需要创建账户吗？",
-      "answer": "使用免费版不需要账户。您的数据完全保留在您的设备上。只有当您想要云同步或购买额外积分时才需要账户。"
+      "answer": "使用免费版不需要账户。只有当您想要购买额外积分或使用高级功能时才需要账户。"
     },
     "q6": {
       "question": "我可以退款吗？",
@@ -356,14 +356,14 @@
     "subtitle": "交互式表单填写演示",
     "knowledgeBase": "知识库",
     "fields": "{count} 个字段",
-    "localStorage": "本地存储",
+    "localStorage": "安全存储",
     "addField": "添加字段",
     "fieldType": "字段类型（如 COMPANY）",
     "fieldValue": "字段值",
     "emptyKb": "知识库为空",
     "loadProfileOrFill": "加载预设档案或填写表单来建立知识库",
     "clearAll": "清空全部",
-    "dataStoredLocally": "数据仅存储在本地",
+    "dataStoredLocally": "数据安全存储",
     "exportData": "导出数据",
     "categories": {
       "personal": "个人信息",
