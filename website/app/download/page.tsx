@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { Zap, Download, ChevronRight, Shield, ArrowLeft } from 'lucide-react';
-import Footer from '@/components/landing/Footer';
 import { useI18n } from '@/lib/i18n';
 
 export default function DownloadPage() {
@@ -157,7 +156,6 @@ export default function DownloadPage() {
         </div>
       </section>
 
-      <Footer />
     </main>
   );
 }

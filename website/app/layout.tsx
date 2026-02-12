@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Script from "next/script";
 import { Inter } from 'next/font/google';
 import CookieConsent from '@/components/CookieConsent';
+import Footer from '@/components/landing/Footer';
 import { I18nProvider } from '@/lib/i18n';
 import './globals.css';
 
@@ -87,6 +88,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <I18nProvider>
           {children}
+          <Footer />
           <CookieConsent />
         </I18nProvider>
       </body>

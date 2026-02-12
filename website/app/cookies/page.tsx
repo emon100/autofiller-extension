@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { Zap, ArrowLeft } from 'lucide-react';
-import Footer from '@/components/landing/Footer';
 
 export const metadata = {
   title: 'Cookie Policy | 1Fillr',
@@ -220,7 +219,6 @@ export default function CookiePolicyPage() {
         </div>
       </div>
 
-      <Footer />
     </main>
   );
 }

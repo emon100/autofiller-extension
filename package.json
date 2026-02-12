@@ -5,11 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "demo": "vite --host 127.0.0.1 --port 5173",
     "build": "tsc && vite build && BUILD_TARGET=content vite build",
     "build:prod": "tsc && BUILD_MODE=production vite build && BUILD_MODE=production BUILD_TARGET=content vite build",
     "test": "vitest --run",
+    "test:unit": "vitest --run tests/unit",
+    "test:contract": "vitest --run tests/contract",
+    "test:all": "npm run test:unit && npm run test:contract && npm run build",
     "test:ui": "vitest --ui",
-    "test:e2e": "playwright test",
+    "test:e2e": "NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost http_proxy= https_proxy= all_proxy= playwright test",
     "lint": "eslint src --ext .ts,.tsx"
   },
   "devDependencies": {
