@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { Zap, ArrowLeft } from 'lucide-react';
-import Footer from '@/components/landing/Footer';
 
 export const metadata = {
   title: 'Terms of Service | 1Fillr',
@@ -497,7 +496,6 @@ export default function TermsOfServicePage() {
         </div>
       </div>
 
-      <Footer />
     </main>
   );
 }
